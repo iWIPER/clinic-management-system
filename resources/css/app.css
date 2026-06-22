@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Estilos específicos do sistema de clínicas */
+.clinic-header {
+    @apply bg-white border-b shadow-sm;
+}
+
+.patient-card {
+    @apply bg-white rounded-xl border p-4 hover:shadow-md transition;
+}

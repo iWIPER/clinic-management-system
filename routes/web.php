@@ -1,0 +1,116 @@
+<?php
+
+use App\Http\Controllers\ProfileController;
+use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
+
+// Rotas públicas
+Route::get('/', function () {
+    return Inertia::render('Welcome', [
+        'canLogin' => Route::has('login'),
+        'canRegister' => Route::has('register'),
+    ]);
+});
+
+// Rotas autenticadas
+Route::middleware(['auth', 'verified'])->group(function () {
+
+    // Onboarding (deve vir antes do middleware de clinic em alguns casos)
+    Route::prefix('onboarding')->name('onboarding.')->group(function () {
+        Route::get('/choose-role', [\App\Http\Controllers\OnboardingController::class, 'showRoleChoice'])->name('choose-role');
+        Route::post('/choose-role', [\App\Http\Controllers\OnboardingController::class, 'chooseRole']);
+
+        Route::get('/create-clinic', [\App\Http\Controllers\OnboardingController::class, 'createClinic'])->name('create-clinic');
+        Route::post('/create-clinic', [\App\Http\Controllers\OnboardingController::class, 'storeClinic']);
+
+        Route::get('/invite-team', [\App\Http\Controllers\OnboardingController::class, 'inviteTeam'])->name('invite-team');
+        Route::post('/invite-team', [\App\Http\Controllers\OnboardingController::class, 'sendInvites']);
+
+        Route::get('/join', [\App\Http\Controllers\OnboardingController::class, 'joinInvite'])->name('join-invite');
+        Route::post('/join', [\App\Http\Controllers\OnboardingController::class, 'acceptInvite']);
+    });
+
+    // A partir daqui exigimos uma clínica ativa
+    Route::middleware('clinic')->group(function () {
+        Route::get('/dashboard', function () {
+            $user = auth()->user();
+            $clinicId = session('current_clinic_id');
+
+            if (!$clinicId) {
+                $clinic = $user?->clinics()->first();
+                if ($clinic) {
+                    session(['current_clinic_id' => $clinic->id]);
+                    session(['current_clinic' => $clinic->only('id', 'name', 'type')]);
+                } else {
+                    return redirect()->route('onboarding.choose-role');
+                }
+            }
+
+            return Inertia::render('Dashboard', [
+                'clinic' => session('current_clinic'),
+                'stats' => [
+                    'patients' => 12,
+                    'appointments_today' => 4,
+                    'consultations_in_progress' => 1,
+                    'revenue_month' => '4.850,00',
+                ],
+            ]);
+        })->name('dashboard');
+
+        // Pacientes - CRUD completo
+        Route::get('/patients', [\App\Http\Controllers\PatientController::class, 'index'])->name('patients.index');
+        Route::get('/patients/create', [\App\Http\Controllers\PatientController::class, 'create'])->name('patients.create');
+        Route::post('/patients', [\App\Http\Controllers\PatientController::class, 'store'])->name('patients.store');
+        Route::get('/patients/{patient}', [\App\Http\Controllers\PatientController::class, 'show'])->name('patients.show');
+        Route::get('/patients/{patient}/edit', [\App\Http\Controllers\PatientController::class, 'edit'])->name('patients.edit');
+        Route::put('/patients/{patient}', [\App\Http\Controllers\PatientController::class, 'update'])->name('patients.update');
+        Route::delete('/patients/{patient}', [\App\Http\Controllers\PatientController::class, 'destroy'])->name('patients.destroy');
+
+        // Agenda (Agendamentos)
+        Route::get('/appointments', [\App\Http\Controllers\AppointmentController::class, 'index'])->name('appointments.index');
+        Route::get('/appointments/create', [\App\Http\Controllers\AppointmentController::class, 'create'])->name('appointments.create');
+        Route::post('/appointments', [\App\Http\Controllers\AppointmentController::class, 'store'])->name('appointments.store');
+        Route::get('/appointments/{appointment}/edit', [\App\Http\Controllers\AppointmentController::class, 'edit'])->name('appointments.edit');
+        Route::put('/appointments/{appointment}', [\App\Http\Controllers\AppointmentController::class, 'update'])->name('appointments.update');
+        Route::delete('/appointments/{appointment}', [\App\Http\Controllers\AppointmentController::class, 'destroy'])->name('appointments.destroy');
+
+        // Consultas (fluxo de atendimento)
+        Route::get('/consultations', [\App\Http\Controllers\ConsultationController::class, 'index'])->name('consultations.index');
+        Route::get('/consultations/{consultation}', [\App\Http\Controllers\ConsultationController::class, 'show'])->name('consultations.show');
+        Route::post('/consultations/{appointment}/check-in', [\App\Http\Controllers\ConsultationController::class, 'checkIn'])->name('consultations.check-in');
+        Route::post('/consultations/{consultation}/start', [\App\Http\Controllers\ConsultationController::class, 'start'])->name('consultations.start');
+        Route::post('/consultations/{consultation}/finish', [\App\Http\Controllers\ConsultationController::class, 'finish'])->name('consultations.finish');
+        Route::put('/consultations/{consultation}', [\App\Http\Controllers\ConsultationController::class, 'update'])->name('consultations.update');
+        Route::post('/consultations/{consultation}/add-execution', [\App\Http\Controllers\ConsultationController::class, 'addExecution'])->name('consultations.add-execution');
+        // Procedimentos / Catálogo de Tratamentos
+        Route::get('/treatments', [\App\Http\Controllers\TreatmentController::class, 'index'])->name('treatments.index');
+        Route::get('/treatments/create', [\App\Http\Controllers\TreatmentController::class, 'create'])->name('treatments.create');
+        Route::post('/treatments', [\App\Http\Controllers\TreatmentController::class, 'store'])->name('treatments.store');
+        Route::get('/treatments/{treatment}/edit', [\App\Http\Controllers\TreatmentController::class, 'edit'])->name('treatments.edit');
+        Route::put('/treatments/{treatment}', [\App\Http\Controllers\TreatmentController::class, 'update'])->name('treatments.update');
+        Route::delete('/treatments/{treatment}', [\App\Http\Controllers\TreatmentController::class, 'destroy'])->name('treatments.destroy');
+        // Estoque básico
+        Route::get('/inventory', [\App\Http\Controllers\InventoryController::class, 'index'])->name('inventory.index');
+        Route::get('/inventory/create', [\App\Http\Controllers\InventoryController::class, 'create'])->name('inventory.create');
+        Route::post('/inventory', [\App\Http\Controllers\InventoryController::class, 'store'])->name('inventory.store');
+        Route::post('/inventory/{item}/add-stock', [\App\Http\Controllers\InventoryController::class, 'addStock'])->name('inventory.add-stock');
+        // Financeiro básico
+        Route::get('/finance', [\App\Http\Controllers\FinanceController::class, 'index'])->name('finance.index');
+        Route::post('/finance/transactions', [\App\Http\Controllers\FinanceController::class, 'storeTransaction'])->name('finance.store-transaction');
+        Route::post('/finance/pricing', [\App\Http\Controllers\FinanceController::class, 'updatePricing'])->name('finance.update-pricing');
+        Route::post('/finance/budgets', [\App\Http\Controllers\FinanceController::class, 'createBudgetFromExecution'])->name('finance.create-budget');
+
+        // Profile (Breeze)
+        Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+        Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    });
+});
+
+// Google Drive OAuth
+Route::get('/auth/google', [App\Http\Controllers\GoogleDriveController::class, 'connect'])->name('google.connect');
+Route::get('/auth/google/callback', [App\Http\Controllers\GoogleDriveController::class, 'callback'])->name('google.callback');
+Route::post('/auth/google/disconnect/{clinic}', [App\Http\Controllers\GoogleDriveController::class, 'disconnect'])->name('google.disconnect');
+
+Route::post('/patients/{patient}/photos', [App\Http\Controllers\GoogleDriveController::class, 'uploadPhoto'])->name('patients.photos.upload');
