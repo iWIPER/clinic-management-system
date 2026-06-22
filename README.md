@@ -1,126 +1,141 @@
 # Gestão de Clínicas — SaaS MVP (Odontologia + Multi-especialidade)
 
-> **Do agendamento ao recebimento, a clínica inteira numa plataforma só — sem a burocracia de 7 sistemas separados.**
+Sistema SaaS de gestão para clínicas de saúde, com foco inicial em odontologia e arquitetura multi-tenant.
 
-Sistema multi-tenant de gestão para clínicas de saúde, com foco inicial em **odontologia**, construído em Laravel 11 + Inertia + Vue 3 + Tailwind.
+O objetivo do projeto é centralizar pacientes, agenda, prontuário, procedimentos, estoque, financeiro e documentação clínica em uma única plataforma.
 
-**Conformidade**: Português do Brasil + LGPD.
+**Conformidade:** Português do Brasil + LGPD.
 
 ## Status do Projeto
 
-- **Fase atual**: Fundação (Fase 0) + início do Núcleo (Fase 1)
-- Estrutura criada com base no **Prompt de Build completo** (ver `docs/BRIEFING.md`).
+**Status atual:**
+
+* Fundação da plataforma implementada
+* Estrutura multi-tenant configurada
+* Base de autenticação e permissões em desenvolvimento
+* Início da implementação dos módulos clínicos e operacionais
+
+Para detalhes completos da arquitetura e planejamento, consulte `docs/BRIEFING.md`.
 
 ## Stack
 
-- Backend: Laravel 11 (PHP 8.3)
-- Frontend: Inertia.js + Vue 3 (Composition API) + Vite
-- CSS: Tailwind CSS
-- Banco: PostgreSQL 16 (RLS + isolamento por tenant)
-- Auth: Laravel Breeze (Inertia)
-- RBAC: spatie/laravel-permission (com teams)
-- Billing: Laravel Cashier (Stripe)
-- Fotos clínicas: Google Drive do cliente (OAuth + drive.file scope)
-- Armazenamento geral: S3 / local
+* Backend: Laravel 11 (PHP 8.3)
+* Frontend: Inertia.js + Vue 3 (Composition API) + Vite
+* CSS: Tailwind CSS
+* Banco de dados: PostgreSQL 16
+* Autenticação: Laravel Breeze (Inertia)
+* Controle de acesso: spatie/laravel-permission
+* Billing: Laravel Cashier (Stripe)
+* Armazenamento de fotos clínicas: Google Drive (OAuth2)
+* Armazenamento geral: S3 ou local
 
-## Como rodar (desenvolvimento local)
+## Como Executar Localmente
 
-### Opção Recomendada no Windows (fácil)
+### Windows (Recomendado)
 
-1. **Instale Laragon** (recomendado no Brasil):
-   - https://laragon.org/
-   - Inclui PHP 8.3, Composer, Node, MySQL/Postgres, Nginx.
+**Laragon**
 
-2. Ou use **Laravel Herd** (oficial):
-   - https://herd.laravel.com/windows
+https://laragon.org/
 
-3. Ou instale manualmente (elevated PowerShell):
-   ```powershell
-   # Como Administrador
-   choco install php --version=8.3.13 -y
-   choco install composer -y
-   # Adicione C:\php ao PATH se necessário
-   ```
+Inclui PHP, Composer, Node.js, MySQL/PostgreSQL e Nginx em uma única instalação.
 
-### Depois de ter PHP + Composer
+**Alternativa oficial**
+
+https://herd.laravel.com/windows
+
+### Instalação das Dependências
 
 ```bash
 cd C:\Users\drehs\dev\gestao-clinicas
 
-# Instalar dependências PHP
 composer install
-
-# Instalar dependências JS
 npm install
 
-# Copiar .env
 cp .env.example .env
 
-# Gerar chave
 php artisan key:generate
-
-# Configurar banco (veja .env)
-# Rode as migrations depois de configurar o Postgres
 
 php artisan migrate
 
-# Seed inicial (planos + tratamentos odontológicos)
 php artisan db:seed
 
-# Dev servers (dois terminais)
 php artisan serve
 npm run dev
 ```
 
-### Banco de dados (PostgreSQL)
+## Banco de Dados
 
-- Recomendado: Docker Compose (ver `docker-compose.yml` exemplo) ou Postgres via Laragon/WSL.
-- O projeto usa **RLS (Row Level Security)** + Global Scopes.
+O projeto utiliza PostgreSQL com isolamento por tenant através de:
 
-## Estrutura do MVP (conforme briefing)
+* Global Scopes
+* Controle de acesso por clínica
+* Estratégias de segregação de dados definidas na arquitetura da aplicação
 
-### Fundação (Fase 0 — prioridade)
+## Estrutura do MVP
 
-- [x] Multi-tenancy (`clinic_id` + Global Scope + RLS)
-- [ ] RBAC (owner/admin/professional/staff + overrides)
-- [ ] Entitlements / Planos (Start Grátis → Premium)
-- [ ] Onboarding + Auth + Convites
+### Fundação
 
-### Núcleo (Fase 1)
+* [x] Multi-tenancy
+* [ ] Controle de acesso por perfis e permissões
+* [ ] Gestão de planos
+* [ ] Onboarding
+* [ ] Convites para equipe
 
-1. Pacientes (CRUD + import CSV + drive_folder_id)
-2. Agenda (Agendamentos)
-3. Consultas (fluxo check-in → em atendimento → finalizado)
-4. Procedimentos + Tratamentos (catálogo + execução + baixa estoque)
-5. Prontuário (SOAP + galeria de fotos no Google Drive)
-6. Estoque básico
-7. Financeiro básico (orçamentos, transações, precificação)
+### Módulos Principais
 
-**Fluxo-ouro** que deve funcionar no final do MVP:
-Cadastro Paciente → Agendamento → Check-in → Consulta + Prontuário + Fotos + Execução → Baixa no Estoque → Orçamento/Pagamento
+* Pacientes
+* Agenda
+* Consultas
+* Procedimentos
+* Tratamentos
+* Prontuário clínico
+* Estoque
+* Financeiro
 
-## Google Drive Integration (Fotos Clínicas)
+### Fluxo Principal
 
-- OAuth2 por clínica (scope: `drive.file`)
-- Refresh token criptografado em `clinic_storage_connections`
-- `patient_photos` armazena apenas IDs + metadados (bytes ficam no Drive do dentista)
-- Responsabilidade de retenção = da clínica (LGPD + CFO)
+O fluxo mínimo esperado para o MVP é:
 
-## Fora do MVP (roadmap explícito)
+Paciente → Agendamento → Check-in → Atendimento → Prontuário → Procedimentos → Estoque → Pagamento
 
-Ver seção 9 do briefing: WhatsApp + IA, Marketplace, Comissões, etc.
+## Integração com Google Drive
 
-## Comandos úteis
+As fotos clínicas são armazenadas diretamente no Google Drive da clínica.
+
+Características:
+
+* OAuth2 por clínica
+* Tokens armazenados de forma segura
+* Armazenamento apenas de IDs e metadados no banco
+* Arquivos mantidos sob controle da própria clínica
+
+## Roadmap
+
+Itens planejados para versões futuras:
+
+* Integração com WhatsApp
+* Recursos assistidos por IA
+* Marketplace
+* Comissões
+* Relatórios avançados
+* Aplicativo mobile
+
+## Comandos Úteis
 
 ```bash
 php artisan migrate:fresh --seed
+
 php artisan test
 ```
 
-## Contribuição / Próximos Passos
+## Documentação
 
-Siga a ordem do `docs/BRIEFING.md` seção 11.
+A documentação funcional, técnica e arquitetural está disponível em:
 
----
+```text
+docs/BRIEFING.md
+```
 
-**Próximo passo do agente**: Continuar scaffolding da Fundação + primeiras migrations e models do multi-tenancy.
+## Licença
+
+Projeto privado em desenvolvimento.
