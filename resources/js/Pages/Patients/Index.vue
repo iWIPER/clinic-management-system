@@ -71,7 +71,7 @@ const deletePatient = (patient) => {
                             </span>
                         </td>
                         <td class="p-4 text-right space-x-3">
-                            <Link :href="route('patients.edit', patient.id)" class="text-slate-600 hover:text-slate-900">Editar</Link>
+                            <Link :href="route('patients.edit', patient.id)" :cache-for="0" class="text-slate-600 hover:text-slate-900">Editar</Link>
                             <button @click="deletePatient(patient)" class="text-red-600 hover:text-red-700">Excluir</button>
                         </td>
                     </tr>

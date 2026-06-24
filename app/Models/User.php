@@ -36,7 +36,7 @@ class User extends Authenticatable
     public function clinics()
     {
         return $this->belongsToMany(Clinic::class, 'clinic_user')
-                    ->withPivot('role')
+                    ->withPivot('role', 'drive_doctor_folder_id')
                     ->withTimestamps();
     }
 

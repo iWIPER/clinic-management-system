@@ -7,8 +7,6 @@ const form = useForm({
     sobrenome: '',
     nascimento: '',
     status: 'ativo',
-    profissao: '',
-    estado_civil: '',
     doc_tipo: 'cpf',
     doc_numero: '',
     telefone: '',

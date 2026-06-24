@@ -11,11 +11,13 @@ class ClinicStorageConnection extends Model
 
     protected $fillable = [
         'clinic_id',
-        'provider',           // google
-        'refresh_token',      // criptografado
-        'access_token',       // temporário
+        'provider',             // google
+        'google_email',         // conta Google conectada
+        'refresh_token',        // criptografado
+        'access_token',         // criptografado (JSON do token completo)
         'expires_at',
-        'status',             // connected, revoked, error
+        'status',               // connected, revoked, error
+        'drive_root_folder_id', // ID da pasta CliniFlow no Drive
     ];
 
     protected $hidden = [

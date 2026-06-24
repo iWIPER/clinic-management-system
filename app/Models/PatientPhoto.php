@@ -18,8 +18,10 @@ class PatientPhoto extends Model
         'filename',
         'mime_type',
         'taken_at',
-        'categoria',      // intraoral, extraoral, rx, etc
-        'dente',          // 11, 12... ou 'geral'
+        'categoria',
+        'subcategoria',
+        'dente',
+        'status',
         'uploaded_by_id',
         'size_bytes',
     ];

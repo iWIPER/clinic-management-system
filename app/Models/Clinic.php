@@ -22,11 +22,13 @@ class Clinic extends Model
         'subscription_id', // Cashier
         'settings',
         'google_connected_at',
+        'storage_disclaimer_confirmed_at',
     ];
 
     protected $casts = [
-        'settings' => 'array',
-        'google_connected_at' => 'datetime',
+        'settings'                        => 'array',
+        'google_connected_at'             => 'datetime',
+        'storage_disclaimer_confirmed_at' => 'datetime',
     ];
 
     /**
@@ -35,7 +37,7 @@ class Clinic extends Model
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'clinic_user')
-                    ->withPivot('role')
+                    ->withPivot('role', 'drive_doctor_folder_id')
                     ->withTimestamps();
     }
 

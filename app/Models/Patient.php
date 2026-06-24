@@ -16,8 +16,6 @@ class Patient extends Model
         'sobrenome',
         'nascimento',
         'status',             // ativo, inativo, falecido
-        'profissao',
-        'estado_civil',
         'doc_tipo',           // cpf, rg, passaporte
         'doc_numero',
         'telefone',

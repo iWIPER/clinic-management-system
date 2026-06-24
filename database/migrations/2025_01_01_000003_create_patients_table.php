@@ -15,8 +15,6 @@ return new class extends Migration
             $table->string('sobrenome');
             $table->date('nascimento')->nullable();
             $table->string('status')->default('ativo'); // ativo, inativo, falecido
-            $table->string('profissao')->nullable();
-            $table->string('estado_civil')->nullable();
             $table->string('doc_tipo')->nullable(); // cpf, rg, passaporte
             $table->string('doc_numero')->nullable();
             $table->string('telefone')->nullable();

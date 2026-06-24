@@ -105,12 +105,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
         Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+        // Fotos clínicas
+        Route::post('/patients/{patient}/photos', [App\Http\Controllers\GoogleDriveController::class, 'uploadPhoto'])->name('patients.photos.upload');
+        Route::get('/patients/{patient}/photos/{photo}', [App\Http\Controllers\GoogleDriveController::class, 'viewPhoto'])->name('patients.photos.view');
+        Route::post('/drive/confirm-disclaimer', [App\Http\Controllers\GoogleDriveController::class, 'confirmDisclaimer'])->name('drive.confirm-disclaimer');
+        Route::post('/patients/{patient}/drive/verify', [App\Http\Controllers\GoogleDriveController::class, 'verifyIntegrity'])->name('patients.drive.verify');
     });
 });
 
-// Google Drive OAuth
-Route::get('/auth/google', [App\Http\Controllers\GoogleDriveController::class, 'connect'])->name('google.connect');
-Route::get('/auth/google/callback', [App\Http\Controllers\GoogleDriveController::class, 'callback'])->name('google.callback');
-Route::post('/auth/google/disconnect/{clinic}', [App\Http\Controllers\GoogleDriveController::class, 'disconnect'])->name('google.disconnect');
-
-Route::post('/patients/{patient}/photos', [App\Http\Controllers\GoogleDriveController::class, 'uploadPhoto'])->name('patients.photos.upload');
+// Google Drive OAuth — fora do auth para suportar o redirect loop do Google,
+// mas callback valida Auth::user() internamente.
+Route::middleware('auth')->group(function () {
+    Route::get('/auth/google', [App\Http\Controllers\GoogleDriveController::class, 'connect'])->name('google.connect');
+    Route::get('/auth/google/callback', [App\Http\Controllers\GoogleDriveController::class, 'callback'])->name('google.callback');
+    Route::post('/auth/google/disconnect/{clinic}', [App\Http\Controllers\GoogleDriveController::class, 'disconnect'])->name('google.disconnect');
+});

@@ -1,11 +1,60 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { useForm, Link } from '@inertiajs/vue3';
+import { watch, onMounted } from 'vue';
 
 const props = defineProps({ patient: Object });
 
-const form = useForm({
-    ...props.patient,
+const formFields = [
+    'nome', 'sobrenome', 'nascimento', 'status',
+    'doc_tipo', 'doc_numero', 'telefone', 'email',
+    'contato_emergencia_nome', 'contato_emergencia_telefone',
+    'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'estado',
+    'observacoes',
+];
+
+const toFormValue = (value) => (value == null ? '' : String(value));
+
+const buildFormData = (patient) => ({
+    nome: toFormValue(patient.nome),
+    sobrenome: toFormValue(patient.sobrenome),
+    nascimento: patient.nascimento != null ? String(patient.nascimento).slice(0, 10) : '',
+    status: toFormValue(patient.status),
+    doc_tipo: toFormValue(patient.doc_tipo),
+    doc_numero: toFormValue(patient.doc_numero),
+    telefone: toFormValue(patient.telefone),
+    email: toFormValue(patient.email),
+    contato_emergencia_nome: toFormValue(patient.contato_emergencia_nome),
+    contato_emergencia_telefone: toFormValue(patient.contato_emergencia_telefone),
+    cep: toFormValue(patient.cep),
+    logradouro: toFormValue(patient.logradouro),
+    numero: toFormValue(patient.numero),
+    complemento: toFormValue(patient.complemento),
+    bairro: toFormValue(patient.bairro),
+    cidade: toFormValue(patient.cidade),
+    estado: toFormValue(patient.estado),
+    observacoes: toFormValue(patient.observacoes),
+});
+
+const syncFormFromPatient = () => {
+    const data = buildFormData(props.patient);
+    formFields.forEach((field) => {
+        form[field] = data[field];
+    });
+};
+
+const form = useForm(buildFormData(props.patient));
+
+watch(
+    () => `${props.patient.id}:${props.patient.updated_at}`,
+    () => syncFormFromPatient(),
+);
+
+// DUMP 3: dados no Vue ao montar o componente
+onMounted(() => {
+    console.debug('[Edit.vue] DUMP 3 — props.patient (Inertia prop):', JSON.parse(JSON.stringify(props.patient)));
+    console.debug('[Edit.vue] DUMP 4 — buildFormData() output:', buildFormData(props.patient));
+    console.debug('[Edit.vue] DUMP 5 — form.data() após useForm():', form.data());
 });
 
 const submit = () => {
@@ -20,8 +69,12 @@ const submit = () => {
             <Link :href="route('patients.show', patient.id)" class="text-sm text-slate-500 hover:text-slate-700">Ver ficha →</Link>
         </div>
 
-        <form @submit.prevent="submit" class="max-w-4xl bg-white p-8 rounded-2xl border space-y-6">
-            <!-- Same form fields as Create, but prefilled -->
+        <form
+            :key="`${patient.id}-${patient.updated_at}`"
+            @submit.prevent="submit"
+            class="max-w-4xl bg-white p-8 rounded-2xl border space-y-6"
+        >
+            <!-- Identificação -->
             <div>
                 <h3 class="font-medium text-slate-700 mb-3">Identificação</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -48,23 +101,104 @@ const submit = () => {
                 </div>
             </div>
 
-            <!-- Repeat other sections abbreviated for brevity (same as Create) -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm mb-1">Telefone</label>
-                    <input v-model="form.telefone" type="text" class="w-full border rounded-lg p-2.5" />
-                </div>
-                <div>
-                    <label class="block text-sm mb-1">E-mail</label>
-                    <input v-model="form.email" type="email" class="w-full border rounded-lg p-2.5" />
+            <!-- Documentos -->
+            <div>
+                <h3 class="font-medium text-slate-700 mb-3">Documentos</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm mb-1">Tipo de documento</label>
+                        <select v-model="form.doc_tipo" class="w-full border rounded-lg p-2.5">
+                            <option value="">—</option>
+                            <option value="cpf">CPF</option>
+                            <option value="rg">RG</option>
+                            <option value="passaporte">Passaporte</option>
+                            <option value="outro">Outro</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm mb-1">Número do documento</label>
+                        <input v-model="form.doc_numero" type="text" class="w-full border rounded-lg p-2.5" />
+                    </div>
                 </div>
             </div>
 
-            <div class="pt-4 flex gap-x-4">
-                <button type="submit" class="bg-emerald-600 text-white px-8 py-2.5 rounded-lg font-medium" :disabled="form.processing">
-                    Salvar Alterações
+            <!-- Contato -->
+            <div>
+                <h3 class="font-medium text-slate-700 mb-3">Contato</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm mb-1">Telefone</label>
+                        <input v-model="form.telefone" type="text" class="w-full border rounded-lg p-2.5" />
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1">E-mail</label>
+                        <input v-model="form.email" type="email" class="w-full border rounded-lg p-2.5" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contato de Emergência -->
+            <div>
+                <h3 class="font-medium text-slate-700 mb-3">Contato de Emergência</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm mb-1">Nome</label>
+                        <input v-model="form.contato_emergencia_nome" type="text" class="w-full border rounded-lg p-2.5" />
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1">Telefone</label>
+                        <input v-model="form.contato_emergencia_telefone" type="text" class="w-full border rounded-lg p-2.5" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Endereço -->
+            <div>
+                <h3 class="font-medium text-slate-700 mb-3">Endereço</h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="md:col-span-1">
+                        <label class="block text-sm mb-1">CEP</label>
+                        <input v-model="form.cep" type="text" class="w-full border rounded-lg p-2.5" />
+                    </div>
+                    <div class="md:col-span-3">
+                        <label class="block text-sm mb-1">Logradouro</label>
+                        <input v-model="form.logradouro" type="text" class="w-full border rounded-lg p-2.5" />
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1">Número</label>
+                        <input v-model="form.numero" type="text" class="w-full border rounded-lg p-2.5" />
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1">Complemento</label>
+                        <input v-model="form.complemento" type="text" class="w-full border rounded-lg p-2.5" />
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1">Bairro</label>
+                        <input v-model="form.bairro" type="text" class="w-full border rounded-lg p-2.5" />
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1">Cidade</label>
+                        <input v-model="form.cidade" type="text" class="w-full border rounded-lg p-2.5" />
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1">UF</label>
+                        <input v-model="form.estado" maxlength="2" class="w-full border rounded-lg p-2.5" />
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm mb-1">Observações</label>
+                <textarea v-model="form.observacoes" rows="3" class="w-full border rounded-lg p-2.5"></textarea>
+            </div>
+
+            <div class="pt-4 flex items-center gap-x-4">
+                <button type="submit"
+                        class="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-70 text-white px-8 py-2.5 rounded-lg font-medium"
+                        :disabled="form.processing">
+                    {{ form.processing ? 'Salvando...' : 'Salvar Alterações' }}
                 </button>
-                <Link :href="route('patients.index')" class="px-6 py-2.5 text-slate-600">Cancelar</Link>
+                <Link :href="route('patients.index')" class="text-slate-600 hover:text-slate-800">Cancelar</Link>
             </div>
         </form>
     </AppLayout>
