@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Clinic;
 use App\Models\Invite;
 use App\Models\Plan;
+use App\Services\TreatmentCatalogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -76,6 +77,8 @@ class OnboardingController extends Controller
             // Definir como clínica atual
             session(['current_clinic_id' => $clinic->id]);
             session(['current_clinic' => $clinic->only('id', 'name', 'type')]);
+
+            app(TreatmentCatalogService::class)->seedForClinic($clinic, $user->id);
         });
 
         return redirect()->route('onboarding.invite-team')

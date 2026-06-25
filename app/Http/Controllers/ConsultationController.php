@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Appointment;
 use App\Models\Consultation;
+use App\Models\ClinicalEvolution;
+use App\Services\ClinicalRecordService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -61,6 +63,8 @@ class ConsultationController extends Controller
             ]);
         }
 
+        $appointment->update(['status' => 'in_attendance']);
+
         return redirect()
             ->route('consultations.show', $consultation)
             ->with('success', 'Check-in realizado. Paciente em aguardando.');
@@ -71,7 +75,7 @@ class ConsultationController extends Controller
         $consultation->load(['patient', 'professional', 'appointment', 'medicalRecord']);
 
         $treatments = \App\Models\Treatment::where('clinic_id', $consultation->clinic_id)
-            ->where('ativo', true)
+            ->forScheduling()
             ->select('id', 'nome', 'duracao_padrao')
             ->get();
 
@@ -91,7 +95,7 @@ class ConsultationController extends Controller
         return back()->with('success', 'Atendimento iniciado.');
     }
 
-    public function finish(Request $request, Consultation $consultation)
+    public function finish(Request $request, Consultation $consultation, ClinicalRecordService $recordService)
     {
         $validated = $request->validate([
             'notes' => 'nullable|string',
@@ -103,9 +107,26 @@ class ConsultationController extends Controller
             'notes' => $validated['notes'] ?? $consultation->notes,
         ]);
 
+        if ($consultation->appointment_id) {
+            Appointment::where('id', $consultation->appointment_id)->update(['status' => 'completed']);
+        }
+
+        $clinicalRecord = $recordService->createFromConsultation($consultation->fresh());
+
+        if ($consultation->notes) {
+            ClinicalEvolution::create([
+                'clinic_id' => $consultation->clinic_id,
+                'patient_id' => $consultation->patient_id,
+                'professional_id' => $consultation->professional_id,
+                'consultation_id' => $consultation->id,
+                'content' => $consultation->notes,
+                'recorded_at' => $consultation->finished_at ?? now(),
+            ]);
+        }
+
         return redirect()
-            ->route('consultations.index')
-            ->with('success', 'Consulta finalizada.');
+            ->route('patients.prontuario', $consultation->patient_id)
+            ->with('success', 'Atendimento concluído. Prontuário atualizado.');
     }
 
     public function updateNotes(Request $request, Consultation $consultation)

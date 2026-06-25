@@ -14,41 +14,64 @@ class AppointmentController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Appointment::query()
-            ->with(['patient', 'professional', 'treatment'])
-            ->orderBy('start', 'desc');
+        $weekStart = $request->input('week')
+            ? Carbon::parse($request->input('week'))->startOfWeek(Carbon::MONDAY)
+            : Carbon::now()->startOfWeek(Carbon::MONDAY);
 
-        // Filtros
-        if ($search = $request->input('search')) {
-            $query->whereHas('patient', function ($q) use ($search) {
-                $q->where('nome', 'like', "%{$search}%")
-                  ->orWhere('sobrenome', 'like', "%{$search}%");
-            });
-        }
+        $weekEnd = $weekStart->copy()->endOfWeek(Carbon::SUNDAY)->endOfDay();
 
-        if ($professionalId = $request->input('professional_id')) {
-            $query->where('professional_id', $professionalId);
-        }
+        $appointments = Appointment::query()
+            ->with([
+                'patient:id,nome,sobrenome,telefone',
+                'professional:id,name',
+                'treatment:id,nome,duracao_padrao',
+                'consultation:id,appointment_id,status',
+            ])
+            ->whereBetween('start', [$weekStart->startOfDay(), $weekEnd])
+            ->when($request->input('professional_id'), fn ($q, $id) => $q->where('professional_id', $id))
+            ->orderBy('start')
+            ->get();
 
-        if ($date = $request->input('date')) {
-            $query->whereDate('start', $date);
-        }
-
-        if ($status = $request->input('status')) {
-            $query->where('status', $status);
-        }
-
-        $appointments = $query->paginate(20)->withQueryString();
-
-        // Para filtro por profissional
-        $professionals = User::whereHas('clinics', fn($q) => $q->where('clinics.id', session('current_clinic_id')))
+        $professionals = User::whereHas('clinics', fn ($q) => $q->where('clinics.id', session('current_clinic_id')))
             ->select('id', 'name')
             ->get();
 
         return Inertia::render('Appointments/Index', [
             'appointments' => $appointments,
             'professionals' => $professionals,
-            'filters' => $request->only(['search', 'professional_id', 'date', 'status']),
+            'weekStart' => $weekStart->format('Y-m-d'),
+            'filters' => $request->only(['professional_id']),
+        ]);
+    }
+
+    public function fullscreen(Request $request)
+    {
+        $weekStart = $request->input('week')
+            ? Carbon::parse($request->input('week'))->startOfWeek(Carbon::MONDAY)
+            : Carbon::now()->startOfWeek(Carbon::MONDAY);
+
+        $weekEnd = $weekStart->copy()->endOfWeek(Carbon::SUNDAY)->endOfDay();
+
+        $appointments = Appointment::query()
+            ->with([
+                'patient:id,nome,sobrenome,telefone',
+                'professional:id,name',
+                'treatment:id,nome,duracao_padrao',
+                'consultation:id,appointment_id,status',
+            ])
+            ->whereBetween('start', [$weekStart->startOfDay(), $weekEnd])
+            ->when($request->input('professional_id'), fn ($q, $id) => $q->where('professional_id', $id))
+            ->orderBy('start')
+            ->get();
+
+        $professionals = User::whereHas('clinics', fn ($q) => $q->where('clinics.id', session('current_clinic_id')))
+            ->select('id', 'name')
+            ->get();
+
+        return Inertia::render('Appointments/Fullscreen', [
+            'appointments' => $appointments,
+            'professionals' => $professionals,
+            'weekStart' => $weekStart->format('Y-m-d'),
         ]);
     }
 
@@ -60,15 +83,13 @@ class AppointmentController extends Controller
             ->orderBy('nome')
             ->get();
 
-        $professionals = User::whereHas('clinics', function ($q) use ($clinicId) {
-                $q->where('clinics.id', $clinicId);
-            })
+        $professionals = User::whereHas('clinics', fn ($q) => $q->where('clinics.id', $clinicId))
             ->select('id', 'name')
             ->orderBy('name')
             ->get();
 
         $treatments = Treatment::where('clinic_id', $clinicId)
-            ->where('ativo', true)
+            ->forScheduling()
             ->select('id', 'nome', 'duracao_padrao', 'preco_base')
             ->orderBy('nome')
             ->get();
@@ -78,6 +99,7 @@ class AppointmentController extends Controller
             'professionals' => $professionals,
             'treatments' => $treatments,
             'defaultDate' => $request->input('date', now()->format('Y-m-d')),
+            'defaultTime' => $request->input('time', '09:00'),
             'prefilledPatientId' => $request->input('patient_id'),
         ]);
     }
@@ -117,9 +139,9 @@ class AppointmentController extends Controller
         $clinicId = session('current_clinic_id');
 
         $patients = Patient::select('id', 'nome', 'sobrenome')->get();
-        $professionals = User::whereHas('clinics', fn($q) => $q->where('clinics.id', $clinicId))
+        $professionals = User::whereHas('clinics', fn ($q) => $q->where('clinics.id', $clinicId))
             ->select('id', 'name')->get();
-        $treatments = Treatment::where('clinic_id', $clinicId)->where('ativo', true)
+        $treatments = Treatment::where('clinic_id', $clinicId)->forScheduling()
             ->select('id', 'nome', 'duracao_padrao')->get();
 
         return Inertia::render('Appointments/Edit', [
@@ -137,7 +159,7 @@ class AppointmentController extends Controller
             'professional_id' => 'required|exists:users,id',
             'treatment_id' => 'required|exists:treatments,id',
             'start' => 'required|date',
-            'status' => 'required|in:scheduled,confirmed,cancelled,no_show,completed',
+            'status' => 'required|in:scheduled,confirmed,in_attendance,cancelled,no_show,completed',
             'notes' => 'nullable|string',
         ]);
 
@@ -156,6 +178,38 @@ class AppointmentController extends Controller
         ]);
 
         return redirect()->route('appointments.index')->with('success', 'Agendamento atualizado!');
+    }
+
+    public function checkIn(Appointment $appointment)
+    {
+        $consultation = \App\Models\Consultation::firstOrCreate(
+            ['appointment_id' => $appointment->id],
+            [
+                'patient_id'      => $appointment->patient_id,
+                'professional_id' => $appointment->professional_id,
+                'status'          => 'aguardando',
+                'check_in_at'     => now(),
+            ]
+        );
+
+        if (! $consultation->check_in_at) {
+            $consultation->update(['check_in_at' => now(), 'status' => 'aguardando']);
+        }
+
+        $appointment->update(['status' => 'in_attendance']);
+
+        return back()->with('success', 'Check-in realizado! Paciente aguardando atendimento.');
+    }
+
+    public function updateStatus(Request $request, Appointment $appointment)
+    {
+        $validated = $request->validate([
+            'status' => 'required|in:scheduled,confirmed,in_attendance,cancelled,no_show,completed',
+        ]);
+
+        $appointment->update(['status' => $validated['status']]);
+
+        return back()->with('success', 'Status atualizado.');
     }
 
     public function destroy(Appointment $appointment)

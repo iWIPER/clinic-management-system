@@ -246,6 +246,13 @@ const hasAddress = computed(() =>
                 <div class="text-sm text-slate-500">{{ patient.telefone || 'Sem telefone' }}</div>
             </div>
             <div class="flex gap-3">
+                <Link :href="route('patients.prontuario', patient.id)"
+                      class="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-semibold shadow-sm transition-colors">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Prontuário
+                </Link>
                 <Link :href="route('patients.edit', patient.id)" :cache-for="0" class="px-4 py-2 border rounded-lg">Editar</Link>
                 <Link :href="route('patients.index')" class="px-4 py-2 text-slate-500">← Voltar à lista</Link>
             </div>
@@ -647,10 +654,54 @@ const hasAddress = computed(() =>
             <p class="text-sm text-slate-700 whitespace-pre-wrap">{{ patient.observacoes || '—' }}</p>
         </div>
 
-        <!-- Histórico clínico -->
+        <!-- Histórico de Atendimentos -->
         <div class="mt-8 bg-white rounded-2xl border p-6">
-            <h3 class="font-medium mb-4">Histórico</h3>
-            <p class="text-sm text-slate-500">Consultas, agendamentos e prontuários aparecerão aqui.</p>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-medium">Histórico de Atendimentos</h3>
+                <div class="flex gap-3">
+                    <Link :href="route('patients.prontuario', patient.id)"
+                          class="text-xs text-teal-600 hover:text-teal-700 font-medium">
+                        Prontuário completo →
+                    </Link>
+                    <Link :href="route('clinical-records.index', { patient_id: patient.id })"
+                          class="text-xs text-emerald-600 hover:text-emerald-700 font-medium">
+                        Ver todos →
+                    </Link>
+                </div>
+            </div>
+
+            <div v-if="patient.clinical_records?.length" class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="p-3 text-left font-medium text-slate-600">Data</th>
+                            <th class="p-3 text-left font-medium text-slate-600">Procedimento</th>
+                            <th class="p-3 text-left font-medium text-slate-600">Profissional</th>
+                            <th class="p-3 text-left font-medium text-slate-600">Valor</th>
+                            <th class="p-3 text-right font-medium text-slate-600">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y">
+                        <tr v-for="rec in patient.clinical_records" :key="rec.id" class="hover:bg-slate-50/50">
+                            <td class="p-3 text-slate-700">
+                                {{ rec.finished_at ? new Date(rec.finished_at).toLocaleDateString('pt-BR') : '—' }}
+                            </td>
+                            <td class="p-3 font-medium text-slate-800">{{ rec.procedure_name }}</td>
+                            <td class="p-3 text-slate-600">{{ rec.professional?.name || '—' }}</td>
+                            <td class="p-3 text-slate-700">
+                                {{ Number(rec.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}
+                            </td>
+                            <td class="p-3 text-right">
+                                <Link :href="route('clinical-records.show', rec.id)"
+                                      class="text-emerald-600 hover:text-emerald-800 font-medium text-xs">
+                                    Detalhes →
+                                </Link>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p v-else class="text-sm text-slate-500">Nenhum atendimento concluído registrado ainda.</p>
         </div>
     </AppLayout>
 

@@ -67,13 +67,32 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/patients/{patient}', [\App\Http\Controllers\PatientController::class, 'update'])->name('patients.update');
         Route::delete('/patients/{patient}', [\App\Http\Controllers\PatientController::class, 'destroy'])->name('patients.destroy');
 
+        // Prontuário odontológico
+        Route::get('/patients/{patient}/prontuario', [\App\Http\Controllers\PatientProntuarioController::class, 'show'])->name('patients.prontuario');
+        Route::put('/patients/{patient}/prontuario/anamnesis', [\App\Http\Controllers\PatientProntuarioController::class, 'updateAnamnesis'])->name('patients.prontuario.anamnesis');
+        Route::post('/patients/{patient}/prontuario/evolutions', [\App\Http\Controllers\PatientProntuarioController::class, 'storeEvolution'])->name('patients.prontuario.evolutions');
+        Route::put('/patients/{patient}/prontuario/odontogram', [\App\Http\Controllers\PatientProntuarioController::class, 'updateOdontogram'])->name('patients.prontuario.odontogram');
+        Route::get('/patients/{patient}/prontuario/pdf', [\App\Http\Controllers\PatientProntuarioController::class, 'generatePdf'])->name('patients.prontuario.pdf');
+
         // Agenda (Agendamentos)
         Route::get('/appointments', [\App\Http\Controllers\AppointmentController::class, 'index'])->name('appointments.index');
         Route::get('/appointments/create', [\App\Http\Controllers\AppointmentController::class, 'create'])->name('appointments.create');
+        Route::get('/appointments/fullscreen', [\App\Http\Controllers\AppointmentController::class, 'fullscreen'])->name('appointments.fullscreen');
         Route::post('/appointments', [\App\Http\Controllers\AppointmentController::class, 'store'])->name('appointments.store');
         Route::get('/appointments/{appointment}/edit', [\App\Http\Controllers\AppointmentController::class, 'edit'])->name('appointments.edit');
         Route::put('/appointments/{appointment}', [\App\Http\Controllers\AppointmentController::class, 'update'])->name('appointments.update');
+        Route::post('/appointments/{appointment}/check-in', [\App\Http\Controllers\AppointmentController::class, 'checkIn'])->name('appointments.check-in');
+        Route::patch('/appointments/{appointment}/status', [\App\Http\Controllers\AppointmentController::class, 'updateStatus'])->name('appointments.update-status');
         Route::delete('/appointments/{appointment}', [\App\Http\Controllers\AppointmentController::class, 'destroy'])->name('appointments.destroy');
+
+        // Histórico de atendimentos (registros permanentes)
+        Route::get('/clinical-records', [\App\Http\Controllers\ClinicalRecordController::class, 'index'])->name('clinical-records.index');
+        Route::get('/clinical-records/{clinicalRecord}', [\App\Http\Controllers\ClinicalRecordController::class, 'show'])->name('clinical-records.show');
+        Route::get('/clinical-records/{clinicalRecord}/pdf', [\App\Http\Controllers\ClinicalRecordController::class, 'generatePdf'])->name('clinical-records.pdf');
+
+        // Configurações da clínica
+        Route::get('/clinic-settings', [\App\Http\Controllers\ClinicSettingsController::class, 'edit'])->name('clinic-settings.edit');
+        Route::post('/clinic-settings', [\App\Http\Controllers\ClinicSettingsController::class, 'update'])->name('clinic-settings.update');
 
         // Consultas (fluxo de atendimento)
         Route::get('/consultations', [\App\Http\Controllers\ConsultationController::class, 'index'])->name('consultations.index');
@@ -87,8 +106,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/treatments', [\App\Http\Controllers\TreatmentController::class, 'index'])->name('treatments.index');
         Route::get('/treatments/create', [\App\Http\Controllers\TreatmentController::class, 'create'])->name('treatments.create');
         Route::post('/treatments', [\App\Http\Controllers\TreatmentController::class, 'store'])->name('treatments.store');
+        Route::get('/treatments/{treatment}', [\App\Http\Controllers\TreatmentController::class, 'show'])->name('treatments.show');
         Route::get('/treatments/{treatment}/edit', [\App\Http\Controllers\TreatmentController::class, 'edit'])->name('treatments.edit');
         Route::put('/treatments/{treatment}', [\App\Http\Controllers\TreatmentController::class, 'update'])->name('treatments.update');
+        Route::post('/treatments/{treatment}/deactivate', [\App\Http\Controllers\TreatmentController::class, 'deactivate'])->name('treatments.deactivate');
+        Route::post('/treatments/{treatment}/reactivate', [\App\Http\Controllers\TreatmentController::class, 'reactivate'])->name('treatments.reactivate');
         Route::delete('/treatments/{treatment}', [\App\Http\Controllers\TreatmentController::class, 'destroy'])->name('treatments.destroy');
         // Estoque básico
         Route::get('/inventory', [\App\Http\Controllers\InventoryController::class, 'index'])->name('inventory.index');
@@ -100,6 +122,33 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/finance/transactions', [\App\Http\Controllers\FinanceController::class, 'storeTransaction'])->name('finance.store-transaction');
         Route::post('/finance/pricing', [\App\Http\Controllers\FinanceController::class, 'updatePricing'])->name('finance.update-pricing');
         Route::post('/finance/budgets', [\App\Http\Controllers\FinanceController::class, 'createBudgetFromExecution'])->name('finance.create-budget');
+
+        // Notificações (polling)
+        Route::get('/notifications/counts', function () {
+            $now = \Illuminate\Support\Carbon::now();
+
+            $aguardandoConfirmacao = \App\Models\Appointment::whereIn('status', ['scheduled'])
+                ->whereDate('start', today())
+                ->count();
+
+            $aguardandoAtendimento = \App\Models\Consultation::where('status', 'aguardando')->count();
+
+            $esperando15min = \App\Models\Consultation::where('status', 'aguardando')
+                ->where('check_in_at', '<=', $now->copy()->subMinutes(15))
+                ->count();
+
+            $consultaProxima = \App\Models\Appointment::whereIn('status', ['scheduled', 'confirmed'])
+                ->whereBetween('start', [$now, $now->copy()->addMinutes(30)])
+                ->count();
+
+            return response()->json([
+                'total'                  => $aguardandoConfirmacao + $aguardandoAtendimento + $esperando15min + $consultaProxima,
+                'aguardando_confirmacao' => $aguardandoConfirmacao,
+                'aguardando_atendimento' => $aguardandoAtendimento,
+                'esperando_15min'        => $esperando15min,
+                'consulta_proxima'       => $consultaProxima,
+            ]);
+        })->name('notifications.counts');
 
         // Profile (Breeze)
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

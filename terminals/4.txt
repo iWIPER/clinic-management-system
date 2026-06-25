@@ -1,0 +1,10 @@
+---
+pid: 11652
+cwd: "C:\Users\drehs\dev\gestao-clinicas"
+command: "taskkill /PID 9740 /F 2>$null; cd C:\\Users\\drehs\\dev\\gestao-clinicas; composer dump-autoload -o --no-scripts 2>&1"
+started_at: 2026-06-24T04:12:13.931Z
+running_for_ms: 11640014 
+---
+�XITO: o processo com PID 9740 foi finalizado.
+Generating optimized autoload files
+Generated optimized autoload files containing 44735 classes

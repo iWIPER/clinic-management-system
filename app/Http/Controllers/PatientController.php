@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\DriveActivityLog;
 use App\Models\Patient;
+use App\Models\PatientAnamnesis;
+use App\Models\PatientOdontogram;
 use App\Services\GoogleDriveService;
+use App\Services\PatientHubService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -74,9 +77,22 @@ class PatientController extends Controller
             ->with('success', 'Paciente cadastrado com sucesso!');
     }
 
-    public function show(Patient $patient, GoogleDriveService $driveService)
+    public function show(Request $request, Patient $patient, GoogleDriveService $driveService, PatientHubService $hubService)
     {
-        $patient->load(['appointments' => fn($q) => $q->latest()->limit(5), 'consultations', 'photos']);
+        $patient->load(['photos']);
+
+        $hub = $hubService->build($patient);
+
+        $anamnesis = $patient->anamnesis ?? PatientAnamnesis::make([
+            'patient_id' => $patient->id,
+            'clinic_id' => $patient->clinic_id,
+        ]);
+
+        $odontogram = $patient->odontogram ?? PatientOdontogram::make([
+            'patient_id' => $patient->id,
+            'clinic_id' => $patient->clinic_id,
+            'teeth_data' => PatientOdontogram::defaultTeethData(),
+        ]);
 
         $clinic           = $patient->clinic;
         $isDriveConnected = $clinic
@@ -97,6 +113,14 @@ class PatientController extends Controller
 
         return Inertia::render('Patients/Show', [
             'patient'             => $patient,
+            'hub'                 => $hub,
+            'anamnesis'           => $anamnesis,
+            'odontogram'          => $odontogram,
+            'toothStatuses'       => collect(PatientOdontogram::TOOTH_STATUSES)
+                ->map(fn ($label, $value) => ['value' => $value, 'label' => $label])
+                ->values(),
+            'fdiTeeth'            => PatientOdontogram::FDI_TEETH,
+            'activeTab'           => $request->input('tab', 'timeline'),
             'clinicId'            => $clinic?->id,
             'isDriveConnected'    => $isDriveConnected,
             'storageQuota'        => $storageQuota,

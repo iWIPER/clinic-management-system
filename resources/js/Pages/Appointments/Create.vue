@@ -8,6 +8,7 @@ const props = defineProps({
     professionals: Array,
     treatments: Array,
     defaultDate: String,
+    defaultTime: { type: String, default: '09:00' },
     prefilledPatientId: [String, Number],
 });
 
@@ -15,7 +16,7 @@ const form = useForm({
     patient_id: props.prefilledPatientId || '',
     professional_id: '',
     treatment_id: '',
-    start: props.defaultDate + 'T09:00',
+    start: props.defaultDate + 'T' + props.defaultTime,
     notes: '',
 });
 

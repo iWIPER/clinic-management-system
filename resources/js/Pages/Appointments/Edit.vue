@@ -85,11 +85,12 @@ const submit = () => {
                 <div>
                     <label class="block text-sm font-medium mb-1.5">Status</label>
                     <select v-model="form.status" class="w-full border rounded-lg p-3">
-                        <option value="scheduled">Agendado</option>
-                        <option value="confirmed">Confirmado</option>
-                        <option value="completed">Realizado</option>
+                        <option value="scheduled">Agendada</option>
+                        <option value="confirmed">Confirmada</option>
+                        <option value="in_attendance">Em atendimento</option>
+                        <option value="completed">Concluída</option>
                         <option value="no_show">Faltou</option>
-                        <option value="cancelled">Cancelado</option>
+                        <option value="cancelled">Cancelada</option>
                     </select>
                 </div>
 

@@ -1,0 +1,9 @@
+---
+pid: 2864
+cwd: "C:\Users\drehs\dev\gestao-clinicas"
+command: "cd C:\\Users\\drehs\\dev\\gestao-clinicas; composer dump-autoload --no-scripts --no-ansi 2>&1 | Select-Object -First 5"
+started_at: 2026-06-24T04:18:29.282Z
+running_for_ms: 11230011 
+---
+Generating optimized autoload files
+Generated optimized autoload files containing 44735 classes

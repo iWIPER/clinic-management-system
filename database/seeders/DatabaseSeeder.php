@@ -11,7 +11,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             PlanSeeder::class,
             RolesAndPermissionsSeeder::class,
-            TreatmentLibrarySeeder::class,
+            DentalTreatmentsSeeder::class,
         ]);
     }
 }

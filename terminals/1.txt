@@ -1,0 +1,46 @@
+---
+pid: 4520
+cwd: "C:\Users\drehs\dev\gestao-clinicas"
+command: "cd C:\\Users\\drehs\\dev\\gestao-clinicas; composer require barryvdh/laravel-dompdf --no-interaction"
+started_at: 2026-06-24T03:55:47.084Z
+running_for_ms: 12594992 
+---
+./composer.json has been updated
+Running composer update barryvdh/laravel-dompdf
+Loading composer repositories with package information
+Updating dependencies
+Lock file operations: 7 installs, 0 updates, 0 removals
+  - Locking barryvdh/laravel-dompdf (v3.1.2)
+  - Locking dompdf/dompdf (v3.1.5)
+  - Locking dompdf/php-font-lib (1.0.2)
+  - Locking dompdf/php-svg-lib (1.0.2)
+  - Locking masterminds/html5 (2.10.1)
+  - Locking sabberworm/php-css-parser (v9.4.0)
+  - Locking thecodingmachine/safe (v3.4.0)
+Writing lock file
+Installing dependencies from lock file (including require-dev)
+Package operations: 7 installs, 0 updates, 0 removals
+  - Downloading masterminds/html5 (2.10.1)
+  - Downloading thecodingmachine/safe (v3.4.0)
+  - Downloading sabberworm/php-css-parser (v9.4.0)
+  - Downloading dompdf/php-svg-lib (1.0.2)
+  - Downloading dompdf/php-font-lib (1.0.2)
+  - Downloading dompdf/dompdf (v3.1.5)
+  - Downloading barryvdh/laravel-dompdf (v3.1.2)
+ 0/7 [>---------------------------]   0%
+ 1/7 [====>-----------------------]  14%
+ 2/7 [========>-------------------]  28%
+ 4/7 [================>-----------]  57%
+ 6/7 [========================>---]  85%
+ 7/7 [============================] 100%
+  - Installing masterminds/html5 (2.10.1): Extracting archive
+  - Installing thecodingmachine/safe (v3.4.0): Extracting archive
+  - Installing sabberworm/php-css-parser (v9.4.0): Extracting archive
+  - Installing dompdf/php-svg-lib (1.0.2): Extracting archive
+  - Installing dompdf/php-font-lib (1.0.2): Extracting archive
+  - Installing dompdf/dompdf (v3.1.5): Extracting archive
+  - Installing barryvdh/laravel-dompdf (v3.1.2): Extracting archive
+ 0/7 [>---------------------------]   0%
+ 7/7 [============================] 100%
+2 package suggestions were added by new dependencies, use `composer suggest` to see details.
+Generating optimized autoload files

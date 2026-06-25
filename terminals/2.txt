@@ -1,0 +1,8 @@
+---
+pid: 8976
+cwd: "C:\Users\drehs\dev\gestao-clinicas"
+command: "cd C:\\Users\\drehs\\dev\\gestao-clinicas; composer dump-autoload; php artisan package:discover"
+started_at: 2026-06-24T04:03:05.801Z
+running_for_ms: 12155004 
+---
+Generating optimized autoload files

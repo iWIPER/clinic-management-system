@@ -14,6 +14,9 @@ class Clinic extends Model
 
     protected $fillable = [
         'name',
+        'trade_name',
+        'slogan',
+        'logo_path',
         'slug',
         'type',           // odontologia, medicina, etc.
         'cnpj',

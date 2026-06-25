@@ -1,13 +1,29 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { useForm, Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
+
+const props = defineProps({
+    categories: Array,
+    parents: Array,
+});
 
 const form = useForm({
     nome: '',
-    especialidade: '',
+    categoria: '',
+    tipo: 'procedimento',
+    parent_id: null,
+    especialidade: 'Odontologia Geral',
     duracao_padrao: 30,
     preco_base: 0,
     descricao: '',
+    cor: '#10b981',
+    ordem: 0,
+});
+
+const filteredParents = computed(() => {
+    if (!form.categoria) return props.parents;
+    return props.parents.filter((p) => p.categoria === form.categoria);
 });
 
 const submit = () => {
@@ -17,34 +33,75 @@ const submit = () => {
 
 <template>
     <AppLayout>
-        <h1 class="text-2xl font-semibold mb-6">Novo Tratamento</h1>
+        <h1 class="text-2xl font-semibold mb-6">Novo Procedimento</h1>
 
         <form @submit.prevent="submit" class="max-w-lg bg-white p-8 rounded-2xl border space-y-4">
             <div>
-                <label class="block text-sm">Nome *</label>
-                <input v-model="form.nome" type="text" class="w-full border rounded p-2" required />
-            </div>
-
-            <div>
-                <label class="block text-sm">Especialidade</label>
-                <input v-model="form.especialidade" type="text" class="w-full border rounded p-2" />
+                <label class="block text-sm font-medium text-gray-700">Nome *</label>
+                <input v-model="form.nome" type="text" class="w-full border rounded-lg p-2 mt-1" required />
             </div>
 
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm">Duração Padrão (min)</label>
-                    <input v-model="form.duracao_padrao" type="number" class="w-full border rounded p-2" />
+                    <label class="block text-sm font-medium text-gray-700">Categoria</label>
+                    <select v-model="form.categoria" class="w-full border rounded-lg p-2 mt-1">
+                        <option value="">Selecione...</option>
+                        <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+                    </select>
                 </div>
                 <div>
-                    <label class="block text-sm">Preço Base (R$)</label>
-                    <input v-model="form.preco_base" type="number" step="0.01" class="w-full border rounded p-2" />
+                    <label class="block text-sm font-medium text-gray-700">Tipo</label>
+                    <select v-model="form.tipo" class="w-full border rounded-lg p-2 mt-1">
+                        <option value="procedimento">Procedimento</option>
+                        <option value="variacao">Variação</option>
+                        <option value="grupo">Grupo</option>
+                    </select>
+                </div>
+            </div>
+
+            <div v-if="form.tipo === 'variacao'">
+                <label class="block text-sm font-medium text-gray-700">Procedimento pai</label>
+                <select v-model="form.parent_id" class="w-full border rounded-lg p-2 mt-1">
+                    <option :value="null">Nenhum</option>
+                    <option v-for="p in filteredParents" :key="p.id" :value="p.id">{{ p.nome }}</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Especialidade</label>
+                <input v-model="form.especialidade" type="text" class="w-full border rounded-lg p-2 mt-1" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Duração (min)</label>
+                    <input v-model="form.duracao_padrao" type="number" min="0" class="w-full border rounded-lg p-2 mt-1" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Preço sugerido (R$)</label>
+                    <input v-model="form.preco_base" type="number" step="0.01" min="0" class="w-full border rounded-lg p-2 mt-1" />
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Cor</label>
+                    <input v-model="form.cor" type="color" class="w-full h-10 border rounded-lg mt-1 cursor-pointer" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Ordem</label>
+                    <input v-model="form.ordem" type="number" min="0" class="w-full border rounded-lg p-2 mt-1" />
                 </div>
             </div>
 
             <div>
-                <label class="block text-sm">Descrição</label>
-                <textarea v-model="form.descricao" rows="3" class="w-full border rounded p-2"></textarea>
+                <label class="block text-sm font-medium text-gray-700">Descrição clínica</label>
+                <textarea v-model="form.descricao" rows="4" class="w-full border rounded-lg p-2 mt-1"></textarea>
             </div>
+
+            <p class="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+                O preço é apenas uma sugestão. A clínica pode alterá-lo livremente.
+            </p>
 
             <div class="pt-4 flex gap-3">
                 <button type="submit" class="bg-emerald-600 text-white px-6 py-2 rounded-lg" :disabled="form.processing">

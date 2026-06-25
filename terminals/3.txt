@@ -1,0 +1,13 @@
+---
+pid: 9740
+cwd: "C:\Users\drehs\dev\gestao-clinicas"
+command: "taskkill /PID 4520 /F 2>$null; taskkill /PID 8976 /F 2>$null; cd C:\\Users\\drehs\\dev\\gestao-clinicas; composer install --no-interaction --prefer-dist"
+started_at: 2026-06-24T04:06:23.821Z
+running_for_ms: 11900010 
+---
+�XITO: o processo com PID 4520 foi finalizado.
+�XITO: o processo com PID 8976 foi finalizado.
+Installing dependencies from lock file (including require-dev)
+Verifying lock file contents can be installed on current platform.
+Nothing to install, update or remove
+Generating optimized autoload files

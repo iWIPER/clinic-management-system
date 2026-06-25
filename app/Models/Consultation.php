@@ -41,4 +41,9 @@ class Consultation extends Model
     {
         return $this->hasMany(ProcedureExecution::class);
     }
+
+    public function clinicalRecord()
+    {
+        return $this->hasOne(ClinicalRecord::class);
+    }
 }

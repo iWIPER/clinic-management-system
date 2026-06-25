@@ -61,4 +61,24 @@ class Patient extends Model
     {
         return $this->hasMany(PatientPhoto::class);
     }
+
+    public function clinicalRecords()
+    {
+        return $this->hasMany(ClinicalRecord::class);
+    }
+
+    public function anamnesis()
+    {
+        return $this->hasOne(PatientAnamnesis::class);
+    }
+
+    public function evolutions()
+    {
+        return $this->hasMany(ClinicalEvolution::class);
+    }
+
+    public function odontogram()
+    {
+        return $this->hasOne(PatientOdontogram::class);
+    }
 }
