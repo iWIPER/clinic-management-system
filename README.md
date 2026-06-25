@@ -138,4 +138,4 @@ docs/BRIEFING.md
 
 ## Licença
 
-Projeto privado em desenvolvimento.
+Projeto privado em desenvolvimento por Wilk Cosentino Pereira e Joseane Lelis.
