@@ -205,13 +205,21 @@ test('concluir returns the next scheduled appointment when one exists', function
     $response->assertJsonPath('next_appointment.start', $appointment->start->toIso8601String());
 });
 
-test('concluir completes the invite even when allow_anamnesis is true (decision confirmed this round)', function () {
-    ['invite' => $invite] = setupPublicWizardContext(['allow_anamnesis' => true]);
+test('concluir moves to aguardando_conclusao instead of concluido when allow_anamnesis is true (Fase 4)', function () {
+    ['clinic' => $clinic, 'invite' => $invite] = setupPublicWizardContext();
+    $template = \App\Models\AnamnesisTemplate::create([
+        'clinic_id' => $clinic->id, 'name' => 'Adulta', 'slug' => 'adulta-' . uniqid(),
+        'version' => 1, 'is_system' => false, 'is_active' => true, 'is_default' => false, 'sort_order' => 1,
+    ]);
+    $invite->update(['allow_anamnesis' => true, 'anamnesis_template_id' => $template->id]);
 
     $response = $this->postJson(route('patient-invites.public.complete', $invite->token));
 
     $response->assertOk();
-    expect($invite->fresh()->status)->toBe('concluido');
+    $response->assertJsonPath('status', 'aguardando_conclusao');
+    $response->assertJsonStructure(['anamnese' => ['categories']]);
+    expect($invite->fresh()->status)->toBe('aguardando_conclusao');
+    expect($invite->fresh()->completed_at)->toBeNull();
 });
 
 // ── Auditoria funcional: convite já concluído (segunda aba, outro

@@ -13,6 +13,13 @@ Route::patch('/p/{token}', [\App\Http\Controllers\Public\PatientInvitePublicCont
 Route::post('/p/{token}/concluir', [\App\Http\Controllers\Public\PatientInvitePublicController::class, 'complete'])
     ->middleware('throttle:20,1')
     ->name('patient-invites.public.complete');
+// Etapa de Anamnese (Fase 4, ver docs/PATIENT_INVITATIONS_BRD.md §11/§15)
+Route::patch('/p/{token}/anamnese', [\App\Http\Controllers\Public\PatientInvitePublicController::class, 'updateAnamnesis'])
+    ->middleware('throttle:60,1')
+    ->name('patient-invites.public.anamnese.update');
+Route::post('/p/{token}/anamnese/concluir', [\App\Http\Controllers\Public\PatientInvitePublicController::class, 'completeAnamnesis'])
+    ->middleware('throttle:20,1')
+    ->name('patient-invites.public.anamnese.complete');
 
 // Rotas públicas
 Route::get('/', function () {

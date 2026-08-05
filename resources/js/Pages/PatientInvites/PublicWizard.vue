@@ -3,6 +3,8 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import AddressFields from '@/Components/AddressFields.vue';
 import PhoneNumberInput from '@/Components/PhoneNumberInput.vue';
 import InputError from '@/Components/InputError.vue';
+import AnamnesisCategoryCard from '@/Components/Anamnesis/AnamnesisCategoryCard.vue';
+import AnamnesisSignatureModal from '@/Components/Anamnesis/AnamnesisSignatureModal.vue';
 import { useCanalLembrete, useConvenioTitular } from '@/composables/usePatientFormBehaviors.js';
 import { SEXO_OPTIONS, PARENTESCO_OPTIONS, CANAL_LEMBRETE_OPTIONS } from '@/lib/patientFormOptions.js';
 
@@ -12,6 +14,7 @@ const props = defineProps({
     patient: { type: Object, required: true },
     convenios: { type: Array, default: () => [] },
     conclusion: { type: Object, default: null }, // presente quando o convite já foi concluído antes (2ª aba, outro aparelho, F5)
+    anamnese: { type: Object, default: null }, // { categories: [...] } — presente quando aguardando_conclusao (Fase 4)
 });
 
 const BASE_STEPS = ['dados_pessoais', 'endereco', 'responsavel_legal'];
@@ -22,12 +25,16 @@ const STEPS = computed(() => (
     props.invite.allow_insurance ? [...BASE_STEPS, 'convenio'] : BASE_STEPS
 ));
 
-// welcome -> wizard (dados_pessoais/endereco/responsavel_legal) -> concluido
-// Pula a tela de boas-vindas se já houver progresso salvo (current_step) ou
-// se o convite já tiver sido concluído antes — "retomar exatamente de onde
-// parou" (BRD §8.1) não deveria pedir pra clicar em "Começar" de novo depois
-// de um F5 no meio do preenchimento.
-const view = ref(props.conclusion ? 'concluido' : (props.invite.current_step ? 'wizard' : 'welcome'));
+// welcome -> wizard (dados_pessoais/endereco/responsavel_legal[/convenio]) ->
+// anamnese (só quando allow_anamnesis, Fase 4) -> concluido. Pula a tela de
+// boas-vindas se já houver progresso salvo (current_step), anamnese pendente
+// ou o convite já concluído antes — "retomar exatamente de onde parou" (BRD
+// §8.1) não deveria pedir pra clicar em "Começar" de novo depois de um F5.
+const view = ref(
+    props.conclusion ? 'concluido'
+    : props.anamnese ? 'anamnese'
+    : (props.invite.current_step ? 'wizard' : 'welcome')
+);
 const activeStep = ref(props.invite.current_step || 'dados_pessoais');
 const conclusion = ref(props.conclusion);
 const completing = ref(false);
@@ -208,6 +215,109 @@ const legalGuardianStepTitle = computed(() => (
     form.possui_responsavel_legal ? 'Responsável legal' : 'Contato de emergência'
 ));
 
+// ── Etapa de Anamnese (Fase 4, condicionada a allow_anamnesis) ──────────────
+// Endpoints e modelo de dados próprios (AnamnesisInstance/AnamnesisAnswer,
+// não Patient) — por isso não faz parte de STEPS/STEP_FIELDS acima, mesmo
+// vindo logo depois da última etapa de cadastro na jornada do paciente.
+// AnamnesisCategoryCard/AnamnesisQuestionField/AnamnesisSignatureModal são
+// reaproveitados sem reescrita (hub de Anamnese, mesma auditoria da Fase 4).
+const anamnese = ref(props.anamnese);
+const anamneseAnswers = reactive({});
+const anamneseError = ref('');
+const showSignatureModal = ref(false);
+
+function hydrateAnamneseAnswers(payload) {
+    Object.keys(anamneseAnswers).forEach((key) => delete anamneseAnswers[key]);
+    payload?.categories?.forEach((category) => {
+        category.questions.forEach((q) => {
+            anamneseAnswers[q.id] = { value: q.value ?? null, supplementary_text: q.supplementary_text ?? null };
+        });
+    });
+}
+hydrateAnamneseAnswers(props.anamnese);
+
+const allRequiredAnamneseQuestionsAnswered = computed(() => {
+    if (!anamnese.value) return false;
+    return anamnese.value.categories.every((category) => category.questions.every((q) => {
+        if (!q.is_required || q.is_disabled) return true;
+        const value = anamneseAnswers[q.id]?.value;
+        return value !== null && value !== undefined && value !== '';
+    }));
+});
+
+function anamneseAnswersPayload() {
+    return {
+        answers: Object.entries(anamneseAnswers).map(([questionId, a]) => ({
+            question_id: Number(questionId),
+            value: a.value,
+            supplementary_text: a.supplementary_text,
+        })),
+    };
+}
+
+let anamneseSaveTimer = null;
+function scheduleAnamneseSave() {
+    clearTimeout(anamneseSaveTimer);
+    anamneseSaveTimer = setTimeout(saveAnamnese, 600);
+}
+
+function onAnamneseAnswerChange() {
+    if (view.value === 'anamnese') scheduleAnamneseSave();
+}
+
+// Reaproveita saveState/saveLabel do wizard base — mesmo indicador
+// "Salvando…/Salvo há N min", só apontando para o endpoint de anamnese.
+async function saveAnamnese() {
+    clearTimeout(anamneseSaveTimer);
+    saveState.saving = true;
+    saveState.errorMessage = null;
+    try {
+        await window.axios.patch(route('patient-invites.public.anamnese.update', props.token), anamneseAnswersPayload());
+        saveState.savedAt = new Date();
+    } catch (e) {
+        if (e.response?.status === 410) {
+            saveState.errorMessage = 'Este convite não está mais disponível.';
+            window.location.reload();
+        } else {
+            saveState.errorMessage = 'Não foi possível salvar agora. Verifique sua conexão — vamos tentar de novo na próxima alteração.';
+        }
+    } finally {
+        saveState.saving = false;
+    }
+}
+
+// server-error do AnamnesisSignatureModal já cobre a exibição do erro; o
+// modal só fecha quando a assinatura (e a conclusão do convite) realmente
+// tiverem sucesso — em caso de erro, o paciente pode corrigir e tentar de
+// novo sem perder o que já desenhou.
+async function submitAnamneseSignature(payload) {
+    anamneseError.value = '';
+    try {
+        clearTimeout(anamneseSaveTimer);
+        await saveAnamnese();
+        // saveAnamnese() trata os próprios erros sem relançar (mesmo padrão
+        // de save()) — sem essa checagem, uma falha de rede aqui deixaria a
+        // assinatura seguir em cima de respostas que não chegaram a salvar.
+        if (saveState.errorMessage) {
+            anamneseError.value = saveState.errorMessage;
+            return;
+        }
+
+        const { data } = await window.axios.post(route('patient-invites.public.anamnese.complete', props.token), payload);
+        showSignatureModal.value = false;
+        conclusion.value = data;
+        view.value = 'concluido';
+    } catch (e) {
+        if (e.response?.status === 410) {
+            window.location.reload();
+            return;
+        }
+        anamneseError.value = e.response?.status === 422
+            ? (e.response.data?.errors?.answers?.[0] || e.response.data?.message || 'Responda todas as perguntas obrigatórias antes de assinar.')
+            : 'Não foi possível concluir agora. Verifique sua conexão e tente novamente.';
+    }
+}
+
 async function goToStep(next) {
     await save(next);
     if (!saveState.errorMessage) activeStep.value = next;
@@ -236,8 +346,19 @@ async function finish() {
         await save(activeStep.value);
         if (saveState.errorMessage) return;
         const { data } = await window.axios.post(route('patient-invites.public.complete', props.token));
-        conclusion.value = data;
-        view.value = 'concluido';
+
+        if (data.status === 'aguardando_conclusao') {
+            // Etapas de cadastro concluídas, mas allow_anamnesis exige a
+            // etapa de Anamnese antes do convite poder ir para concluido —
+            // a resposta já traz o payload da anamnese, sem round-trip extra.
+            anamnese.value = data.anamnese;
+            hydrateAnamneseAnswers(data.anamnese);
+            saveState.savedAt = null;
+            view.value = 'anamnese';
+        } else {
+            conclusion.value = data;
+            view.value = 'concluido';
+        }
     } catch (e) {
         if (e.response?.status === 410) {
             window.location.reload();
@@ -249,21 +370,31 @@ async function finish() {
     }
 }
 
-// Flush best-effort ao fechar a aba — fetch com keepalive (sendBeacon não
-// suporta PATCH), mesmo cuidado documentado no BRD §8.1.
-function flushOnUnload() {
-    if (view.value !== 'wizard') return;
+function xsrfHeader() {
     const xsrf = document.cookie.split('; ').find((c) => c.startsWith('XSRF-TOKEN='))?.split('=')[1];
-    fetch(route('patient-invites.public.update', props.token), {
-        method: 'PATCH',
-        keepalive: true,
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-            ...(xsrf ? { 'X-XSRF-TOKEN': decodeURIComponent(xsrf) } : {}),
-        },
-        body: JSON.stringify(draftPayload(activeStep.value)),
-    });
+    return xsrf ? { 'X-XSRF-TOKEN': decodeURIComponent(xsrf) } : {};
+}
+
+// Flush best-effort ao fechar a aba — fetch com keepalive (sendBeacon não
+// suporta PATCH), mesmo cuidado documentado no BRD §8.1. Cobre as duas
+// etapas com autosave próprio: wizard base (campos do Patient) e Anamnese
+// (Fase 4, endpoint e payload diferentes).
+function flushOnUnload() {
+    if (view.value === 'wizard') {
+        fetch(route('patient-invites.public.update', props.token), {
+            method: 'PATCH',
+            keepalive: true,
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', ...xsrfHeader() },
+            body: JSON.stringify(draftPayload(activeStep.value)),
+        });
+    } else if (view.value === 'anamnese') {
+        fetch(route('patient-invites.public.anamnese.update', props.token), {
+            method: 'PATCH',
+            keepalive: true,
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', ...xsrfHeader() },
+            body: JSON.stringify(anamneseAnswersPayload()),
+        });
+    }
 }
 onMounted(() => window.addEventListener('beforeunload', flushOnUnload));
 onBeforeUnmount(() => window.removeEventListener('beforeunload', flushOnUnload));
@@ -305,8 +436,60 @@ function fmtDateTime(iso) {
             </template>
         </div>
 
+        <!-- Anamnese (Fase 4, condicionada a allow_anamnesis) -->
+        <div v-else-if="view === 'anamnese'" class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-6 md:p-8">
+            <div class="flex items-center justify-between mb-1">
+                <h2 class="text-lg font-semibold text-slate-800">Anamnese</h2>
+                <span v-if="saveLabel" class="text-xs flex items-center gap-1.5 text-right"
+                      :class="saveLabel.tone === 'error' ? 'text-red-600' : 'text-slate-400'">
+                    <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="{
+                        'bg-amber-400 animate-pulse': saveLabel.tone === 'saving',
+                        'bg-emerald-400': saveLabel.tone === 'success',
+                        'bg-red-500': saveLabel.tone === 'error',
+                    }"></span>
+                    {{ saveLabel.text }}
+                </span>
+            </div>
+            <p class="text-sm text-slate-500 mb-4">
+                Responda as perguntas abaixo sobre sua saúde. Ao final, confirme com sua assinatura.
+            </p>
+
+            <div class="space-y-3 max-h-[55vh] overflow-y-auto pr-1 -mr-1">
+                <AnamnesisCategoryCard
+                    v-for="category in anamnese.categories"
+                    :key="category.name"
+                    :category="category"
+                    :answers="anamneseAnswers"
+                    readonly
+                    @change="onAnamneseAnswerChange"
+                />
+            </div>
+
+            <p v-if="anamneseError" class="text-sm text-red-600 mt-4">{{ anamneseError }}</p>
+
+            <div class="pt-6">
+                <button type="button" @click="showSignatureModal = true"
+                        :disabled="saveState.saving || !allRequiredAnamneseQuestionsAnswered"
+                        class="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-6 py-2.5 rounded-lg font-medium">
+                    Assinar e concluir
+                </button>
+                <p v-if="!allRequiredAnamneseQuestionsAnswered" class="text-xs text-slate-400 mt-2 text-center">
+                    Responda todas as perguntas obrigatórias (*) para continuar.
+                </p>
+            </div>
+
+            <AnamnesisSignatureModal
+                :show="showSignatureModal"
+                title="Assinar Anamnese"
+                :patient-name="`${patient.nome} ${patient.sobrenome}`"
+                :server-error="anamneseError"
+                @close="showSignatureModal = false"
+                @signed="submitAnamneseSignature"
+            />
+        </div>
+
         <!-- Wizard -->
-        <div v-else class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-6 md:p-8">
+        <div v-else-if="view === 'wizard'" class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-6 md:p-8">
             <div class="flex items-center justify-between mb-1">
                 <div class="flex gap-1.5">
                     <span v-for="(s, i) in STEPS" :key="s" class="h-1.5 w-8 rounded-full"

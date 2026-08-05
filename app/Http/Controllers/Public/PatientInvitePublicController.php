@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\PatientController;
 use App\Models\Convenio;
 use App\Models\PatientInvite;
+use App\Services\Anamnesis\AnamnesisService;
 use App\Services\PatientInviteService;
+use App\Services\Signature\LocalSignatureProvider;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -36,7 +38,11 @@ class PatientInvitePublicController extends Controller
         'convenio_titular', 'convenio_titular_cpf', 'convenio_titular_parentesco',
     ];
 
-    public function __construct(private PatientInviteService $service) {}
+    public function __construct(
+        private PatientInviteService $service,
+        private AnamnesisService $anamnesisService,
+        private LocalSignatureProvider $signatureProvider,
+    ) {}
 
     public function show(string $token)
     {
@@ -59,6 +65,14 @@ class PatientInvitePublicController extends Controller
             $invite->refresh();
         }
 
+        // Etapas de cadastro já concluídas, aguardando a anamnese (Fase 4) —
+        // findOrCreateAnamnesisInstance() é idempotente, então reabrir esta
+        // tela (F5, segunda aba) sempre devolve a mesma instância com as
+        // respostas já salvas, nunca recomeça do zero.
+        $anamnese = $invite->status === 'aguardando_conclusao'
+            ? $this->anamnesisService->loadEditorData($this->service->findOrCreateAnamnesisInstance($invite))
+            : null;
+
         return Inertia::render('PatientInvites/PublicWizard', [
             'token'      => $token,
             // Só current_step/allow_insurance são consumidos pelo wizard
@@ -78,6 +92,7 @@ class PatientInvitePublicController extends Controller
                 ? Convenio::active()->where('clinic_id', $invite->clinic_id)->orderBy('ordem')->orderBy('nome')->get(['id', 'nome'])
                 : [],
             'conclusion' => $conclusion,
+            'anamnese'   => $anamnese,
         ]);
     }
 
@@ -120,6 +135,75 @@ class PatientInvitePublicController extends Controller
         }
 
         return response()->json($this->service->complete($invite));
+    }
+
+    /**
+     * Autosave das respostas da etapa de Anamnese (Fase 4) — delega para
+     * AnamnesisService::saveAnswers(), reaproveitado sem alteração. Só
+     * alcançável quando o convite já está aguardando_conclusao (etapas de
+     * cadastro já concluídas).
+     */
+    public function updateAnamnesis(Request $request, string $token)
+    {
+        $invite = $this->service->findByToken($token);
+
+        if (! $invite || $invite->status !== 'aguardando_conclusao') {
+            return response()->json(['message' => 'Este convite não está mais disponível.'], 410);
+        }
+
+        $validated = $request->validate([
+            'answers'                       => 'required|array',
+            'answers.*.question_id'         => 'required|integer',
+            'answers.*.value'               => 'nullable|string',
+            'answers.*.supplementary_text'  => 'nullable|string',
+        ]);
+
+        $instance = $this->service->findOrCreateAnamnesisInstance($invite);
+        $professionalId = $this->service->resolveAnamnesisProfessionalId($invite);
+
+        $this->anamnesisService->saveAnswers($instance, $validated['answers'], $professionalId, $request);
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Assina a anamnese (paciente, remoto — a assinatura do dentista
+     * continua exigindo sessão autenticada, decisão confirmada, Fase 4) e,
+     * só então, conclui o convite. assertAnamnesisRequiredQuestionsAnswered()
+     * é a regra de negócio confirmada: sem todas as obrigatórias
+     * respondidas, a assinatura é rejeitada antes de chegar ao provider.
+     */
+    public function completeAnamnesis(Request $request, string $token)
+    {
+        $invite = $this->service->findByToken($token);
+
+        if (! $invite || $invite->status !== 'aguardando_conclusao') {
+            return response()->json(['message' => 'Este convite não está mais disponível.'], 410);
+        }
+
+        $instance = $this->service->findOrCreateAnamnesisInstance($invite);
+
+        if ($instance->isSigned()) {
+            return response()->json(['message' => 'Esta anamnese já foi assinada.'], 422);
+        }
+
+        $validated = $request->validate([
+            'signature_data' => 'required|string',
+            'patient_name'   => 'required|string|max:160',
+            'patient_cpf'    => 'nullable|string|max:20',
+            'patient_email'  => 'nullable|email|max:160',
+            'timezone'       => 'nullable|string|max:64',
+            'browser_info'   => 'nullable|array',
+            'geolocation'    => 'nullable|array',
+        ]);
+
+        $editorData = $this->anamnesisService->loadEditorData($instance);
+        $this->service->assertAnamnesisRequiredQuestionsAnswered($editorData);
+
+        $validated['user_agent'] = $request->userAgent();
+        $this->signatureProvider->sign($instance, $validated, $request->ip());
+
+        return response()->json($this->service->completeAnamnesis($invite));
     }
 
     /**

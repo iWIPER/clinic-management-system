@@ -21,9 +21,12 @@ class PatientInvite extends Model
     // ativo e entra na regra de unicidade (BRD §5.2, active_key na migration).
     const TERMINAL_STATUSES = ['concluido', 'expirado', 'cancelado'];
 
-    // Etapas do wizard público sempre presentes (Fase 2, BRD §8) — Anamnese
-    // (Fase 4) ainda não existe. "convenio" entra condicionalmente, ver
-    // wizardSteps() — não é fixo porque depende de allow_insurance por convite.
+    // Etapas do wizard público sempre presentes (Fase 2, BRD §8). "convenio"
+    // entra condicionalmente, ver wizardSteps() — não é fixo porque depende
+    // de allow_insurance por convite. Anamnese (Fase 4) não entra aqui — é
+    // um estágio pós-wizard controlado por status (aguardando_conclusao),
+    // não por current_step, porque opera sobre um model diferente
+    // (AnamnesisInstance/AnamnesisAnswer), com seus próprios endpoints.
     const BASE_WIZARD_STEPS = ['dados_pessoais', 'endereco', 'responsavel_legal'];
 
     protected $fillable = [
@@ -36,6 +39,7 @@ class PatientInvite extends Model
         'allow_insurance',
         'allow_anamnesis',
         'anamnesis_template_id',
+        'anamnesis_instance_id',
         'expires_at',
         'progress',
         'current_step',
@@ -90,10 +94,14 @@ class PatientInvite extends Model
         return $this->belongsTo(Patient::class);
     }
 
-    // anamnesisTemplate() propositalmente ausente: nenhuma etapa deste
-    // módulo lê a relação hoje (a etapa de Anamnese em si é Fase 4, ainda não
-    // implementada) — reintroduzir junto com o módulo de Anamnese evita uma
-    // relação especulativa apontando para uma classe de outro módulo.
+    // anamnesisTemplate() propositalmente ausente: PatientInviteService só
+    // precisa do ID (AnamnesisService::createInstance() recebe um int, não
+    // uma relação) — anamnesisInstance() abaixo é a única travessia real que
+    // a Fase 4 usa.
+    public function anamnesisInstance()
+    {
+        return $this->belongsTo(\App\Models\AnamnesisInstance::class);
+    }
 
     public function createdBy()
     {

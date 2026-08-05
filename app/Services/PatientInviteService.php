@@ -3,11 +3,13 @@
 namespace App\Services;
 
 use App\Mail\PatientInviteMail;
+use App\Models\AnamnesisInstance;
 use App\Models\Appointment;
 use App\Models\Patient;
 use App\Models\PatientInvite;
 use App\Models\PatientInviteActivityLog;
 use App\Models\User;
+use App\Services\Anamnesis\AnamnesisService;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
@@ -16,10 +18,17 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class PatientInviteService
 {
     const DEFAULT_EXPIRY_DAYS = 7;
+
+    // Dependência do hub de Anamnese (Fase 4) — módulo ainda não commitado,
+    // aceito como dependência documentada (ver plano da Fase 4): equacionar
+    // o commit do hub por conta própria arrastaria o app shell inteiro,
+    // desproporcional ao escopo desta fase.
+    public function __construct(private AnamnesisService $anamnesisService) {}
 
     // ── Detecção de telefone duplicado (BRD §7) ─────────────────────────────
     public function findPatientByPhone(string $telefone, int $clinicId): ?Patient
@@ -137,11 +146,14 @@ class PatientInviteService
     }
 
     /**
-     * Finaliza o cadastro (Dados pessoais/Endereço/Responsável legal, e
-     * Convênio quando allow_insurance). Decisão confirmada com o usuário:
-     * mesmo com allow_anamnesis=true, conclui direto — a etapa de anamnese
-     * ainda não existe (Fase 4). Quando existir, este método precisa ganhar
-     * de volta a ramificação para "aguardando_conclusao" nesse caso.
+     * Finaliza as etapas de cadastro (Dados pessoais/Endereço/Responsável
+     * legal, e Convênio quando allow_insurance). Quando allow_anamnesis é
+     * verdadeiro, NÃO conclui o convite direto — transiciona para
+     * aguardando_conclusao (BRD §5) e já devolve o payload da etapa de
+     * Anamnese na mesma resposta, evitando um round-trip extra. Não existe
+     * outro caminho para chegar a concluido nesse caso: só
+     * completeAnamnesis() (abaixo), acionado pela assinatura do paciente,
+     * faz essa transição final.
      */
     public function complete(PatientInvite $invite): array
     {
@@ -154,6 +166,17 @@ class PatientInviteService
             $this->log($invite, 'insurance_step_completed', 'patient');
         }
 
+        if ($invite->allow_anamnesis) {
+            $invite->update(['status' => 'aguardando_conclusao', 'progress' => 100]);
+
+            $instance = $this->findOrCreateAnamnesisInstance($invite);
+
+            return [
+                'status'   => $invite->status,
+                'anamnese' => $this->anamnesisService->loadEditorData($instance),
+            ];
+        }
+
         $invite->update([
             'status'       => 'concluido',
             'completed_at' => now(),
@@ -162,7 +185,81 @@ class PatientInviteService
 
         $this->log($invite, 'completed', 'patient');
 
-        return $this->completionPayload($invite);
+        return array_merge(['status' => $invite->status], $this->completionPayload($invite));
+    }
+
+    /**
+     * Regra oficial confirmada com o usuário (Fase 4): profissional
+     * responsável já atribuído ao paciente, senão quem gerou o convite —
+     * nunca fica sem professional_id (coluna obrigatória em
+     * anamnesis_instances).
+     */
+    public function resolveAnamnesisProfessionalId(PatientInvite $invite): int
+    {
+        return $invite->patient->responsible_professional_id ?? $invite->created_by;
+    }
+
+    /**
+     * Idempotente — primeira chamada cria a instância e grava seu ID no
+     * convite (permite retomada sem depender de nenhuma coluna nova no hub
+     * de Anamnese); chamadas seguintes reaproveitam a mesma instância.
+     */
+    public function findOrCreateAnamnesisInstance(PatientInvite $invite): AnamnesisInstance
+    {
+        if ($invite->anamnesis_instance_id) {
+            return AnamnesisInstance::findOrFail($invite->anamnesis_instance_id);
+        }
+
+        $professionalId = $this->resolveAnamnesisProfessionalId($invite);
+        $instance = $this->anamnesisService->createInstance($invite->patient, $invite->anamnesis_template_id, $professionalId);
+
+        $invite->update(['anamnesis_instance_id' => $instance->id]);
+        $this->log($invite, 'anamnesis_started', 'patient');
+
+        return $instance;
+    }
+
+    /**
+     * Decisão confirmada com o usuário (Fase 4): a anamnese só conta como
+     * concluída com todas as perguntas obrigatórias respondidas E a
+     * assinatura do paciente capturada — esta checagem cobre a primeira
+     * parte, antes de chamar o provider de assinatura. Reaproveita o
+     * resultado já resolvido por AnamnesisService::loadEditorData() (quais
+     * perguntas se aplicam a esta instância) em vez de duplicar essa lógica.
+     */
+    public function assertAnamnesisRequiredQuestionsAnswered(array $editorData): void
+    {
+        foreach ($editorData['categories'] as $category) {
+            foreach ($category['questions'] as $question) {
+                $isRequired = $question['is_required'] ?? false;
+                $isDisabled = $question['is_disabled'] ?? false;
+
+                if ($isRequired && ! $isDisabled && blank($question['value'] ?? null)) {
+                    throw ValidationException::withMessages([
+                        'answers' => 'Responda todas as perguntas obrigatórias antes de assinar.',
+                    ]);
+                }
+            }
+        }
+    }
+
+    /**
+     * Único caminho para o convite sair de aguardando_conclusao — chamado
+     * depois que a assinatura do paciente já foi capturada com sucesso
+     * (LocalSignatureProvider::sign(), reaproveitado sem alteração).
+     */
+    public function completeAnamnesis(PatientInvite $invite): array
+    {
+        $invite->update([
+            'status'                 => 'concluido',
+            'completed_at'           => now(),
+            'anamnesis_completed_at' => now(),
+        ]);
+
+        $this->log($invite, 'anamnesis_completed', 'patient');
+        $this->log($invite, 'completed', 'patient');
+
+        return array_merge(['status' => $invite->status], $this->completionPayload($invite));
     }
 
     /**
