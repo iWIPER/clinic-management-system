@@ -77,6 +77,58 @@ class PatientController extends Controller
             ->with('success', 'Paciente cadastrado com sucesso!');
     }
 
+    /**
+     * Regras completas do formulário de paciente (identificação, endereço,
+     * responsável legal, convênio). Reaproveitado por
+     * PatientInvitePublicController::draftValidationRules() para a validação
+     * relaxada (sem "required") do wizard público de preenchimento de
+     * cadastro — ver PATIENT_INVITATIONS_BRD.md §8.1. Público de propósito:
+     * é chamado a partir de fora desta classe.
+     */
+    public function patientValidationRules(): array
+    {
+        return [
+            'nome' => 'required|string|max:100',
+            'sobrenome' => 'required|string|max:100',
+            'nascimento' => 'nullable|date',
+            'sexo' => 'nullable|string|in:masculino,feminino,nao_binario,prefiro_nao_informar',
+            'status' => 'nullable|string|in:ativo,inativo,falecido',
+            'is_estrangeiro' => 'boolean',
+            'cpf' => 'nullable|string|max:20',
+            'rg' => 'nullable|string|max:20',
+            'passaporte' => 'nullable|string|max:30',
+            'profissao' => 'nullable|string|max:100',
+            'canal_lembrete' => 'nullable|string|in:whatsapp,sms,email,nao_enviar',
+            'telefone' => 'nullable|string|max:30',
+            'email' => 'nullable|email|max:255',
+            'possui_responsavel_legal' => 'boolean',
+            'responsavel_legal_nome' => 'nullable|string|max:100',
+            'responsavel_legal_cpf' => 'nullable|string|max:20',
+            'responsavel_legal_rg' => 'nullable|string|max:20',
+            'responsavel_legal_estrangeiro' => 'boolean',
+            'responsavel_legal_passaporte' => 'nullable|string|max:30',
+            'responsavel_legal_telefone' => 'nullable|string|max:30',
+            'responsavel_legal_parentesco' => 'nullable|string|in:pai,mae,tutor,conjuge,filho,outro',
+            'contato_emergencia_nome' => 'nullable|string|max:100',
+            'contato_emergencia_telefone' => 'nullable|string|max:30',
+            'cep' => 'nullable|string|max:10',
+            'logradouro' => 'nullable|string|max:150',
+            'numero' => 'nullable|string|max:10',
+            'complemento' => 'nullable|string|max:50',
+            'bairro' => 'nullable|string|max:100',
+            'cidade' => 'nullable|string|max:100',
+            'estado' => 'nullable|string|max:2',
+            'origem' => 'nullable|string|in:manual,indicacao,google,instagram,facebook,whatsapp,site,convenio,outro,convite',
+            'convenio_id' => 'nullable|exists:convenios,id',
+            'tipo_atendimento' => 'nullable|string|in:particular,convenio,outro',
+            'convenio_numero_carteirinha' => 'nullable|string|max:50',
+            'convenio_titular' => 'nullable|string|max:100',
+            'convenio_titular_cpf' => 'nullable|string|max:20',
+            'convenio_titular_parentesco' => 'nullable|string|in:pai,mae,tutor,conjuge,filho,outro',
+            'tipo_atendimento_outro_descricao' => 'nullable|string|max:255',
+        ];
+    }
+
     public function show(Request $request, Patient $patient, GoogleDriveService $driveService, PatientHubService $hubService)
     {
         $patient->load(['photos']);

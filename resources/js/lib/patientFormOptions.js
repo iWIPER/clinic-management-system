@@ -10,6 +10,7 @@ export const ORIGEM_OPTIONS = [
     { value: 'whatsapp',  label: 'WhatsApp' },
     { value: 'site',      label: 'Site' },
     { value: 'convenio',  label: 'Convênio' },
+    { value: 'convite',   label: 'Convite de cadastro' },
     { value: 'outro',     label: 'Outro' },
 ]
 

@@ -5,6 +5,15 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+// Convites de cadastro — wizard público do paciente (Fase 2, ver docs/PATIENT_INVITATIONS_BRD.md §8)
+Route::get('/p/{token}', [\App\Http\Controllers\Public\PatientInvitePublicController::class, 'show'])->name('patient-invites.public.show');
+Route::patch('/p/{token}', [\App\Http\Controllers\Public\PatientInvitePublicController::class, 'update'])
+    ->middleware('throttle:60,1')
+    ->name('patient-invites.public.update');
+Route::post('/p/{token}/concluir', [\App\Http\Controllers\Public\PatientInvitePublicController::class, 'complete'])
+    ->middleware('throttle:20,1')
+    ->name('patient-invites.public.complete');
+
 // Rotas públicas
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -73,6 +82,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/patients/{patient}/prontuario/evolutions', [\App\Http\Controllers\PatientProntuarioController::class, 'storeEvolution'])->name('patients.prontuario.evolutions');
         Route::put('/patients/{patient}/prontuario/odontogram', [\App\Http\Controllers\PatientProntuarioController::class, 'updateOdontogram'])->name('patients.prontuario.odontogram');
         Route::get('/patients/{patient}/prontuario/pdf', [\App\Http\Controllers\PatientProntuarioController::class, 'generatePdf'])->name('patients.prontuario.pdf');
+
+        // Convites de cadastro — lado da recepção (Fase 1, ver docs/PATIENT_INVITATIONS_BRD.md §7)
+        Route::prefix('patient-invites')->name('patient-invites.')->group(function () {
+            Route::get('/check-phone', [\App\Http\Controllers\PatientInviteController::class, 'checkPhone'])->name('check-phone');
+            Route::post('/', [\App\Http\Controllers\PatientInviteController::class, 'store'])->name('store');
+            Route::get('/{invite}/qrcode', [\App\Http\Controllers\PatientInviteController::class, 'qrcode'])->name('qrcode');
+            Route::post('/{invite}/resend', [\App\Http\Controllers\PatientInviteController::class, 'resend'])->name('resend');
+            Route::post('/{invite}/cancel', [\App\Http\Controllers\PatientInviteController::class, 'cancel'])->name('cancel');
+            Route::post('/{invite}/regenerate', [\App\Http\Controllers\PatientInviteController::class, 'regenerate'])->name('regenerate');
+            Route::post('/{invite}/log-event', [\App\Http\Controllers\PatientInviteController::class, 'logEvent'])->name('log-event');
+        });
 
         // Agenda (Agendamentos)
         Route::get('/appointments', [\App\Http\Controllers\AppointmentController::class, 'index'])->name('appointments.index');

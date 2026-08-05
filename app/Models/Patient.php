@@ -10,6 +10,20 @@ class Patient extends Model
 {
     use HasFactory, BelongsToClinic;
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        // patient_invites.patient_id não tem ON DELETE CASCADE no banco — o
+        // MySQL recusa essa ação numa coluna da qual uma coluna gerada
+        // depende (ver comentário na migration de patient_invites). O cascade
+        // é feito aqui, mesmo padrão de hook de ciclo de vida já usado em
+        // Invite::boot() (só que para creating, não deleting).
+        static::deleting(function (Patient $patient) {
+            $patient->patientInvites()->delete();
+        });
+    }
+
     protected $fillable = [
         'clinic_id',
         'nome',
@@ -109,5 +123,10 @@ class Patient extends Model
     public function odontogram()
     {
         return $this->hasOne(PatientOdontogram::class);
+    }
+
+    public function patientInvites()
+    {
+        return $this->hasMany(PatientInvite::class);
     }
 }
