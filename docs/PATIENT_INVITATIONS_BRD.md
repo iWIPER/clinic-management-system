@@ -491,6 +491,16 @@ Feita em duas rodadas, a segunda cobrindo especificamente QR Code, geração de 
 
 **Conclusão da auditoria:** não restou nenhum ponto de reaproveitamento pendente de verificação em nenhuma das três rodadas. Toda peça de infraestrutura relevante (QR, token, expiração, auditoria, timeline, progresso, notificações, unicidade de convite ativo) tem um precedente identificado e citado, reaproveitado onde a forma permitia e adaptado, com justificativa explícita, onde uma decisão já fechada deste documento (histórico completo, §5.1) tornava o reaproveitamento direto incompatível.
 
+### 18.1 — Fase 4: dependência não commitada do hub de Anamnese (decisão registrada)
+
+A Fase 4 (Anamnese) reaproveita o hub de Anamnese inteiro — `AnamnesisService`, `LocalSignatureProvider`, os models `AnamnesisInstance`/`AnamnesisTemplate`/`AnamnesisQuestion`/etc., e os componentes Vue `AnamnesisCategoryCard`/`AnamnesisQuestionField`/`AnamnesisSignatureModal`/`AnamnesisSignaturePad` — sem reescrita. Esse hub, porém, **nunca foi commitado** neste repositório (nenhuma linha de histórico em `git log --all`).
+
+**Decisão explícita (auditoria pós-Fase 4):** não versionar o hub de Anamnese agora, mesmo tendo mapeado exatamente seu fechamento de dependência direta (9 models, 3 services, 2 enums, o provider de assinatura, 7 das 8 migrations originais). O motivo é um bloqueio concreto, não preguiça de organização: a migration fundacional do hub (`2026_06_26_400001_create_anamnesis_hub_tables.php`) cria as 7 tabelas de Anamnese **no mesmo arquivo** que cria `patient_tags`/`patient_notes`/`patient_note_tag` — tabelas de um módulo totalmente independente (Marcadores/Notas do Paciente). Separar isso exigiria reescrever uma migration de criação de tabela (mais delicado que os ajustes de coluna já feitos em §5.2/Commit 1), avaliado como desproporcional ao ganho de organização de histórico, e descartado deliberadamente.
+
+**O que fica registrado para quando o hub for commitado de verdade:**
+- `resources/js/Components/Anamnesis/AnamnesisCategoryCard.vue` recebeu uma prop `readonly` (default `false`), adicionada pela Fase 4 para reaproveitar o componente no wizard público sem duplicar a renderização de categoria/pergunta — esconde afordances de staff (toggle ON/OFF por pergunta, botão "Adicionar pergunta") que não fazem sentido para o paciente. **Não é uma funcionalidade nova do hub** — é uma adaptação de reuso, e precisa ser preservada (não sobrescrita por uma versão "limpa" de outro lugar) quando esse arquivo for commitado. O comentário no próprio componente já sinaliza isso.
+- O fechamento de dependência direta mapeado nesta auditoria (listado acima) é o escopo mínimo que precisaria ser commitado — não o hub inteiro (que também inclui `PatientAnamnesisController`, os controllers de admin de templates/categorias/perguntas, `AnamnesisPdfService`, e a tela de assinatura do dentista, nenhum dos quais a Fase 4 usa).
+
 ---
 
 ## 19. Roadmap definitivo por fases
