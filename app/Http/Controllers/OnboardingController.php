@@ -3,9 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Clinic;
+use App\Models\Convenio;
 use App\Models\Invite;
 use App\Models\Plan;
-use App\Services\TreatmentCatalogService;
+use App\Models\Referral;
+use App\Services\ReferralService;
+use App\Services\SubscriptionService;
+use App\Services\WildentalCatalogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -59,7 +63,7 @@ class OnboardingController extends Controller
 
         $user = Auth::user();
 
-        DB::transaction(function () use ($validated, $user) {
+        DB::transaction(function () use ($validated, $user, $request) {
             $plan = Plan::where('slug', $validated['plan_slug'])->firstOrFail();
 
             $clinic = Clinic::create([
@@ -74,11 +78,52 @@ class OnboardingController extends Controller
             // O criador vira owner
             $clinic->users()->attach($user->id, ['role' => 'owner']);
 
+            // Assinatura trial — sessão tem prioridade; cookie cobre o caso de a
+            // sessão ter expirado entre o clique no link e a conclusão do cadastro.
+            $referralCode = session('referral_code') ?? $request->cookie('referral_code');
+            app(SubscriptionService::class)->startTrial($clinic, $plan, (bool) $referralCode);
+
+            // Programa de indicações — link permanente para a nova clínica
+            $referralService = app(ReferralService::class);
+            $referralService->getOrCreate($clinic);
+            $referralService->getOrCreateWallet($clinic);
+
+            // Conversão via link de indicação
+            if ($referralCode) {
+                $referrer = Referral::where('code', $referralCode)->where('is_active', true)->first();
+                if ($referrer && $referrer->clinic_id !== $clinic->id) {
+                    $referralService->registerConversion($referrer, $clinic, $request);
+
+                    \App\Models\AccessLog::record(
+                        action: 'referral_trial_started',
+                        description: 'Uma nova clínica iniciou o período de teste utilizando seu link.',
+                        metadata: ['referred_clinic_id' => $clinic->id],
+                        clinicId: $referrer->clinic_id,
+                    );
+                }
+                session()->forget('referral_code');
+                \Illuminate\Support\Facades\Cookie::queue(\Illuminate\Support\Facades\Cookie::forget('referral_code'));
+            }
+
             // Definir como clínica atual
             session(['current_clinic_id' => $clinic->id]);
-            session(['current_clinic' => $clinic->only('id', 'name', 'type')]);
+            session(['current_clinic' => $clinic->toSessionPayload()]);
 
-            app(TreatmentCatalogService::class)->seedForClinic($clinic, $user->id);
+            app(WildentalCatalogService::class)->seedForClinic($clinic, $user->id);
+
+            Convenio::create([
+                'clinic_id' => $clinic->id,
+                'nome'      => 'Particular',
+                'ativo'     => true,
+                'ordem'     => 0,
+            ]);
+
+            Convenio::create([
+                'clinic_id' => $clinic->id,
+                'nome'      => 'Outros',
+                'ativo'     => true,
+                'ordem'     => 999,
+            ]);
         });
 
         return redirect()->route('onboarding.invite-team')

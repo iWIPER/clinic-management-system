@@ -13,15 +13,20 @@ class PatientPhoto extends Model
     protected $fillable = [
         'clinic_id',
         'patient_id',
+        'clinical_evolution_id',
         'drive_file_id',
         'drive_folder_id',
+        'local_path',
         'filename',
         'mime_type',
         'taken_at',
         'categoria',
         'subcategoria',
         'dente',
+        'description',
+        'observacao',
         'status',
+        'failure_reason',
         'uploaded_by_id',
         'size_bytes',
     ];
@@ -33,5 +38,10 @@ class PatientPhoto extends Model
     public function patient()
     {
         return $this->belongsTo(Patient::class);
+    }
+
+    public function clinicalEvolution()
+    {
+        return $this->belongsTo(ClinicalEvolution::class);
     }
 }

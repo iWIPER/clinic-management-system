@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Patient;
 use App\Models\PatientOdontogram;
+use App\Services\ClinicLogoService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Support\Facades\Storage;
@@ -23,13 +24,7 @@ class PatientProntuarioPdfService
         ]);
 
         $clinic = $patient->clinic;
-        $logoDataUri = null;
-
-        if ($clinic?->logo_path && Storage::disk('public')->exists($clinic->logo_path)) {
-            $contents = Storage::disk('public')->get($clinic->logo_path);
-            $mime = Storage::disk('public')->mimeType($clinic->logo_path) ?: 'image/png';
-            $logoDataUri = 'data:' . $mime . ';base64,' . base64_encode($contents);
-        }
+        $logoDataUri = $clinic ? ClinicLogoService::dataUri($clinic) : null;
 
         $html = View::make('pdf.patient-prontuario', [
             'patient' => $patient,

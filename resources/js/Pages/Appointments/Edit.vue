@@ -2,6 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { useForm, Link } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
+import InputError from '@/Components/InputError.vue';
 
 const props = defineProps({
     appointment: Object,
@@ -45,9 +46,8 @@ const submit = () => {
 </script>
 
 <template>
-    <AppLayout>
-        <div class="max-w-2xl">
-            <h1 class="text-2xl font-semibold mb-6">Editar Agendamento</h1>
+    <AppLayout content-width="md">
+        <h1 class="text-2xl font-semibold mb-6">Editar Agendamento</h1>
 
             <form @submit.prevent="submit" class="bg-white p-8 rounded-2xl border space-y-6">
                 <div>
@@ -55,6 +55,7 @@ const submit = () => {
                     <select v-model="form.patient_id" class="w-full border rounded-lg p-3">
                         <option v-for="p in patients" :key="p.id" :value="p.id">{{ p.nome }} {{ p.sobrenome }}</option>
                     </select>
+                    <InputError :message="form.errors.patient_id" />
                 </div>
 
                 <div>
@@ -62,6 +63,7 @@ const submit = () => {
                     <select v-model="form.professional_id" class="w-full border rounded-lg p-3">
                         <option v-for="prof in professionals" :key="prof.id" :value="prof.id">{{ prof.name }}</option>
                     </select>
+                    <InputError :message="form.errors.professional_id" />
                 </div>
 
                 <div>
@@ -69,12 +71,14 @@ const submit = () => {
                     <select v-model="form.treatment_id" class="w-full border rounded-lg p-3">
                         <option v-for="t in treatments" :key="t.id" :value="t.id">{{ t.nome }} ({{ t.duracao_padrao }} min)</option>
                     </select>
+                    <InputError :message="form.errors.treatment_id" />
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium mb-1.5">Início</label>
                         <input v-model="form.start" type="datetime-local" class="w-full border rounded-lg p-3" />
+                        <InputError :message="form.errors.start" />
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1.5">Término</label>
@@ -92,11 +96,13 @@ const submit = () => {
                         <option value="no_show">Faltou</option>
                         <option value="cancelled">Cancelada</option>
                     </select>
+                    <InputError :message="form.errors.status" />
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium mb-1.5">Observações</label>
                     <textarea v-model="form.notes" rows="3" class="w-full border rounded-lg p-3"></textarea>
+                    <InputError :message="form.errors.notes" />
                 </div>
 
                 <div>
@@ -106,6 +112,5 @@ const submit = () => {
                     <Link :href="route('appointments.index')" class="ml-4 text-slate-600">Cancelar</Link>
                 </div>
             </form>
-        </div>
     </AppLayout>
 </template>

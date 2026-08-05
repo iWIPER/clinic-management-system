@@ -1,5 +1,7 @@
 <script setup>
 import { useForm, Link } from '@inertiajs/vue3';
+import { trackEvent } from '@/lib/analytics';
+import InputError from '@/Components/InputError.vue';
 
 const props = defineProps({
     plans: Array,
@@ -13,7 +15,9 @@ const form = useForm({
 });
 
 const submit = () => {
-    form.post(route('onboarding.create-clinic'));
+    form.post(route('onboarding.create-clinic'), {
+        onSuccess: () => trackEvent('trial_iniciado'),
+    });
 };
 </script>
 
@@ -26,6 +30,7 @@ const submit = () => {
             <div>
                 <label class="block text-sm font-medium mb-1">Nome da Clínica *</label>
                 <input v-model="form.name" type="text" required class="w-full border rounded-lg p-3" placeholder="Clínica Sorriso Perfeito" />
+                <InputError :message="form.errors.name" />
             </div>
 
             <div class="grid grid-cols-2 gap-4">
@@ -37,10 +42,12 @@ const submit = () => {
                         <option value="estetica">Estética</option>
                         <option value="outros">Outros</option>
                     </select>
+                    <InputError :message="form.errors.type" />
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">CNPJ</label>
                     <input v-model="form.cnpj" type="text" class="w-full border rounded-lg p-3" placeholder="00.000.000/0001-00" />
+                    <InputError :message="form.errors.cnpj" />
                 </div>
             </div>
 
@@ -54,6 +61,7 @@ const submit = () => {
                         <div class="text-sm text-slate-500" v-else>R$ {{ (plan.price_monthly_cents / 100).toFixed(0) }}/mês</div>
                     </label>
                 </div>
+                <InputError :message="form.errors.plan_slug" />
             </div>
 
             <div class="pt-4 flex gap-3">

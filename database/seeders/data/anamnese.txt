@@ -1,0 +1,2676 @@
+. Queixa principal?
+- Alerta: Sem alerta \ Pergunta Somente Texto
+
+. Sente alguma dor nos dentes ou na boca?
+- Alerta: Sem alerta \ Pergunta Sim/Não/Não sei e Texto
+
+. Está em tratamento médico?
+- Alerta: Sem alerta \ Pergunta Sim/Não/Não sei e Texto
+
+. Está usando medicação?
+- Alerta: Com alerta: Toma \ Pergunta Sim/Não/Não sei e Texto
+
+. Possui alguma alergia? (Como penicilinas, AAS ou outra)
+- Com alerta: Alérgico a...(resposta) \ Pergunta Sim/Não/Não sei e Texto
+
+. Já esteve internado?
+- Alerta: Sem alerta \ Pergunta Sim/Não/Não sei e Texto
+
+. Já teve hemorragia diagnosticada?
+- Alerta: Com alerta: Risco de hemorragia \ Pergunta Sim/Não/Não sei
+
+. Possui alguma alteração sanguínea?
+- Alerta: Com alerta: Alteração sanguínea \ Pergunta Sim/Não/Não sei e Texto
+
+Tem pressão alta?
+- Alerta: Com alerta: Hipertenso \ Pergunta Sim/Não/Não sei e Texto
+
+------------------------------------------
+Checkpoint
+
+Para todos os outros siga o modelo dos que estao acima da linha..
+
+
+
+Possui diabetes?
+Com alerta: Diabético
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui asma?
+Com alerta: Asmático
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui anemia?
+Com alerta: Anêmico
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui alguma disfunção hepática?
+Com alerta: Disfunção hepática
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Apresenta alguma disfunção renal?
+Com alerta: Problema renal
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma disfunção respiratória?
+Com alerta: Problema respiratório
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma alteração óssea?
+Com alerta: Alteração óssea
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma doença transmissível? (HIV, Hepatite, outra)
+Com alerta: Doença transmissível
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui câncer?
+Com alerta: Câncer
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui depressão?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Está ou esteve em tratamento psicológico?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui algum antecedente de febre reumática?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui algum antecedente de endocardite bacteriana?
+Com alerta: Antecedente de endocardite bacteriana
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui alguma outra doença/síndrome não mencionada?
+Com alerta: undefined
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já sofreu alguma reação alérgica ao receber anestesia?
+Com alerta: Alérgico ao anestésico
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Escuta algum estalido ao abrir a boca?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Tem dificuldade de abrir a boca?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Sente dores no ouvido, cabeça, face, nuca ou pescoço?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui mau hálito?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui azia, má digestão, refluxo, úlcera ou gastrite?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Apresenta sangramento a escovação?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Sente seus dentes moles?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Seus dentes são sensíveis a mudança de temperatura ou a alimentos doces?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Range os dentes?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já se submeteu à Cirurgia Oral (exodontia, freio labial, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já se submeteu à Ortodontia (aparelhos e correção)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já se submeteu à Periodontia (tratamento gengival)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já se submeteu à Endodontia (tratamento de canal)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já se submeteu à Profilaxia / Prevenção (limpeza, flúor, selante oclusal, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Quando foi sua última vez que veio ao dentista? Como foi o atendimento?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Quantas vezes por dia escova os dentes?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Usa creme dental?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Usa fio dental?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Faz uso de antisséptico bucal?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Come muitos doces, balas entre outros?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Tem hábito de tomar café ou refrigerantes?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Ingere bebidas alcoólicas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Fumante?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Usa drogas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Tem o hábito de roer unha ou morder objetos (lápis, caneta, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Está grávida?
+Com alerta: Grávida
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Está amamentando?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Toma anticoncepcional?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Qual a pressão arterial do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Qual frequência respiratória por minuto do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Qual a frequência cardíaca por minuto(bpm) do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+O paciente possui alguma alteração ganglionar?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Apresenta alguma alteração de língua, lábio e/ou palato?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Apresenta outra alteração na face não mencionada?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Informações adicionais:
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Você está com febre ou teve febre nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Você teve alguma experiência de início de problemas respiratórios, como tosse ou dificuldade de respirar nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Você teve algum tipo de contato com alguma pessoa confirmadamente infectada pelo 2019-nCoV nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Você teve contato com um grande número de pessoas diferentes no últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Você está usando máscara, álcool em gel ou outras medidas de biossegurança no seu dia a dia?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui alguma alteração cardiovascular?
+Com alerta: Alteração cardíaca
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Realizou pré natal?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+A criança nasceu com parto normal ou cesariana?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Peso ao nascer?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Realiza(ou) aleitamento materno?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Realiza(ou) o uso de mamadeira ou chupeta?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Realiza(ou) sucção de dedo ou lábio?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Qual o perfil? (côncavo, convexo ou reto)
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual a sobremordida? (aumentada, normal ou aberta)
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual o trespasse horizontal? (aumentado, normal ou negativo)
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Possui mordida cruzada?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui desvio de linha média?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+O canino direito apresenta relação de: classe I, classe II, classe III ou topo?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+O canino esquerdo apresenta relação de: classe I, classe II, classe III ou topo?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual a classe do paciente? (Classe I, II ou III)
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Possui o hábito de tabagismo, alcoolismo ou uso de drogas?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Já se submeteu à Cirurgia?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Realizou cirurgia bariátrica?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Tem muita exposição solar?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta manchas na pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta flacidez na pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta lesões de acne ativas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já realizou algum tratamento estético facial ou de pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já se submeteu a tratamentos com preenchedores não reabsorvíveis (PMMA)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Fez uso de ácido ou algum peeling químico?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+-- Anamnese adulta --
+
+Não aparece na ficha do paciente
+Usa filtro solar regularmente?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Faz uso de produtos de cuidado diário da pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+O que você sente quando se olha no espelho?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+O que você gostaria de melhorar no seu rosto?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Você prefere resultados mais rápidos e mais caros ou mais lentos e mais baratos?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+
+
+
+-- Anamnese adulta resumida --
+
+Queixa principal?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Está usando medicação?
+Com alerta: Toma
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma alergia? (Como penicilinas, AAS ou outra)
+Com alerta: Alérgico a
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já teve hemorragia diagnosticada?
+Com alerta: Risco de hemorragia
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Tem pressão alta?
+Com alerta: Hipertenso
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui diabetes?
+Com alerta: Diabético
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui asma?
+Com alerta: Asmático
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui alguma disfunção hepática?
+Com alerta: Disfunção hepática
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Apresenta alguma disfunção renal?
+Com alerta: Problema renal
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma doença transmissível? (HIV, Hepatite, outra)
+Com alerta: Doença transmissível
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma outra doença/síndrome não mencionada?
+Com alerta: undefined
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já se submeteu à Cirurgia Oral (exodontia, freio labial, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Quando foi sua última vez que veio ao dentista? Como foi o atendimento?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Quantas vezes por dia escova os dentes?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Usa fio dental?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Come muitos doces, balas entre outros?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Você está com febre ou teve febre nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Está grávida?
+Com alerta: Grávida
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Está amamentando?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Informações adicionais:
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Usa creme dental?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Faz uso de antisséptico bucal?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Está em tratamento médico?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já esteve internado?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui alguma alteração sanguínea?
+Com alerta: Alteração sanguínea
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui alguma alteração cardiovascular?
+Com alerta: Alteração cardíaca
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui anemia?
+Com alerta: Anêmico
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Possui alguma disfunção respiratória?
+Com alerta: Problema respiratório
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui alguma alteração óssea?
+Com alerta: Alteração óssea
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui câncer?
+Com alerta: Câncer
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já sofreu alguma reação alérgica ao receber anestesia?
+Com alerta: Alérgico ao anestésico
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui mau hálito?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui azia, má digestão, refluxo, úlcera ou gastrite?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Apresenta sangramento a escovação?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Sente seus dentes moles?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Fumante?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Range os dentes?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Tem o hábito de roer unha ou morder objetos (lápis, caneta, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Tem hábito de tomar café ou refrigerantes?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Ingere bebidas alcoólicas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui depressão?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Está ou esteve em tratamento psicológico?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Escuta algum estalido ao abrir a boca?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Tem dificuldade de abrir a boca?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Sente dores no ouvido, cabeça, face, nuca ou pescoço?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Possui algum antecedente de febre reumática?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Possui algum antecedente de endocardite bacteriana?
+Com alerta: Antecedente de endocardite bacteriana
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Já se submeteu à Periodontia (tratamento gengival)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já se submeteu à Ortodontia (aparelhos e correção)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já se submeteu à Endodontia (tratamento de canal)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já se submeteu à Profilaxia / Prevenção (limpeza, flúor, selante oclusal, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Seus dentes são sensíveis a mudança de temperatura ou a alimentos doces?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Apresenta alguma alteração de língua, lábio e/ou palato?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Toma anticoncepcional?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Realizou pré natal?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+A criança nasceu com parto normal ou cesariana?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Peso ao nascer?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Realiza(ou) aleitamento materno?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Realiza(ou) o uso de mamadeira ou chupeta?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Realiza(ou) sucção de dedo ou lábio?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Qual o perfil? (côncavo, convexo ou reto)
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual a sobremordida? (aumentada, normal ou aberta)
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual o trespasse horizontal? (aumentado, normal ou negativo)
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Possui mordida cruzada?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui desvio de linha média?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+O canino direito apresenta relação de: classe I, classe II, classe III ou topo?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+O canino esquerdo apresenta relação de: classe I, classe II, classe III ou topo?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual a classe do paciente? (Classe I, II ou III)
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual a pressão arterial do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual frequência respiratória por minuto do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual a frequência cardíaca por minuto(bpm) do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+O paciente possui alguma alteração ganglionar?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta outra alteração na face não mencionada?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Usa drogas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Sente alguma dor nos dentes ou na boca?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui o hábito de tabagismo, alcoolismo ou uso de drogas?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você teve alguma experiência de início de problemas respiratórios, como tosse ou dificuldade de respirar nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você teve algum tipo de contato com alguma pessoa confirmadamente infectada pelo 2019-nCoV nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você teve contato com um grande número de pessoas diferentes no últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você está usando máscara, álcool em gel ou outras medidas de biossegurança no seu dia a dia?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Já se submeteu à Cirurgia?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Realizou cirurgia bariátrica?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Tem muita exposição solar?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta manchas na pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta flacidez na pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta lesões de acne ativas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já realizou algum tratamento estético facial ou de pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já se submeteu a tratamentos com preenchedores não reabsorvíveis (PMMA)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Fez uso de ácido ou algum peeling químico?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Usa filtro solar regularmente?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Faz uso de produtos de cuidado diário da pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+O que você sente quando se olha no espelho?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+O que você gostaria de melhorar no seu rosto?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Você prefere resultados mais rápidos e mais caros ou mais lentos e mais baratos?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+
+
+
+-- Anamnese HOF --
+
+Queixa principal?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Está usando medicação?
+Com alerta: Toma
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma alergia? (Como penicilinas, AAS ou outra)
+Com alerta: Alérgico a
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já teve hemorragia diagnosticada?
+Com alerta: Risco de hemorragia
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Tem pressão alta?
+Com alerta: Hipertenso
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui diabetes?
+Com alerta: Diabético
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui asma?
+Com alerta: Asmático
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui alguma disfunção hepática?
+Com alerta: Disfunção hepática
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Apresenta alguma disfunção renal?
+Com alerta: Problema renal
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma doença transmissível? (HIV, Hepatite, outra)
+Com alerta: Doença transmissível
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma outra doença/síndrome não mencionada?
+Com alerta: undefined
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já se submeteu à Cirurgia Oral (exodontia, freio labial, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Quando foi sua última vez que veio ao dentista? Como foi o atendimento?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Quantas vezes por dia escova os dentes?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Usa fio dental?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Come muitos doces, balas entre outros?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Você está com febre ou teve febre nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Está grávida?
+Com alerta: Grávida
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Está amamentando?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Informações adicionais:
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Usa creme dental?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Faz uso de antisséptico bucal?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Está em tratamento médico?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já esteve internado?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui alguma alteração sanguínea?
+Com alerta: Alteração sanguínea
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui alguma alteração cardiovascular?
+Com alerta: Alteração cardíaca
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui anemia?
+Com alerta: Anêmico
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Possui alguma disfunção respiratória?
+Com alerta: Problema respiratório
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui alguma alteração óssea?
+Com alerta: Alteração óssea
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui câncer?
+Com alerta: Câncer
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já sofreu alguma reação alérgica ao receber anestesia?
+Com alerta: Alérgico ao anestésico
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui mau hálito?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui azia, má digestão, refluxo, úlcera ou gastrite?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Apresenta sangramento a escovação?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Sente seus dentes moles?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Fumante?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Range os dentes?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Tem o hábito de roer unha ou morder objetos (lápis, caneta, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Tem hábito de tomar café ou refrigerantes?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Ingere bebidas alcoólicas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui depressão?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Está ou esteve em tratamento psicológico?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Escuta algum estalido ao abrir a boca?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Tem dificuldade de abrir a boca?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Sente dores no ouvido, cabeça, face, nuca ou pescoço?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Possui algum antecedente de febre reumática?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Possui algum antecedente de endocardite bacteriana?
+Com alerta: Antecedente de endocardite bacteriana
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Já se submeteu à Periodontia (tratamento gengival)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já se submeteu à Ortodontia (aparelhos e correção)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já se submeteu à Endodontia (tratamento de canal)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já se submeteu à Profilaxia / Prevenção (limpeza, flúor, selante oclusal, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Seus dentes são sensíveis a mudança de temperatura ou a alimentos doces?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Apresenta alguma alteração de língua, lábio e/ou palato?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Toma anticoncepcional?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Realizou pré natal?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+A criança nasceu com parto normal ou cesariana?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Peso ao nascer?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Realiza(ou) aleitamento materno?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Realiza(ou) o uso de mamadeira ou chupeta?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Realiza(ou) sucção de dedo ou lábio?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Qual o perfil? (côncavo, convexo ou reto)
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual a sobremordida? (aumentada, normal ou aberta)
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual o trespasse horizontal? (aumentado, normal ou negativo)
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Possui mordida cruzada?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui desvio de linha média?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+O canino direito apresenta relação de: classe I, classe II, classe III ou topo?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+O canino esquerdo apresenta relação de: classe I, classe II, classe III ou topo?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual a classe do paciente? (Classe I, II ou III)
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual a pressão arterial do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual frequência respiratória por minuto do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual a frequência cardíaca por minuto(bpm) do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+O paciente possui alguma alteração ganglionar?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta outra alteração na face não mencionada?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Usa drogas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Sente alguma dor nos dentes ou na boca?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui o hábito de tabagismo, alcoolismo ou uso de drogas?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você teve alguma experiência de início de problemas respiratórios, como tosse ou dificuldade de respirar nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você teve algum tipo de contato com alguma pessoa confirmadamente infectada pelo 2019-nCoV nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você teve contato com um grande número de pessoas diferentes no últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você está usando máscara, álcool em gel ou outras medidas de biossegurança no seu dia a dia?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Já se submeteu à Cirurgia?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Realizou cirurgia bariátrica?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Tem muita exposição solar?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta manchas na pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta flacidez na pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta lesões de acne ativas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já realizou algum tratamento estético facial ou de pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já se submeteu a tratamentos com preenchedores não reabsorvíveis (PMMA)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Fez uso de ácido ou algum peeling químico?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Usa filtro solar regularmente?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Faz uso de produtos de cuidado diário da pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+O que você sente quando se olha no espelho?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+O que você gostaria de melhorar no seu rosto?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Você prefere resultados mais rápidos e mais caros ou mais lentos e mais baratos?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+
+
+
+
+-- Anamnese infantil --
+
+
+Queixa principal?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Sente alguma dor nos dentes ou na boca?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Está em tratamento médico?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Está usando medicação?
+Com alerta: Toma
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma alergia? (Como penicilinas, AAS ou outra)
+Com alerta: Alérgico a
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já esteve internado?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já teve hemorragia diagnosticada?
+Com alerta: Risco de hemorragia
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui alguma alteração sanguínea?
+Com alerta: Alteração sanguínea
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui diabetes?
+Com alerta: Diabético
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui asma?
+Com alerta: Asmático
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui anemia?
+Com alerta: Anêmico
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui alguma disfunção hepática?
+Com alerta: Disfunção hepática
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Apresenta alguma disfunção renal?
+Com alerta: Problema renal
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma disfunção respiratória?
+Com alerta: Problema respiratório
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma alteração óssea?
+Com alerta: Alteração óssea
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma doença transmissível? (HIV, Hepatite, outra)
+Com alerta: Doença transmissível
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui câncer?
+Com alerta: Câncer
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui depressão?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Está ou esteve em tratamento psicológico?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui algum antecedente de febre reumática?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui algum antecedente de endocardite bacteriana?
+Com alerta: Antecedente de endocardite bacteriana
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui alguma outra doença/síndrome não mencionada?
+Com alerta: undefined
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já sofreu alguma reação alérgica ao receber anestesia?
+Com alerta: Alérgico ao anestésico
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Tem dificuldade de abrir a boca?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Sente dores no ouvido, cabeça, face, nuca ou pescoço?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui mau hálito?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui azia, má digestão, refluxo, úlcera ou gastrite?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Apresenta sangramento a escovação?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Seus dentes são sensíveis a mudança de temperatura ou a alimentos doces?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Range os dentes?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já se submeteu à Cirurgia Oral (exodontia, freio labial, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já se submeteu à Ortodontia (aparelhos e correção)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já se submeteu à Periodontia (tratamento gengival)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já se submeteu à Endodontia (tratamento de canal)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já se submeteu à Profilaxia / Prevenção (limpeza, flúor, selante oclusal, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Quando foi sua última vez que veio ao dentista? Como foi o atendimento?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Quantas vezes por dia escova os dentes?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Usa creme dental?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Usa fio dental?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Faz uso de antisséptico bucal?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Come muitos doces, balas entre outros?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Tem hábito de tomar café ou refrigerantes?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Tem o hábito de roer unha ou morder objetos (lápis, caneta, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Realizou pré natal?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+A criança nasceu com parto normal ou cesariana?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Peso ao nascer?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Realiza(ou) aleitamento materno?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Realiza(ou) o uso de mamadeira ou chupeta?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Realiza(ou) sucção de dedo ou lábio?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Qual a pressão arterial do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Qual frequência respiratória por minuto do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Qual a frequência cardíaca por minuto(bpm) do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+O paciente possui alguma alteração ganglionar?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Apresenta alguma alteração de língua, lábio e/ou palato?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Apresenta outra alteração na face não mencionada?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Informações adicionais:
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Possui alguma alteração cardiovascular?
+Com alerta: Alteração cardíaca
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Tem pressão alta?
+Com alerta: Hipertenso
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Sente seus dentes moles?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Fumante?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Ingere bebidas alcoólicas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Escuta algum estalido ao abrir a boca?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Está grávida?
+Com alerta: Grávida
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Está amamentando?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Toma anticoncepcional?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Qual o perfil? (côncavo, convexo ou reto)
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual a sobremordida? (aumentada, normal ou aberta)
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual o trespasse horizontal? (aumentado, normal ou negativo)
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Possui mordida cruzada?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui desvio de linha média?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+O canino direito apresenta relação de: classe I, classe II, classe III ou topo?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+O canino esquerdo apresenta relação de: classe I, classe II, classe III ou topo?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual a classe do paciente? (Classe I, II ou III)
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Usa drogas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui o hábito de tabagismo, alcoolismo ou uso de drogas?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você está com febre ou teve febre nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você teve alguma experiência de início de problemas respiratórios, como tosse ou dificuldade de respirar nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você teve algum tipo de contato com alguma pessoa confirmadamente infectada pelo 2019-nCoV nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você teve contato com um grande número de pessoas diferentes no últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você está usando máscara, álcool em gel ou outras medidas de biossegurança no seu dia a dia?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Já se submeteu à Cirurgia?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Realizou cirurgia bariátrica?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Tem muita exposição solar?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta manchas na pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta flacidez na pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta lesões de acne ativas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já realizou algum tratamento estético facial ou de pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já se submeteu a tratamentos com preenchedores não reabsorvíveis (PMMA)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Fez uso de ácido ou algum peeling químico?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Usa filtro solar regularmente?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Faz uso de produtos de cuidado diário da pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+O que você sente quando se olha no espelho?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+O que você gostaria de melhorar no seu rosto?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Você prefere resultados mais rápidos e mais caros ou mais lentos e mais baratos?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+
+
+
+
+-- Anamnese infantil resumida --
+
+
+Queixa principal?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Está usando medicação?
+Com alerta: Toma
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma alergia? (Como penicilinas, AAS ou outra)
+Com alerta: Alérgico a
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já teve hemorragia diagnosticada?
+Com alerta: Risco de hemorragia
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui diabetes?
+Com alerta: Diabético
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui asma?
+Com alerta: Asmático
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui alguma disfunção hepática?
+Com alerta: Disfunção hepática
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Apresenta alguma disfunção renal?
+Com alerta: Problema renal
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma doença transmissível? (HIV, Hepatite, outra)
+Com alerta: Doença transmissível
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma outra doença/síndrome não mencionada?
+Com alerta: undefined
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já se submeteu à Cirurgia Oral (exodontia, freio labial, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Quando foi sua última vez que veio ao dentista? Como foi o atendimento?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Quantas vezes por dia escova os dentes?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Usa fio dental?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Come muitos doces, balas entre outros?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Realizou pré natal?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+A criança nasceu com parto normal ou cesariana?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Peso ao nascer?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Realiza(ou) aleitamento materno?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Realiza(ou) o uso de mamadeira ou chupeta?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Realiza(ou) sucção de dedo ou lábio?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Informações adicionais:
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Usa creme dental?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Faz uso de antisséptico bucal?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Está em tratamento médico?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já esteve internado?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui alguma alteração sanguínea?
+Com alerta: Alteração sanguínea
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui alguma alteração cardiovascular?
+Com alerta: Alteração cardíaca
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Tem pressão alta?
+Com alerta: Hipertenso
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui anemia?
+Com alerta: Anêmico
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Possui alguma disfunção respiratória?
+Com alerta: Problema respiratório
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui alguma alteração óssea?
+Com alerta: Alteração óssea
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui câncer?
+Com alerta: Câncer
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já sofreu alguma reação alérgica ao receber anestesia?
+Com alerta: Alérgico ao anestésico
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui mau hálito?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui azia, má digestão, refluxo, úlcera ou gastrite?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Apresenta sangramento a escovação?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Sente seus dentes moles?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Fumante?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Range os dentes?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Tem o hábito de roer unha ou morder objetos (lápis, caneta, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Tem hábito de tomar café ou refrigerantes?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Ingere bebidas alcoólicas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui depressão?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Está ou esteve em tratamento psicológico?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Escuta algum estalido ao abrir a boca?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Tem dificuldade de abrir a boca?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Sente dores no ouvido, cabeça, face, nuca ou pescoço?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Possui algum antecedente de febre reumática?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Possui algum antecedente de endocardite bacteriana?
+Com alerta: Antecedente de endocardite bacteriana
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Já se submeteu à Periodontia (tratamento gengival)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já se submeteu à Ortodontia (aparelhos e correção)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já se submeteu à Endodontia (tratamento de canal)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já se submeteu à Profilaxia / Prevenção (limpeza, flúor, selante oclusal, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Seus dentes são sensíveis a mudança de temperatura ou a alimentos doces?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Apresenta alguma alteração de língua, lábio e/ou palato?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Está grávida?
+Com alerta: Grávida
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Está amamentando?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Toma anticoncepcional?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Qual o perfil? (côncavo, convexo ou reto)
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual a sobremordida? (aumentada, normal ou aberta)
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual o trespasse horizontal? (aumentado, normal ou negativo)
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Possui mordida cruzada?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui desvio de linha média?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+O canino direito apresenta relação de: classe I, classe II, classe III ou topo?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+O canino esquerdo apresenta relação de: classe I, classe II, classe III ou topo?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual a classe do paciente? (Classe I, II ou III)
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual a pressão arterial do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual frequência respiratória por minuto do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual a frequência cardíaca por minuto(bpm) do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+O paciente possui alguma alteração ganglionar?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta outra alteração na face não mencionada?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Usa drogas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Sente alguma dor nos dentes ou na boca?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui o hábito de tabagismo, alcoolismo ou uso de drogas?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você está com febre ou teve febre nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você teve alguma experiência de início de problemas respiratórios, como tosse ou dificuldade de respirar nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você teve algum tipo de contato com alguma pessoa confirmadamente infectada pelo 2019-nCoV nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você teve contato com um grande número de pessoas diferentes no últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você está usando máscara, álcool em gel ou outras medidas de biossegurança no seu dia a dia?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Já se submeteu à Cirurgia?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Realizou cirurgia bariátrica?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Tem muita exposição solar?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta manchas na pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta flacidez na pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta lesões de acne ativas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já realizou algum tratamento estético facial ou de pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já se submeteu a tratamentos com preenchedores não reabsorvíveis (PMMA)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Fez uso de ácido ou algum peeling químico?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Usa filtro solar regularmente?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Faz uso de produtos de cuidado diário da pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+O que você sente quando se olha no espelho?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+O que você gostaria de melhorar no seu rosto?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Você prefere resultados mais rápidos e mais caros ou mais lentos e mais baratos?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+
+
+
+
+
+-- Anamnese ortodôntica --
+
+
+Queixa principal?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Sente alguma dor nos dentes ou na boca?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Está em tratamento médico?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Está usando medicação?
+Com alerta: Toma
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma alergia? (Como penicilinas, AAS ou outra)
+Com alerta: Alérgico a
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já esteve internado?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já teve hemorragia diagnosticada?
+Com alerta: Risco de hemorragia
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui alguma alteração sanguínea?
+Com alerta: Alteração sanguínea
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Tem pressão alta?
+Com alerta: Hipertenso
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui diabetes?
+Com alerta: Diabético
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui asma?
+Com alerta: Asmático
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui anemia?
+Com alerta: Anêmico
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui alguma disfunção hepática?
+Com alerta: Disfunção hepática
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Apresenta alguma disfunção renal?
+Com alerta: Problema renal
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma disfunção respiratória?
+Com alerta: Problema respiratório
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma alteração óssea?
+Com alerta: Alteração óssea
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma doença transmissível? (HIV, Hepatite, outra)
+Com alerta: Doença transmissível
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui câncer?
+Com alerta: Câncer
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui depressão?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Está ou esteve em tratamento psicológico?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui algum antecedente de febre reumática?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui algum antecedente de endocardite bacteriana?
+Com alerta: Antecedente de endocardite bacteriana
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui alguma outra doença/síndrome não mencionada?
+Com alerta: undefined
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já sofreu alguma reação alérgica ao receber anestesia?
+Com alerta: Alérgico ao anestésico
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Tem dificuldade de abrir a boca?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Sente dores no ouvido, cabeça, face, nuca ou pescoço?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui mau hálito?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui azia, má digestão, refluxo, úlcera ou gastrite?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Apresenta sangramento a escovação?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Seus dentes são sensíveis a mudança de temperatura ou a alimentos doces?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Range os dentes?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já se submeteu à Cirurgia Oral (exodontia, freio labial, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já se submeteu à Ortodontia (aparelhos e correção)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já se submeteu à Periodontia (tratamento gengival)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já se submeteu à Endodontia (tratamento de canal)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já se submeteu à Profilaxia / Prevenção (limpeza, flúor, selante oclusal, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Quando foi sua última vez que veio ao dentista? Como foi o atendimento?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Quantas vezes por dia escova os dentes?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Usa creme dental?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Usa fio dental?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Faz uso de antisséptico bucal?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Come muitos doces, balas entre outros?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Tem hábito de tomar café ou refrigerantes?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Tem o hábito de roer unha ou morder objetos (lápis, caneta, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Realizou pré natal?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+A criança nasceu com parto normal ou cesariana?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Peso ao nascer?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Realiza(ou) aleitamento materno?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Realiza(ou) o uso de mamadeira ou chupeta?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Realiza(ou) sucção de dedo ou lábio?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Qual o perfil? (côncavo, convexo ou reto)
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Qual a sobremordida? (aumentada, normal ou aberta)
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Qual o trespasse horizontal? (aumentado, normal ou negativo)
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Possui mordida cruzada?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui desvio de linha média?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+O canino direito apresenta relação de: classe I, classe II, classe III ou topo?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+O canino esquerdo apresenta relação de: classe I, classe II, classe III ou topo?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Qual a classe do paciente? (Classe I, II ou III)
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Qual a pressão arterial do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Qual frequência respiratória por minuto do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Qual a frequência cardíaca por minuto(bpm) do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+O paciente possui alguma alteração ganglionar?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Apresenta alguma alteração de língua, lábio e/ou palato?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Apresenta outra alteração na face não mencionada?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Informações adicionais:
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Possui alguma alteração cardiovascular?
+Com alerta: Alteração cardíaca
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Sente seus dentes moles?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Fumante?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Ingere bebidas alcoólicas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Escuta algum estalido ao abrir a boca?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Está grávida?
+Com alerta: Grávida
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Está amamentando?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Toma anticoncepcional?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Usa drogas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui o hábito de tabagismo, alcoolismo ou uso de drogas?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você está com febre ou teve febre nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você teve alguma experiência de início de problemas respiratórios, como tosse ou dificuldade de respirar nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você teve algum tipo de contato com alguma pessoa confirmadamente infectada pelo 2019-nCoV nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você teve contato com um grande número de pessoas diferentes no últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você está usando máscara, álcool em gel ou outras medidas de biossegurança no seu dia a dia?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Já se submeteu à Cirurgia?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Realizou cirurgia bariátrica?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Tem muita exposição solar?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta manchas na pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta flacidez na pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta lesões de acne ativas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já realizou algum tratamento estético facial ou de pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já se submeteu a tratamentos com preenchedores não reabsorvíveis (PMMA)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Fez uso de ácido ou algum peeling químico?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Usa filtro solar regularmente?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Faz uso de produtos de cuidado diário da pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+O que você sente quando se olha no espelho?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+O que você gostaria de melhorar no seu rosto?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Você prefere resultados mais rápidos e mais caros ou mais lentos e mais baratos?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+
+
+
+
+
+-- Anamnese ortodôntica resumida --
+
+
+Queixa principal?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Está usando medicação?
+Com alerta: Toma
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma alergia? (Como penicilinas, AAS ou outra)
+Com alerta: Alérgico a
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já teve hemorragia diagnosticada?
+Com alerta: Risco de hemorragia
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Tem pressão alta?
+Com alerta: Hipertenso
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui diabetes?
+Com alerta: Diabético
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui asma?
+Com alerta: Asmático
+- Pergunta Sim/Não/Não Sei
+Disponível na ficha do paciente
+Possui alguma disfunção hepática?
+Com alerta: Disfunção hepática
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Apresenta alguma disfunção renal?
+Com alerta: Problema renal
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma doença transmissível? (HIV, Hepatite, outra)
+Com alerta: Doença transmissível
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui alguma outra doença/síndrome não mencionada?
+Com alerta: undefined
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já se submeteu à Cirurgia Oral (exodontia, freio labial, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Já se submeteu à Ortodontia (aparelhos e correção)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Quando foi sua última vez que veio ao dentista? Como foi o atendimento?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Quantas vezes por dia escova os dentes?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Usa fio dental?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Come muitos doces, balas entre outros?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Realiza(ou) o uso de mamadeira ou chupeta?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Realiza(ou) sucção de dedo ou lábio?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Qual o perfil? (côncavo, convexo ou reto)
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Qual a sobremordida? (aumentada, normal ou aberta)
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Qual o trespasse horizontal? (aumentado, normal ou negativo)
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Possui mordida cruzada?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+Possui desvio de linha média?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Disponível na ficha do paciente
+O canino direito apresenta relação de: classe I, classe II, classe III ou topo?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+O canino esquerdo apresenta relação de: classe I, classe II, classe III ou topo?
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Qual a classe do paciente? (Classe I, II ou III)
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Informações adicionais:
+Sem alerta
+- Pergunta Somente Texto
+Disponível na ficha do paciente
+Usa creme dental?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Faz uso de antisséptico bucal?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Está em tratamento médico?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já esteve internado?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui alguma alteração sanguínea?
+Com alerta: Alteração sanguínea
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui alguma alteração cardiovascular?
+Com alerta: Alteração cardíaca
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui anemia?
+Com alerta: Anêmico
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Possui alguma disfunção respiratória?
+Com alerta: Problema respiratório
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui alguma alteração óssea?
+Com alerta: Alteração óssea
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui câncer?
+Com alerta: Câncer
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já sofreu alguma reação alérgica ao receber anestesia?
+Com alerta: Alérgico ao anestésico
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui mau hálito?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui azia, má digestão, refluxo, úlcera ou gastrite?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Apresenta sangramento a escovação?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Sente seus dentes moles?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Fumante?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Range os dentes?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Tem o hábito de roer unha ou morder objetos (lápis, caneta, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Tem hábito de tomar café ou refrigerantes?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Ingere bebidas alcoólicas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui depressão?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Está ou esteve em tratamento psicológico?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Escuta algum estalido ao abrir a boca?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Tem dificuldade de abrir a boca?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Sente dores no ouvido, cabeça, face, nuca ou pescoço?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Possui algum antecedente de febre reumática?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Possui algum antecedente de endocardite bacteriana?
+Com alerta: Antecedente de endocardite bacteriana
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Já se submeteu à Periodontia (tratamento gengival)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já se submeteu à Endodontia (tratamento de canal)?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já se submeteu à Profilaxia / Prevenção (limpeza, flúor, selante oclusal, etc.)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Seus dentes são sensíveis a mudança de temperatura ou a alimentos doces?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Apresenta alguma alteração de língua, lábio e/ou palato?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Está grávida?
+Com alerta: Grávida
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Está amamentando?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Toma anticoncepcional?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Realizou pré natal?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+A criança nasceu com parto normal ou cesariana?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Peso ao nascer?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Realiza(ou) aleitamento materno?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Qual a pressão arterial do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual frequência respiratória por minuto do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Qual a frequência cardíaca por minuto(bpm) do paciente?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+O paciente possui alguma alteração ganglionar?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta outra alteração na face não mencionada?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Usa drogas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Sente alguma dor nos dentes ou na boca?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Possui o hábito de tabagismo, alcoolismo ou uso de drogas?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você está com febre ou teve febre nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você teve alguma experiência de início de problemas respiratórios, como tosse ou dificuldade de respirar nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você teve algum tipo de contato com alguma pessoa confirmadamente infectada pelo 2019-nCoV nos últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você teve contato com um grande número de pessoas diferentes no últimos 14 dias?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Você está usando máscara, álcool em gel ou outras medidas de biossegurança no seu dia a dia?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Já se submeteu à Cirurgia?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Realizou cirurgia bariátrica?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Tem muita exposição solar?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta manchas na pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta flacidez na pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Apresenta lesões de acne ativas?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já realizou algum tratamento estético facial ou de pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Já se submeteu a tratamentos com preenchedores não reabsorvíveis (PMMA)?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Fez uso de ácido ou algum peeling químico?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+Usa filtro solar regularmente?
+Sem alerta
+- Pergunta Sim/Não/Não Sei
+Não aparece na ficha do paciente
+Faz uso de produtos de cuidado diário da pele?
+Sem alerta
+- Pergunta Sim/Não/Não sei e Texto
+Não aparece na ficha do paciente
+O que você sente quando se olha no espelho?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+O que você gostaria de melhorar no seu rosto?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+Você prefere resultados mais rápidos e mais caros ou mais lentos e mais baratos?
+Sem alerta
+- Pergunta Somente Texto
+Não aparece na ficha do paciente
+
+
+
+-- Modelos de anamnese (criar)

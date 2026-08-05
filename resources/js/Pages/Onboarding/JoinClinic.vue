@@ -1,5 +1,6 @@
 <script setup>
 import { useForm } from '@inertiajs/vue3';
+import InputError from '@/Components/InputError.vue';
 
 const form = useForm({
     token: '',
@@ -19,6 +20,7 @@ const submit = () => {
             <div>
                 <label class="block mb-1 text-sm">Token do convite</label>
                 <input v-model="form.token" type="text" class="w-full border p-3 rounded-lg font-mono" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" required />
+                <InputError :message="form.errors.token" />
             </div>
 
             <button type="submit" class="w-full bg-emerald-600 text-white py-3 rounded-lg" :disabled="form.processing">

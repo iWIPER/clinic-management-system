@@ -16,7 +16,21 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'account_type',
+        'invited_by_admin_id',
         'phone',
+        'cpf',
+        'birth_date',
+        'gender',
+        'cro',
+        'cro_uf',
+        'specialty',
+        'job_title',
+        'status',
+        'profile_photo_path',
+        'last_login_at',
+        'profile_updated_at',
+        'preferences',
     ];
 
     protected $hidden = [
@@ -25,9 +39,18 @@ class User extends Authenticatable
     ];
 
     protected $casts = [
-        'email_verified_at' => 'datetime',
-        'password' => 'hashed',
+        'email_verified_at'    => 'datetime',
+        'birth_date'           => 'date',
+        'last_login_at'        => 'datetime',
+        'profile_updated_at'   => 'datetime',
+        'preferences'          => 'array',
+        'password'             => 'hashed',
     ];
+
+    public function isAffiliate(): bool
+    {
+        return $this->account_type === 'affiliate';
+    }
 
     /**
      * Todas as clínicas que o usuário participa (N:N)

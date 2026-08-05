@@ -14,7 +14,7 @@ class FinanceController extends Controller
     {
         $clinicId = session('current_clinic_id');
 
-        $budgets = Budget::with('patient')->latest()->take(5)->get();
+        $budgets = Budget::with(['patient', 'financingProposals'])->latest()->take(5)->get();
         $transactions = Transaction::latest()->take(10)->get();
         $totalReceita = Transaction::where('tipo', 'receita')->where('status', 'pago')->sum('valor');
         $totalDespesa = Transaction::where('tipo', 'despesa')->where('status', 'pago')->sum('valor');
@@ -22,7 +22,14 @@ class FinanceController extends Controller
         $pricing = PricingConfig::firstOrCreate(['clinic_id' => $clinicId]);
 
         return Inertia::render('Finance/Index', [
-            'budgets' => $budgets,
+            'budgets' => $budgets->map(fn ($b) => [
+                ...$b->toArray(),
+                'patient' => $b->patient ? [
+                    ...$b->patient->toArray(),
+                    'cpf' => $b->patient->doc_tipo === 'cpf' ? $b->patient->doc_numero : null,
+                    'full_name' => trim("{$b->patient->nome} {$b->patient->sobrenome}"),
+                ] : null,
+            ]),
             'transactions' => $transactions,
             'totalReceita' => $totalReceita,
             'totalDespesa' => $totalDespesa,

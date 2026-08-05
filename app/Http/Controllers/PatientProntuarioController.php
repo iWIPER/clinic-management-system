@@ -6,6 +6,7 @@ use App\Models\ClinicalEvolution;
 use App\Models\Patient;
 use App\Models\PatientAnamnesis;
 use App\Models\PatientOdontogram;
+use App\Models\PatientTreatment;
 use App\Services\PatientProntuarioPdfService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -15,9 +16,43 @@ class PatientProntuarioController extends Controller
 {
     public function show(Patient $patient)
     {
-        return redirect()->route('patients.show', [
-            'patient' => $patient->id,
-            'tab' => 'anamnese',
+        $patient->load([
+            'anamnesis',
+            'odontogram',
+            'evolutions.professional:id,name',
+            'clinicalRecords.professional:id,name',
+            'consultations.professional:id,name',
+            'photos',
+            'clinic',
+        ]);
+
+        $anamnesis = $patient->anamnesis ?? PatientAnamnesis::make([
+            'patient_id' => $patient->id,
+            'clinic_id' => $patient->clinic_id,
+        ]);
+
+        $odontogram = $patient->odontogram ?? PatientOdontogram::make([
+            'patient_id' => $patient->id,
+            'clinic_id' => $patient->clinic_id,
+            'teeth_data' => PatientOdontogram::defaultTeethData(),
+        ]);
+
+        $clinic = $patient->clinic;
+
+        return Inertia::render('Prontuario/Show', [
+            'patient'        => $patient,
+            'anamnesis'      => $anamnesis,
+            'odontogram'     => $odontogram,
+            'toothStatuses'  => collect(PatientOdontogram::TOOTH_STATUSES)
+                ->map(fn ($label, $value) => ['value' => $value, 'label' => $label])
+                ->values(),
+            'fdiTeeth'       => PatientOdontogram::FDI_TEETH,
+            'treatmentsByTooth' => PatientTreatment::groupedByTooth($patient->id),
+            'clinicBranding' => [
+                'logoUrl' => $clinic?->logoUrl(),
+                'name'    => $clinic?->displayName(),
+                'slogan'  => $clinic?->slogan,
+            ],
         ]);
     }
 

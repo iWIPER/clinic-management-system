@@ -34,6 +34,8 @@ class PatientHubService
     {
         $this->ensureRelations($patient);
 
+        $timeline = $this->timeline($patient);
+
         return [
             'badges' => $this->badges($patient),
             'clinicalAlerts' => $this->clinicalAlerts($patient),
@@ -42,8 +44,10 @@ class PatientHubService
                 'clinical' => $this->clinicalSummary($patient),
                 'relationship' => $this->relationshipSummary($patient),
             ],
+            'professionals' => $this->professionalsSummary($patient),
             'tags' => $this->tags($patient),
-            'timeline' => $this->timeline($patient),
+            'timeline' => $timeline,
+            'recentTimeline' => array_slice($timeline, 0, 6),
             'treatments' => $this->treatments($patient),
             'consultations' => $this->consultationsGrouped($patient),
             'financialHistory' => $this->financialHistory($patient),
@@ -58,7 +62,8 @@ class PatientHubService
     {
         $patient->loadMissing([
             'anamnesis.updatedBy:id,name',
-            'odontogram',
+            'anamnesisInstances.professional:id,name',
+            'odontogram.updatedBy:id,name',
             'appointments.treatment',
             'appointments.professional:id,name',
             'appointments.consultation.procedureExecutions.treatment',
@@ -69,50 +74,58 @@ class PatientHubService
             'evolutions.professional:id,name',
             'photos',
             'budgets.items.treatment',
+            'responsibleProfessional:id,name,job_title',
+            'treatments.professional:id,name',
+            'treatments.convenio',
+            'convenio',
         ]);
     }
 
+    /**
+     * Conjunto enxuto e deliberadamente curado — só o que não é visível em
+     * nenhum outro lugar da ficha (status, "próxima consulta" etc. já aparecem
+     * em Dados Pessoais/listagem/card Clínico, então não viram badge de novo).
+     */
     public function badges(Patient $patient): array
     {
         $badges = [];
-
-        if ($patient->status === 'ativo') {
-            $badges[] = ['key' => 'active', 'label' => 'Paciente ativo', 'color' => 'green'];
-        }
-
-        if ($this->hasOverdueBudgets($patient)) {
-            $badges[] = ['key' => 'delinquent', 'label' => 'Inadimplente', 'color' => 'red'];
-        }
 
         if ($this->hasActiveTreatment($patient)) {
             $badges[] = ['key' => 'treatment_active', 'label' => 'Tratamento em andamento', 'color' => 'blue'];
         }
 
-        if ($this->needsReturn($patient)) {
-            $badges[] = ['key' => 'return_pending', 'label' => 'Retorno pendente', 'color' => 'amber'];
+        if (count($this->clinicalAlerts($patient)) > 0) {
+            $badges[] = ['key' => 'clinical_alert', 'label' => 'Alerta clínico', 'color' => 'orange'];
         }
 
-        $ltv = $this->lifetimeValue($patient);
-        if ($ltv >= self::HIGH_VALUE_THRESHOLD) {
-            $badges[] = ['key' => 'high_value', 'label' => 'Alto valor', 'color' => 'purple'];
+        if (! empty($patient->convenio)) {
+            $badges[] = ['key' => 'has_convenio', 'label' => 'Convênio', 'color' => 'indigo'];
         }
 
         $lastVisit = $this->lastVisitDate($patient);
         if ($lastVisit && $lastVisit->lt(now()->subMonths(6))) {
-            $badges[] = ['key' => 'inactive_6m', 'label' => 'Sem consulta há mais de 6 meses', 'color' => 'slate'];
+            $badges[] = ['key' => 'inactive_6m', 'label' => 'Sem retorno há 6+ meses', 'color' => 'purple'];
         }
 
-        if (count($this->clinicalAlerts($patient)) > 0) {
-            $badges[] = ['key' => 'clinical_alert', 'label' => 'Possui alerta clínico', 'color' => 'orange'];
+        if ($patient->photos->contains('categoria', 'Radiografias')) {
+            $badges[] = ['key' => 'radiographs_available', 'label' => 'Radiografias', 'color' => 'slate'];
         }
 
-        $birthday = $this->birthdayInfo($patient);
-        if ($birthday['is_upcoming']) {
-            $badges[] = [
-                'key' => 'birthday',
-                'label' => $birthday['days_until'] === 0 ? 'Aniversário hoje' : ($birthday['days_until'] === 1 ? 'Aniversário amanhã' : 'Aniversário próximo'),
-                'color' => 'pink',
-            ];
+        if ($this->financialSummary($patient)['total_pending'] > 0) {
+            $badges[] = ['key' => 'financial_pending', 'label' => 'Pendência financeira', 'color' => 'red'];
+        }
+
+        $hasSignedAnamnesis = $patient->anamnesisInstances->contains(fn ($a) => ! is_null($a->signed_at));
+        if (! $hasSignedAnamnesis) {
+            $badges[] = ['key' => 'anamnesis_pending', 'label' => 'Anamnese pendente', 'color' => 'amber'];
+        }
+
+        $hasPendingDocs = collect($this->documents($patient))
+            ->pluck('documents')
+            ->flatten(1)
+            ->contains(fn ($d) => $d['status'] === 'pendente');
+        if ($hasPendingDocs) {
+            $badges[] = ['key' => 'document_pending', 'label' => 'Documento aguardando assinatura', 'color' => 'amber'];
         }
 
         return $badges;
@@ -152,6 +165,49 @@ class PatientHubService
         return $alerts;
     }
 
+    /**
+     * "Responsável atual" é um campo persistido (patients.responsible_professional_id),
+     * nunca alterado automaticamente por este service — só via ação manual explícita
+     * (PatientController::updateResponsibleProfessional). Primeiro/último atendimento
+     * seguem a mesma precedência já usada em relationshipSummary()/clinicalSummary().
+     */
+    public function professionalsSummary(Patient $patient): array
+    {
+        $firstRecord = $patient->clinicalRecords
+            ->whereNotNull('finished_at')
+            ->sortBy('finished_at')
+            ->first();
+        $firstAppointment = $patient->appointments->sortBy('start')->first();
+
+        $lastRecord = $patient->clinicalRecords
+            ->whereNotNull('finished_at')
+            ->sortByDesc('finished_at')
+            ->first();
+        $lastAppointment = $patient->appointments
+            ->where('status', 'completed')
+            ->sortByDesc('start')
+            ->first();
+
+        $first = $firstRecord ?? $firstAppointment;
+        $last = $lastRecord ?? $lastAppointment;
+
+        return [
+            'responsible' => $patient->responsibleProfessional ? [
+                'id' => $patient->responsibleProfessional->id,
+                'name' => $patient->responsibleProfessional->name,
+                'job_title' => $patient->responsibleProfessional->job_title,
+            ] : null,
+            'first_attendance' => $first ? [
+                'professional' => $first->professional?->name,
+                'date' => ($first->finished_at ?? $first->start)?->toIso8601String(),
+            ] : null,
+            'last_attendance' => $last ? [
+                'professional' => $last->professional?->name,
+                'date' => ($last->finished_at ?? $last->start)?->toIso8601String(),
+            ] : null,
+        ];
+    }
+
     public function financialSummary(Patient $patient): array
     {
         $budgeted = (float) $patient->budgets->sum('total');
@@ -165,12 +221,19 @@ class PatientHubService
             ->count();
         $ticketAvg = $completedCount > 0 ? $received / $completedCount : 0;
 
+        $lastPayment = $patient->clinicalRecords
+            ->filter(fn ($r) => $r->status === ClinicalRecordStatus::Concluido && (float) $r->price > 0)
+            ->sortByDesc('finished_at')
+            ->first();
+
         return [
             'total_budgeted' => round($budgeted, 2),
             'total_received' => round($received, 2),
             'total_pending' => round($pending, 2),
             'ticket_average' => round($ticketAvg, 2),
             'lifetime_value' => round($this->lifetimeValue($patient), 2),
+            'last_payment_at' => $lastPayment?->finished_at?->toIso8601String(),
+            'convenio' => $patient->convenio?->nome,
         ];
     }
 
@@ -193,17 +256,30 @@ class PatientHubService
             ->sortBy('start')
             ->first();
 
+        $firstVisit = $patient->clinicalRecords->min('finished_at')
+            ?? $patient->appointments->min('start');
+
+        $lastSignedAnamnesis = $patient->anamnesisInstances
+            ->whereNotNull('signed_at')
+            ->sortByDesc('signed_at')
+            ->first();
+
         return [
             'consultations_completed' => $completedConsultations,
             'treatments_completed' => $completedTreatments,
             'treatments_active' => $activeTreatments,
             'last_procedure' => $lastRecord?->procedure_name,
             'last_tooth' => $lastTooth,
+            'first_visit_at' => $firstVisit ? Carbon::parse($firstVisit)->toIso8601String() : null,
             'last_visit_at' => $lastVisit?->toIso8601String(),
             'next_appointment_at' => $nextAppointment?->start?->toIso8601String(),
             'next_appointment_label' => $nextAppointment
                 ? ($nextAppointment->treatment?->nome ?? 'Consulta')
                 : null,
+            'odontogram_updated_at' => $patient->odontogram?->updated_at?->toIso8601String(),
+            'odontogram_updated_by' => $patient->odontogram?->updatedBy?->name,
+            'last_anamnesis_at' => $lastSignedAnamnesis?->signed_at?->toIso8601String(),
+            'last_anamnesis_signed_by' => $lastSignedAnamnesis?->professional?->name,
         ];
     }
 
@@ -223,14 +299,24 @@ class PatientHubService
             ?? $patient->appointments->min('start');
 
         $patientSince = $patient->created_at;
-        $monthsAsPatient = $patientSince ? $patientSince->diffInMonths(now()) : 0;
+
+        $reschedules = (int) $appointments->sum('reschedule_count');
+
+        $lastContact = collect([
+            $appointments->max('created_at'),
+            $patient->consultations->max('created_at'),
+            $patient->evolutions->max('recorded_at'),
+        ])->filter()->max();
 
         return [
+            'attendances' => $completed,
             'attendance_rate' => $attendanceRate,
             'no_shows' => $noShows,
             'cancellations' => $cancelled,
-            'months_as_patient' => $monthsAsPatient,
+            'reschedules' => $reschedules,
+            'time_as_patient' => $patientSince ? $this->humanizeDuration($patientSince) : null,
             'first_visit_at' => $firstVisit ? Carbon::parse($firstVisit)->toIso8601String() : null,
+            'last_contact_at' => $lastContact ? Carbon::parse($lastContact)->toIso8601String() : null,
         ];
     }
 
@@ -261,135 +347,71 @@ class PatientHubService
         return array_values(array_unique($tags));
     }
 
+    /**
+     * Linha do tempo — deliberadamente restrita a só 5 tipos de evento
+     * (pagamento, documento clínico, anamnese concluída, odontograma
+     * atualizado, radiografia). Consultas/atendimentos/procedimentos/fotos
+     * clínicas/mudança de responsável têm seus próprios módulos (Agenda,
+     * Consultas, Financeiro, Fotos Clínicas, card Profissionais) e foram
+     * removidos daqui de propósito para não duplicar informação — aqui é só
+     * o que merece aparecer como marco na jornada clínica do paciente.
+     */
     public function timeline(Patient $patient): array
     {
         $events = collect();
 
-        foreach ($patient->appointments as $apt) {
-            $events->push([
-                'type' => 'appointment_created',
-                'category' => 'consultas',
-                'occurred_at' => $apt->created_at->toIso8601String(),
-                'title' => 'Consulta criada',
-                'detail' => $apt->treatment?->nome,
-                'meta' => ['appointment_id' => $apt->id, 'status' => $apt->status],
-            ]);
-
-            if ($apt->status === 'confirmed') {
-                $events->push([
-                    'type' => 'appointment_confirmed',
-                    'category' => 'consultas',
-                    'occurred_at' => $apt->updated_at->toIso8601String(),
-                    'title' => 'Consulta confirmada',
-                    'detail' => $apt->treatment?->nome,
-                    'meta' => ['appointment_id' => $apt->id],
-                ]);
-            }
-
-            if ($apt->status === 'cancelled') {
-                $events->push([
-                    'type' => 'appointment_cancelled',
-                    'category' => 'consultas',
-                    'occurred_at' => $apt->updated_at->toIso8601String(),
-                    'title' => 'Consulta cancelada',
-                    'detail' => $apt->treatment?->nome,
-                    'meta' => ['appointment_id' => $apt->id],
-                ]);
-            }
-
-            if ($apt->status === 'no_show') {
-                $events->push([
-                    'type' => 'appointment_no_show',
-                    'category' => 'consultas',
-                    'occurred_at' => $apt->start->toIso8601String(),
-                    'title' => 'Falta registrada',
-                    'detail' => $apt->treatment?->nome,
-                    'meta' => ['appointment_id' => $apt->id],
-                ]);
-            }
-        }
-
-        foreach ($patient->consultations as $consultation) {
-            if ($consultation->check_in_at) {
-                $events->push([
-                    'type' => 'check_in',
-                    'category' => 'clinico',
-                    'occurred_at' => $consultation->check_in_at->toIso8601String(),
-                    'title' => 'Check-in realizado',
-                    'detail' => $consultation->appointment?->treatment?->nome,
-                    'meta' => ['consultation_id' => $consultation->id],
-                ]);
-            }
-
-            if ($consultation->started_at) {
-                $events->push([
-                    'type' => 'attendance_started',
-                    'category' => 'clinico',
-                    'occurred_at' => $consultation->started_at->toIso8601String(),
-                    'title' => 'Atendimento iniciado',
-                    'detail' => $consultation->professional?->name,
-                    'meta' => ['consultation_id' => $consultation->id],
-                ]);
-            }
-        }
-
         foreach ($patient->clinicalRecords as $record) {
-            if ($record->finished_at) {
+            if ($record->finished_at && (float) $record->price > 0) {
                 $events->push([
-                    'type' => 'procedure_completed',
-                    'category' => 'clinico',
-                    'occurred_at' => $record->finished_at->toIso8601String(),
-                    'title' => $record->procedure_name . ' concluído',
-                    'detail' => $record->professional?->name,
-                    'meta' => [
-                        'record_id' => $record->id,
-                        'price' => (float) $record->price,
-                        'duration' => $record->duration_minutes,
-                    ],
+                    'type' => 'payment_received',
+                    'category' => 'financeiro',
+                    'occurred_at' => $record->finished_at->copy()->addMinutes(2)->toIso8601String(),
+                    'title' => 'Pagamento registrado',
+                    'detail' => 'R$ ' . number_format((float) $record->price, 2, ',', '.'),
+                    'meta' => ['amount' => (float) $record->price, 'method' => 'Consultório'],
                 ]);
-
-                if ((float) $record->price > 0) {
-                    $events->push([
-                        'type' => 'payment_received',
-                        'category' => 'financeiro',
-                        'occurred_at' => $record->finished_at->copy()->addMinutes(2)->toIso8601String(),
-                        'title' => 'Pagamento recebido',
-                        'detail' => 'R$ ' . number_format((float) $record->price, 2, ',', '.'),
-                        'meta' => ['amount' => (float) $record->price, 'method' => 'Consultório'],
-                    ]);
-                }
             }
         }
 
-        foreach ($patient->budgets as $budget) {
-            $events->push([
-                'type' => 'budget_' . $budget->status,
-                'category' => 'financeiro',
-                'occurred_at' => $budget->created_at->toIso8601String(),
-                'title' => 'Orçamento ' . $budget->status,
-                'detail' => 'R$ ' . number_format((float) $budget->total, 2, ',', '.'),
-                'meta' => ['budget_id' => $budget->id],
-            ]);
+        foreach ($patient->anamnesisInstances as $instance) {
+            if ($instance->completed_at) {
+                $events->push([
+                    'type' => 'anamnesis_completed',
+                    'category' => 'clinico',
+                    'occurred_at' => $instance->completed_at->toIso8601String(),
+                    'title' => 'Anamnese concluída',
+                    'detail' => $instance->professional?->name,
+                    'meta' => ['instance_id' => $instance->id],
+                ]);
+            }
         }
 
-        foreach ($patient->evolutions as $evolution) {
+        if ($patient->odontogram && $patient->odontogram->updated_at->gt($patient->odontogram->created_at->addMinute())) {
             $events->push([
-                'type' => 'evolution',
+                'type' => 'odontogram_updated',
                 'category' => 'clinico',
-                'occurred_at' => $evolution->recorded_at->toIso8601String(),
-                'title' => 'Evolução registrada',
-                'detail' => $evolution->professional?->name,
-                'meta' => ['evolution_id' => $evolution->id, 'preview' => mb_substr($evolution->content, 0, 120)],
+                'occurred_at' => $patient->odontogram->updated_at->toIso8601String(),
+                'title' => 'Odontograma atualizado',
+                'detail' => $patient->odontogram->updatedBy?->name,
+                'meta' => [],
             ]);
         }
 
+        $photoEventMap = [
+            'Radiografias' => 'Radiografia adicionada',
+            'Documentação' => 'Documento clínico enviado',
+        ];
         foreach ($patient->photos as $photo) {
-            $category = $photo->categoria === 'Documentação' ? 'documentos' : 'arquivos';
+            $title = $photoEventMap[$photo->categoria] ?? null;
+            if (! $title) {
+                continue;
+            }
+
             $events->push([
                 'type' => 'file_added',
-                'category' => $category,
+                'category' => $photo->categoria === 'Documentação' ? 'documentos' : 'arquivos',
                 'occurred_at' => ($photo->taken_at ?? $photo->created_at)->toIso8601String(),
-                'title' => $category === 'documentos' ? 'Documento adicionado' : 'Arquivo clínico adicionado',
+                'title' => $title,
                 'detail' => $photo->subcategoria ?? $photo->filename,
                 'meta' => ['photo_id' => $photo->id, 'dente' => $photo->dente],
             ]);
@@ -449,6 +471,28 @@ class PatientHubService
                     'notes' => $budget->notes,
                 ]);
             }
+        }
+
+        foreach ($patient->treatments as $treatment) {
+            $items->push([
+                'id' => 'patient-treatment-' . $treatment->id,
+                'source' => 'patient_treatment',
+                'budget_code' => $treatment->budget_code,
+                'name' => $treatment->procedure_name,
+                'category' => null,
+                'description' => $treatment->notes,
+                'tooth' => $treatment->tooth,
+                'faces' => $treatment->faces,
+                'professional' => $treatment->professional?->name,
+                'convenio' => $treatment->convenio?->nome,
+                'started_at' => optional($treatment->treatment_date)->toIso8601String(),
+                'finished_at' => $treatment->completed_at?->toIso8601String(),
+                'value' => (float) $treatment->value_charged,
+                'cost' => (float) $treatment->cost,
+                'payment_method' => null,
+                'status' => $treatment->status,
+                'notes' => $treatment->notes,
+            ]);
         }
 
         return $items->sortByDesc('started_at')->values()->all();
@@ -615,6 +659,21 @@ class PatientHubService
                 ]);
             }
 
+            $toothTreatments = $patient->treatments->where('tooth', (string) $tooth);
+            foreach ($toothTreatments as $treatment) {
+                $date = $treatment->completed_at ?? $treatment->treatment_date ?? $treatment->created_at;
+                $entries->push([
+                    'year' => $date->year,
+                    'procedure' => $treatment->procedure_name,
+                    'date' => $date->toIso8601String(),
+                    'professional' => $treatment->professional?->name,
+                    'notes' => $treatment->notes,
+                    'status' => $treatment->status,
+                    'budget_code' => $treatment->budget_code,
+                    'photo_id' => null,
+                ]);
+            }
+
             $teethData = $patient->odontogram?->teeth_data[$tooth] ?? null;
             $status = $teethData['status'] ?? 'saudavel';
 
@@ -700,6 +759,35 @@ class PatientHubService
         return (float) $patient->clinicalRecords
             ->filter(fn ($r) => $r->status === ClinicalRecordStatus::Concluido)
             ->sum('price');
+    }
+
+    /**
+     * Duração legível baseada em diferença de calendário (ano/mês/dia reais,
+     * não uma média de dias) — ex: "2 dias", "3 meses e 12 dias",
+     * "2 anos, 3 meses e 8 dias". Nunca um decimal cru.
+     */
+    private function humanizeDuration(Carbon $since): string
+    {
+        $interval = $since->diff(now());
+
+        if ($interval->y === 0 && $interval->m === 0 && $interval->d === 0) {
+            return 'Hoje';
+        }
+
+        $parts = [];
+        if ($interval->y > 0) {
+            $parts[] = "{$interval->y} " . ($interval->y === 1 ? 'ano' : 'anos');
+        }
+        if ($interval->m > 0) {
+            $parts[] = "{$interval->m} " . ($interval->m === 1 ? 'mês' : 'meses');
+        }
+        if ($interval->d > 0) {
+            $parts[] = "{$interval->d} " . ($interval->d === 1 ? 'dia' : 'dias');
+        }
+
+        $last = array_pop($parts);
+
+        return $parts ? implode(', ', $parts) . ' e ' . $last : $last;
     }
 
     private function lastVisitDate(Patient $patient): ?Carbon

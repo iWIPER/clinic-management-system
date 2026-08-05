@@ -5,17 +5,15 @@ namespace App\Http\Controllers;
 use App\Data\DentalTreatmentCatalog;
 use App\Models\Treatment;
 use App\Models\TreatmentAuditLog;
-use App\Services\TreatmentCatalogService;
+use App\Services\PatientStatusService;
 use App\Services\TreatmentStatsService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class TreatmentController extends Controller
 {
-    public function index(Request $request, TreatmentCatalogService $catalogService)
+    public function index(Request $request)
     {
-        $catalogService->ensureCatalogForCurrentClinic(auth()->id());
-
         $search = $request->input('search');
         $categoriaFilter = $request->input('categoria');
 
@@ -71,11 +69,27 @@ class TreatmentController extends Controller
 
         $breadcrumb[] = ['label' => $treatment->nome, 'href' => null];
 
+        $linkedDocuments = $treatment->documents()
+            ->with('patient:id,nome,sobrenome')
+            ->latest('documents.created_at')
+            ->limit(20)
+            ->get()
+            ->map(fn ($d) => [
+                'id'            => $d->id,
+                'template_name' => $d->template_name,
+                'status_label'  => $d->statusEnum()->label(),
+                'status_color'  => $d->statusEnum()->color(),
+                'patient_id'    => $d->patient_id,
+                'patient_name'  => $d->patient?->nome_completo,
+                'created_at'    => $d->created_at,
+            ]);
+
         return Inertia::render('Treatments/Show', [
             'treatment' => $treatment,
             'stats' => $statsService->forTreatment($treatment),
             'hasLinkedAttendances' => $statsService->hasLinkedAttendances($treatment),
             'breadcrumb' => $breadcrumb,
+            'linkedDocuments' => $linkedDocuments,
             'auditLogs' => $treatment->auditLogs->map(fn ($log) => [
                 'id' => $log->id,
                 'action' => $log->action,
@@ -101,16 +115,18 @@ class TreatmentController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nome' => 'required|string|max:255',
-            'categoria' => 'nullable|string|max:100',
-            'tipo' => 'nullable|string|in:procedimento,variacao,grupo',
-            'parent_id' => 'nullable|exists:treatments,id',
-            'especialidade' => 'nullable|string|max:100',
-            'duracao_padrao' => 'nullable|integer|min:0',
-            'preco_base' => 'nullable|numeric|min:0',
-            'descricao' => 'nullable|string',
-            'cor' => 'nullable|string|max:7',
-            'ordem' => 'nullable|integer|min:0',
+            'nome'              => 'required|string|max:255',
+            'categoria'         => 'nullable|string|max:100',
+            'tipo'              => 'nullable|string|in:procedimento,variacao,grupo',
+            'parent_id'         => 'nullable|exists:treatments,id',
+            'especialidade'     => 'nullable|string|max:100',
+            'duracao_padrao'    => 'nullable|integer|min:0',
+            'inatividade_meses' => 'nullable|integer|min:1|max:120',
+            'preco_base'        => 'nullable|numeric|min:0',
+            'custo_padrao'      => 'nullable|numeric|min:0',
+            'descricao'         => 'nullable|string',
+            'cor'               => 'nullable|string|max:7',
+            'ordem'             => 'nullable|integer|min:0',
         ]);
 
         $categories = DentalTreatmentCatalog::categories();
@@ -144,16 +160,18 @@ class TreatmentController extends Controller
     public function update(Request $request, Treatment $treatment)
     {
         $validated = $request->validate([
-            'nome' => 'required|string|max:255',
-            'categoria' => 'nullable|string|max:100',
-            'tipo' => 'nullable|string|in:procedimento,variacao,grupo',
-            'parent_id' => 'nullable|exists:treatments,id',
-            'especialidade' => 'nullable|string|max:100',
-            'duracao_padrao' => 'nullable|integer|min:0',
-            'preco_base' => 'nullable|numeric|min:0',
-            'descricao' => 'nullable|string',
-            'cor' => 'nullable|string|max:7',
-            'ordem' => 'nullable|integer|min:0',
+            'nome'              => 'required|string|max:255',
+            'categoria'         => 'nullable|string|max:100',
+            'tipo'              => 'nullable|string|in:procedimento,variacao,grupo',
+            'parent_id'         => 'nullable|exists:treatments,id',
+            'especialidade'     => 'nullable|string|max:100',
+            'duracao_padrao'    => 'nullable|integer|min:0',
+            'inatividade_meses' => 'nullable|integer|min:1|max:120',
+            'preco_base'        => 'nullable|numeric|min:0',
+            'custo_padrao'      => 'nullable|numeric|min:0',
+            'descricao'         => 'nullable|string',
+            'cor'               => 'nullable|string|max:7',
+            'ordem'             => 'nullable|integer|min:0',
         ]);
 
         $changes = [];
@@ -170,9 +188,36 @@ class TreatmentController extends Controller
             $this->logAudit($treatment, 'updated', ['changes' => $changes]);
         }
 
+        if (array_key_exists('inatividade_meses', $changes)) {
+            app(PatientStatusService::class)->recalculateForClinic($treatment->clinic_id);
+        }
+
         return redirect()
             ->route('treatments.show', $treatment)
             ->with('success', 'Procedimento atualizado!');
+    }
+
+    // Só o custo interno padrão do catálogo — chamado pelo checkbox "salvar
+    // como padrão" do UpdateCostModal quando ainda não existe um
+    // PatientTreatment salvo pra usar o endpoint de custo por tratamento (ver
+    // patients.treatments.cost). Nunca mexe em preco_base (Valor é campo
+    // separado, não afetado por essa ação — ver TreatmentFormModal.vue).
+    public function updateDefaultCost(Request $request, Treatment $treatment)
+    {
+        $validated = $request->validate([
+            'custo_padrao' => 'required|numeric|min:0',
+        ]);
+
+        $from = $treatment->custo_padrao;
+        $treatment->update(['custo_padrao' => $validated['custo_padrao']]);
+
+        if ((string) $from !== (string) $validated['custo_padrao']) {
+            $this->logAudit($treatment, 'updated', [
+                'changes' => ['custo_padrao' => ['from' => $from, 'to' => $validated['custo_padrao']]],
+            ]);
+        }
+
+        return back()->with('success', 'Custo padrão do procedimento atualizado.');
     }
 
     public function deactivate(Treatment $treatment)

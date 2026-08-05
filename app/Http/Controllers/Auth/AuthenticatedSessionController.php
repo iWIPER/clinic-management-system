@@ -28,11 +28,12 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
 
         $user = Auth::user();
+        $user->forceFill(['last_login_at' => now()])->save();
         $clinic = $user->clinics()->first();
 
         if ($clinic) {
             session(['current_clinic_id' => $clinic->id]);
-            session(['current_clinic' => $clinic->only('id', 'name', 'type')]);
+            session(['current_clinic' => $clinic->toSessionPayload()]);
             return redirect()->intended(route('dashboard'));
         }
 

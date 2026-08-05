@@ -19,6 +19,7 @@ class Appointment extends Model
         'end',
         'status', // scheduled, confirmed, cancelled, no_show, completed
         'notes',
+        'reschedule_count',
     ];
 
     protected $casts = [

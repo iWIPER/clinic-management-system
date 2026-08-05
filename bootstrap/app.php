@@ -10,6 +10,8 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function () {
+            \Illuminate\Support\Facades\Route::bind('anamnesis', fn (string $value) => \App\Models\AnamnesisInstance::findOrFail($value));
+
             \Illuminate\Support\Facades\Route::middleware('web')
                 ->group(base_path('routes/auth.php'));
         },
@@ -20,7 +22,14 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-            'clinic' => \App\Http\Middleware\EnsureCurrentClinic::class,
+            'clinic'      => \App\Http\Middleware\EnsureCurrentClinic::class,
+            'super-admin' => \App\Http\Middleware\SuperAdmin::class,
+            'affiliate'   => \App\Http\Middleware\EnsureAffiliate::class,
+        ]);
+
+        // Webhooks são chamados pelo Stripe, sem sessão/cookie CSRF do app.
+        $middleware->validateCsrfTokens(except: [
+            'stripe/webhook',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

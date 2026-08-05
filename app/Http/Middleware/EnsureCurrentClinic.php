@@ -20,13 +20,21 @@ class EnsureCurrentClinic
             return $next($request);
         }
 
+        // Contas Affiliate não têm clínica — nunca devem ver telas clínicas.
+        if ($user->isAffiliate()) {
+            return redirect()->route('affiliate.dashboard');
+        }
+
         $clinicId = session('current_clinic_id');
 
         if (!$clinicId) {
             // Tenta pegar a primeira clínica do usuário
             $firstClinic = $user->clinics()->first();
             if ($firstClinic) {
-                session(['current_clinic_id' => $firstClinic->id]);
+                session([
+                    'current_clinic_id' => $firstClinic->id,
+                    'current_clinic'    => $firstClinic->toSessionPayload(),
+                ]);
             }
         }
 

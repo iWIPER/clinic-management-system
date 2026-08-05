@@ -21,6 +21,7 @@ class Treatment extends Model
         'parent_id',
         'especialidade',
         'duracao_padrao',
+        'inatividade_meses',
         'preco_base',
         'descricao',
         'cor',
@@ -29,12 +30,15 @@ class Treatment extends Model
         'ativo',
         'deactivated_at',
         'deactivated_by_id',
+        'custo_padrao',
     ];
 
     protected $casts = [
-        'preco_base' => 'decimal:2',
-        'ativo' => 'boolean',
-        'deactivated_at' => 'datetime',
+        'preco_base'        => 'decimal:2',
+        'custo_padrao'      => 'decimal:2',
+        'inatividade_meses' => 'integer',
+        'ativo'             => 'boolean',
+        'deactivated_at'    => 'datetime',
     ];
 
     public function scopeActive(Builder $query): Builder
@@ -92,5 +96,15 @@ class Treatment extends Model
     public function deactivatedBy()
     {
         return $this->belongsTo(User::class, 'deactivated_by_id');
+    }
+
+    public function documents()
+    {
+        return $this->morphToMany(Document::class, 'related', 'document_relations');
+    }
+
+    public function patientTreatments()
+    {
+        return $this->hasMany(PatientTreatment::class);
     }
 }

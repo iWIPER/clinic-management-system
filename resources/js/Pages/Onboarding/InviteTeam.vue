@@ -1,5 +1,6 @@
 <script setup>
 import { useForm, Link } from '@inertiajs/vue3';
+import InputError from '@/Components/InputError.vue';
 
 const props = defineProps({ clinic: Object });
 
@@ -28,10 +29,11 @@ const submit = () => {
         <p class="text-slate-600 mb-6">Clínica: <strong>{{ clinic?.name }}</strong></p>
 
         <form @submit.prevent="submit" class="bg-white border rounded-2xl p-8 space-y-4">
-            <div v-for="(invite, index) in form.invites" :key="index" class="flex gap-3 items-end border p-4 rounded-xl">
+            <div v-for="(invite, index) in form.invites" :key="index" class="flex gap-3 items-start border p-4 rounded-xl">
                 <div class="flex-1">
                     <label class="text-xs text-slate-500">Email</label>
                     <input v-model="invite.email" type="email" class="w-full border p-2 rounded" placeholder="doutor@clinica.com" required />
+                    <InputError :message="form.errors[`invites.${index}.email`]" />
                 </div>
                 <div>
                     <label class="text-xs text-slate-500">Papel</label>
@@ -40,6 +42,7 @@ const submit = () => {
                         <option value="professional">Profissional</option>
                         <option value="staff">Staff / Recepção</option>
                     </select>
+                    <InputError :message="form.errors[`invites.${index}.role`]" />
                 </div>
                 <button type="button" @click="remove(index)" class="text-red-500 px-2" v-if="form.invites.length > 1">×</button>
             </div>

@@ -12,6 +12,8 @@ class DatabaseSeeder extends Seeder
             PlanSeeder::class,
             RolesAndPermissionsSeeder::class,
             DentalTreatmentsSeeder::class,
+            AnamnesisTemplatesSeeder::class,
+            DocumentTemplatesSeeder::class,
         ]);
     }
 }

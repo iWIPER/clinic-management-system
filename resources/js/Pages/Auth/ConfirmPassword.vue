@@ -17,7 +17,7 @@
                             required
                             class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                        <p v-if="form.errors.password" class="mt-1 text-sm text-red-600">{{ form.errors.password }}</p>
+                        <InputError :message="form.errors.password" />
                     </div>
 
                     <button
@@ -35,6 +35,7 @@
 
 <script setup>
 import { useForm } from '@inertiajs/vue3'
+import InputError from '@/Components/InputError.vue'
 
 const form = useForm({ password: '' })
 

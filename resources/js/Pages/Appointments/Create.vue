@@ -2,6 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { useForm, Link } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
+import InputError from '@/Components/InputError.vue';
 
 const props = defineProps({
     patients: Array,
@@ -56,9 +57,8 @@ const submit = () => {
 </script>
 
 <template>
-    <AppLayout>
-        <div class="max-w-2xl">
-            <div class="mb-6 flex items-center gap-x-3">
+    <AppLayout content-width="md">
+        <div class="mb-6 flex items-center gap-x-3">
                 <Link :href="route('appointments.index')" class="text-sm text-slate-500 hover:text-slate-700">← Voltar à agenda</Link>
                 <h1 class="text-2xl font-semibold">Novo Agendamento</h1>
             </div>
@@ -73,6 +73,7 @@ const submit = () => {
                             {{ p.nome }} {{ p.sobrenome }} {{ p.telefone ? '• ' + p.telefone : '' }}
                         </option>
                     </select>
+                    <InputError :message="form.errors.patient_id" />
                 </div>
 
                 <!-- Profissional -->
@@ -82,6 +83,7 @@ const submit = () => {
                         <option value="">Selecione o profissional</option>
                         <option v-for="prof in professionals" :key="prof.id" :value="prof.id">{{ prof.name }}</option>
                     </select>
+                    <InputError :message="form.errors.professional_id" />
                 </div>
 
                 <!-- Tratamento -->
@@ -93,6 +95,7 @@ const submit = () => {
                             {{ t.nome }} ({{ t.duracao_padrao || 30 }} min)
                         </option>
                     </select>
+                    <InputError :message="form.errors.treatment_id" />
                 </div>
 
                 <!-- Data e Hora -->
@@ -100,6 +103,7 @@ const submit = () => {
                     <div>
                         <label class="block text-sm font-medium mb-1.5">Data e Horário de Início *</label>
                         <input v-model="form.start" type="datetime-local" class="w-full border rounded-lg p-3" required />
+                        <InputError :message="form.errors.start" />
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1.5">Término Estimado</label>
@@ -113,6 +117,7 @@ const submit = () => {
                 <div>
                     <label class="block text-sm font-medium mb-1.5">Observações / Motivo</label>
                     <textarea v-model="form.notes" rows="3" class="w-full border rounded-lg p-3" placeholder="Ex: Retorno, urgência..."></textarea>
+                    <InputError :message="form.errors.notes" />
                 </div>
 
                 <div class="pt-2">
@@ -124,6 +129,5 @@ const submit = () => {
                     <Link :href="route('appointments.index')" class="ml-4 text-slate-600">Cancelar</Link>
                 </div>
             </form>
-        </div>
     </AppLayout>
 </template>

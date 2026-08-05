@@ -1,6 +1,21 @@
+/* @import precisa vir antes de qualquer outra regra (só @charset pode vir
+   antes) — por isso fica acima dos @tailwind, não abaixo. Bandeiras do
+   seletor de DDI (PhoneNumberInput.vue): SVG real via classe CSS, não emoji
+   — emoji de bandeira não renderiza de forma confiável em todo SO (ex.:
+   Windows mostra as duas letras do país em vez do desenho da bandeira). */
+@import "flag-icons/css/flag-icons.min.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+    /* Altura da navbar global fixa (AppLayout.vue). Qualquer elemento sticky
+       no fluxo de página (não dentro de um container com scroll próprio) deve
+       usar `top-[var(--app-navbar-h)]` (ou um calc() a partir dela) em vez de
+       `top-0`, para não ficar sobreposto pela navbar. */
+    --app-navbar-h: 4rem;
+}
 
 /* Estilos específicos do sistema de clínicas */
 .clinic-header {

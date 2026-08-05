@@ -9,7 +9,12 @@ const props = defineProps({
     auditLogs: Array,
     breadcrumb: Array,
     hasLinkedAttendances: Boolean,
+    linkedDocuments: { type: Array, default: () => [] },
 });
+
+const STATUS_DOT = {
+    slate: 'bg-slate-400', blue: 'bg-blue-500', amber: 'bg-amber-500', teal: 'bg-teal-500', red: 'bg-red-500',
+};
 
 const page = usePage();
 const showDeleteModal = ref(false);
@@ -182,6 +187,12 @@ const reactivate = () => {
                         <dd class="font-medium text-gray-900 mt-0.5">{{ formatDuration(treatment.duracao_padrao) }}</dd>
                     </div>
                     <div>
+                        <dt class="text-gray-500">Tempo para inatividade</dt>
+                        <dd class="font-medium text-gray-900 mt-0.5">
+                            {{ treatment.inatividade_meses ? `${treatment.inatividade_meses} meses` : '—' }}
+                        </dd>
+                    </div>
+                    <div>
                         <dt class="text-gray-500">Preço sugerido</dt>
                         <dd class="font-medium text-gray-900 mt-0.5">{{ formatCurrency(treatment.preco_base) }}</dd>
                     </div>
@@ -214,6 +225,26 @@ const reactivate = () => {
                         <dd class="text-gray-700 mt-1 leading-relaxed whitespace-pre-line">{{ treatment.descricao || '—' }}</dd>
                     </div>
                 </dl>
+            </div>
+
+            <div v-if="linkedDocuments.length" class="bg-white rounded-xl border border-gray-200 p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Documentos relacionados</h2>
+                <ul class="space-y-3">
+                    <li
+                        v-for="doc in linkedDocuments"
+                        :key="doc.id"
+                        class="flex items-center justify-between gap-4 text-sm border-b border-gray-100 pb-3 last:border-0 last:pb-0"
+                    >
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="STATUS_DOT[doc.status_color] || STATUS_DOT.slate" />
+                            <div class="min-w-0">
+                                <Link :href="route('patients.documents.show', [doc.patient_id, doc.id])" class="font-medium text-gray-900 hover:text-teal-600 transition-colors truncate block">{{ doc.template_name }}</Link>
+                                <p class="text-gray-500 text-xs mt-0.5">{{ doc.patient_name }} · {{ formatDate(doc.created_at) }}</p>
+                            </div>
+                        </div>
+                        <span class="text-xs text-gray-500 shrink-0">{{ doc.status_label }}</span>
+                    </li>
+                </ul>
             </div>
 
             <div v-if="auditLogs.length" class="bg-white rounded-xl border border-gray-200 p-6">

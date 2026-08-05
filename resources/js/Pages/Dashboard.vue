@@ -1,10 +1,18 @@
 <script setup>
+import { onMounted } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link } from '@inertiajs/vue3';
+import { trackEvent } from '@/lib/analytics';
 
 defineProps({
     clinic: Object,
     stats: Object,
+});
+
+onMounted(() => {
+    if (new URLSearchParams(window.location.search).get('subscribed') === '1') {
+        trackEvent('primeira_assinatura');
+    }
 });
 </script>
 

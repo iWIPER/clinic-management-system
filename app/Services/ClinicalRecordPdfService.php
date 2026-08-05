@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ClinicalRecord;
+use App\Services\ClinicLogoService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Support\Facades\Storage;
@@ -15,13 +16,7 @@ class ClinicalRecordPdfService
         $record->load(['patient', 'professional', 'clinic']);
 
         $clinic = $record->clinic;
-        $logoDataUri = null;
-
-        if ($clinic?->logo_path && Storage::disk('public')->exists($clinic->logo_path)) {
-            $contents = Storage::disk('public')->get($clinic->logo_path);
-            $mime = Storage::disk('public')->mimeType($clinic->logo_path) ?: 'image/png';
-            $logoDataUri = 'data:' . $mime . ';base64,' . base64_encode($contents);
-        }
+        $logoDataUri = $clinic ? ClinicLogoService::dataUri($clinic) : null;
 
         $html = View::make('pdf.clinical-record', [
             'record' => $record,

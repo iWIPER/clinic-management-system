@@ -25,7 +25,7 @@ class AppointmentController extends Controller
                 'patient:id,nome,sobrenome,telefone',
                 'professional:id,name',
                 'treatment:id,nome,duracao_padrao',
-                'consultation:id,appointment_id,status',
+                'consultation:id,appointment_id,status,check_in_at',
             ])
             ->whereBetween('start', [$weekStart->startOfDay(), $weekEnd])
             ->when($request->input('professional_id'), fn ($q, $id) => $q->where('professional_id', $id))
@@ -57,7 +57,7 @@ class AppointmentController extends Controller
                 'patient:id,nome,sobrenome,telefone',
                 'professional:id,name',
                 'treatment:id,nome,duracao_padrao',
-                'consultation:id,appointment_id,status',
+                'consultation:id,appointment_id,status,check_in_at',
             ])
             ->whereBetween('start', [$weekStart->startOfDay(), $weekEnd])
             ->when($request->input('professional_id'), fn ($q, $id) => $q->where('professional_id', $id))
@@ -167,6 +167,9 @@ class AppointmentController extends Controller
         $start = Carbon::parse($validated['start']);
         $end = $start->copy()->addMinutes($treatment->duracao_padrao ?? 30);
 
+        // Data/hora mudou = remarcação — usado no resumo de relacionamento do paciente.
+        $wasRescheduled = ! $appointment->start->equalTo($start);
+
         $appointment->update([
             'patient_id' => $validated['patient_id'],
             'professional_id' => $validated['professional_id'],
@@ -175,6 +178,7 @@ class AppointmentController extends Controller
             'end' => $end,
             'status' => $validated['status'],
             'notes' => $validated['notes'],
+            'reschedule_count' => $wasRescheduled ? $appointment->reschedule_count + 1 : $appointment->reschedule_count,
         ]);
 
         return redirect()->route('appointments.index')->with('success', 'Agendamento atualizado!');

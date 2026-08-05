@@ -37,4 +37,18 @@ return [
         'redirect' => env('GOOGLE_DRIVE_REDIRECT_URI'),
     ],
 
+    'stripe' => [
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+        'webhook' => [
+            'secret' => env('STRIPE_WEBHOOK_SECRET'),
+            'tolerance' => env('STRIPE_WEBHOOK_TOLERANCE', 300),
+        ],
+    ],
+
+    'analytics' => [
+        'ga_measurement_id' => env('GA_MEASUREMENT_ID'),
+        'meta_pixel_id'     => env('META_PIXEL_ID'),
+    ],
+
 ];

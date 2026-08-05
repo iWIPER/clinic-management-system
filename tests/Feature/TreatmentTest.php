@@ -1,6 +1,5 @@
 <?php
 
-use App\Data\DentalTreatmentCatalog;
 use App\Models\Appointment;
 use App\Models\Clinic;
 use App\Models\Patient;
@@ -8,7 +7,7 @@ use App\Models\Plan;
 use App\Models\Treatment;
 use App\Models\TreatmentAuditLog;
 use App\Models\User;
-use App\Services\TreatmentCatalogService;
+use App\Services\WildentalCatalogService;
 
 function setupTreatmentContext(): array
 {
@@ -41,10 +40,8 @@ function setupTreatmentContext(): array
     return compact('user', 'clinic');
 }
 
-test('seeds dental catalog when clinic has no treatments', function () {
+test('treatments index page does not auto-seed the catalog', function () {
     ['user' => $user, 'clinic' => $clinic] = setupTreatmentContext();
-
-    $expectedCount = count(DentalTreatmentCatalog::items());
 
     expect(Treatment::where('clinic_id', $clinic->id)->count())->toBe(0);
 
@@ -52,71 +49,78 @@ test('seeds dental catalog when clinic has no treatments', function () {
         ->get(route('treatments.index'))
         ->assertOk();
 
+    // O catálogo é populado no onboarding (WildentalCatalogService) ou via
+    // seeder — a página de índice não seeda mais nada implicitamente.
+    expect(Treatment::where('clinic_id', $clinic->id)->count())->toBe(0);
+});
+
+test('wildental catalog service seeds the dental catalog for a clinic', function () {
+    ['user' => $user, 'clinic' => $clinic] = setupTreatmentContext();
+
+    $expectedCount = count(require base_path('database/seeders/data/wildental_procedimentos.php'));
+
+    app(WildentalCatalogService::class)->seedForClinic($clinic, $user->id);
+
     expect(Treatment::where('clinic_id', $clinic->id)->count())->toBe($expectedCount);
 
-    $treatment = Treatment::where('clinic_id', $clinic->id)->where('nome', 'Profilaxia Completa')->first();
+    $treatment = Treatment::where('clinic_id', $clinic->id)->where('nome', 'Consulta Inicial')->first();
     expect($treatment)->not->toBeNull()
-        ->and($treatment->categoria)->toBe('Dentística')
-        ->and($treatment->descricao)->not->toBeEmpty()
-        ->and($treatment->duracao_padrao)->toBe(60)
-        ->and((float) $treatment->preco_base)->toBe(300.0);
+        ->and($treatment->tipo)->toBe('procedimento')
+        ->and($treatment->ativo)->toBeTrue()
+        ->and((float) $treatment->preco_base)->toBe(80.0)
+        ->and((float) $treatment->custo_padrao)->toBe(80.0);
 });
 
 test('catalog seed does not overwrite user edited treatments', function () {
     ['user' => $user, 'clinic' => $clinic] = setupTreatmentContext();
 
-    app(TreatmentCatalogService::class)->seedForClinic($clinic, $user->id);
+    app(WildentalCatalogService::class)->seedForClinic($clinic, $user->id);
 
     $treatment = Treatment::where('clinic_id', $clinic->id)
-        ->where('catalog_slug', 'dentistica-profilaxia-completa')
+        ->where('catalog_slug', 'wildental-consulta-inicial')
         ->first();
 
-    $treatment->update(['preco_base' => 999, 'nome' => 'Profilaxia VIP']);
+    $treatment->update(['preco_base' => 999, 'nome' => 'Consulta VIP']);
 
-    app(TreatmentCatalogService::class)->seedForClinic($clinic, $user->id);
+    app(WildentalCatalogService::class)->seedForClinic($clinic, $user->id);
 
     $treatment->refresh();
-    expect($treatment->nome)->toBe('Profilaxia VIP')
+    expect($treatment->nome)->toBe('Consulta VIP')
         ->and((float) $treatment->preco_base)->toBe(999.0);
-});
-
-test('hierarchy parent and variations are linked correctly', function () {
-    ['user' => $user, 'clinic' => $clinic] = setupTreatmentContext();
-
-    app(TreatmentCatalogService::class)->seedForClinic($clinic, $user->id);
-
-    $grupo = Treatment::where('clinic_id', $clinic->id)
-        ->where('catalog_slug', 'dentistica-grupo-resina')
-        ->first();
-
-    $variacao = Treatment::where('clinic_id', $clinic->id)
-        ->where('catalog_slug', 'dentistica-resina-1-face')
-        ->first();
-
-    expect($grupo->tipo)->toBe('grupo')
-        ->and($variacao->tipo)->toBe('variacao')
-        ->and($variacao->parent_id)->toBe($grupo->id);
 });
 
 test('forScheduling excludes inactive and grupo tipo treatments', function () {
     ['user' => $user, 'clinic' => $clinic] = setupTreatmentContext();
 
-    app(TreatmentCatalogService::class)->seedForClinic($clinic, $user->id);
+    $bookable = Treatment::create([
+        'clinic_id' => $clinic->id, 'nome' => 'Bookable', 'tipo' => 'procedimento',
+        'ativo' => true, 'duracao_padrao' => 30, 'preco_base' => 100,
+    ]);
 
-    $grupo = Treatment::where('clinic_id', $clinic->id)->where('tipo', 'grupo')->first();
-    $bookable = Treatment::forScheduling()->where('clinic_id', $clinic->id)->pluck('id');
+    $inactive = Treatment::create([
+        'clinic_id' => $clinic->id, 'nome' => 'Inativo', 'tipo' => 'procedimento',
+        'ativo' => false, 'duracao_padrao' => 30, 'preco_base' => 100,
+    ]);
 
-    expect($bookable)->not->toContain($grupo->id);
-    expect(Treatment::forScheduling()->where('clinic_id', $clinic->id)->count())->toBeGreaterThan(40);
+    $grupo = Treatment::create([
+        'clinic_id' => $clinic->id, 'nome' => 'Grupo', 'tipo' => 'grupo',
+        'ativo' => true, 'duracao_padrao' => 0, 'preco_base' => 0,
+    ]);
+
+    $ids = Treatment::forScheduling()->where('clinic_id', $clinic->id)->pluck('id');
+
+    expect($ids)->toContain($bookable->id)
+        ->not->toContain($inactive->id)
+        ->not->toContain($grupo->id);
 });
 
 test('treatment show page displays stats breadcrumb and audit', function () {
     ['user' => $user, 'clinic' => $clinic] = setupTreatmentContext();
 
-    app(TreatmentCatalogService::class)->seedForClinic($clinic, $user->id);
+    app(WildentalCatalogService::class)->seedForClinic($clinic, $user->id);
 
     $treatment = Treatment::where('clinic_id', $clinic->id)
-        ->where('nome', 'Profilaxia Completa')
+        ->where('nome', 'Consulta Inicial')
         ->first();
 
     $this->actingAs($user)
@@ -127,7 +131,7 @@ test('treatment show page displays stats breadcrumb and audit', function () {
             ->has('stats')
             ->has('auditLogs')
             ->has('breadcrumb')
-            ->where('treatment.nome', 'Profilaxia Completa')
+            ->where('treatment.nome', 'Consulta Inicial')
             ->where('stats.usage_count', 0)
         );
 });

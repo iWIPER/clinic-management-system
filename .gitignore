@@ -17,3 +17,14 @@ yarn-error.log
 /.idea
 /.vscode
 *.DS_Store
+_ide_helper.php
+_ide_helper_models.php
+.phpstorm.meta.php
+
+/bootstrap/cache/*.php
+/storage/framework/views/*.php
+/storage/logs/*.log
+/storage/app/public/*
+!/storage/app/public/.gitignore
+/storage/app/private/*
+!/storage/app/private/.gitignore

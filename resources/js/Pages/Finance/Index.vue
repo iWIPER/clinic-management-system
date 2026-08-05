@@ -1,5 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
+import FinancingSimulationModal from '@/Components/Financial/FinancingSimulationModal.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
@@ -12,7 +13,13 @@ const props = defineProps({
 });
 
 const newTransaction = ref({ tipo: 'receita', valor: 0, categoria: '', descricao: '' });
-const newBudget = ref({ patient_id: '', total: 0 });
+const selectedBudget = ref(null);
+const showSimulation = ref(false);
+
+function openSimulation(budget) {
+    selectedBudget.value = budget;
+    showSimulation.value = true;
+}
 
 const submitTransaction = () => {
     router.post(route('finance.store-transaction'), newTransaction.value);
@@ -32,7 +39,13 @@ const calcHoraTecnica = () => {
 
 <template>
     <AppLayout>
-        <h1 class="text-2xl font-semibold mb-6">Financeiro Básico</h1>
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-2xl font-semibold">Financeiro</h1>
+            <Link :href="route('finance.marketplace')"
+                  class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 text-white text-sm font-medium shadow-sm hover:from-teal-700 hover:to-emerald-700">
+                Hub de Crédito
+            </Link>
+        </div>
 
         <div class="grid grid-cols-3 gap-4 mb-6">
             <div class="bg-white p-5 rounded-2xl border">
@@ -80,6 +93,22 @@ const calcHoraTecnica = () => {
             </div>
         </div>
 
+        <!-- Orçamentos -->
+        <div v-if="budgets?.length" class="bg-white rounded-2xl border p-6 mb-6">
+            <h3 class="font-medium mb-3">Orçamentos recentes</h3>
+            <div v-for="b in budgets" :key="b.id"
+                 class="flex items-center justify-between py-3 border-b last:border-0 text-sm">
+                <div>
+                    <p class="font-medium text-slate-800">{{ b.patient?.full_name ?? 'Paciente' }}</p>
+                    <p class="text-xs text-slate-500">R$ {{ b.total }} · {{ b.status }}</p>
+                </div>
+                <button @click="openSimulation(b)"
+                        class="px-3 py-1.5 rounded-lg border border-teal-200 text-teal-700 text-xs font-medium hover:bg-teal-50">
+                    Simular financiamento
+                </button>
+            </div>
+        </div>
+
         <div class="bg-white rounded-2xl border p-6">
             <h3 class="font-medium mb-3">Lançamentos Recentes</h3>
             <div v-for="t in transactions" :key="t.id" class="flex justify-between py-1 text-sm border-b">
@@ -87,5 +116,13 @@ const calcHoraTecnica = () => {
                 <div :class="t.tipo === 'receita' ? 'text-green-600' : 'text-red-600'">R$ {{ t.valor }}</div>
             </div>
         </div>
+
+        <FinancingSimulationModal
+            v-if="selectedBudget"
+            :show="showSimulation"
+            :budget="selectedBudget"
+            @close="showSimulation = false"
+            @proposal-submitted="router.reload({ only: ['budgets'] })"
+        />
     </AppLayout>
 </template>

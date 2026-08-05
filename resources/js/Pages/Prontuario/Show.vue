@@ -4,6 +4,7 @@ import SectionCard from '@/Components/Prontuario/SectionCard.vue'
 import OdontogramChart from '@/Components/Prontuario/OdontogramChart.vue'
 import { Link, useForm, router } from '@inertiajs/vue3'
 import { ref, computed } from 'vue'
+import InputError from '@/Components/InputError.vue'
 
 const props = defineProps({
     patient: Object,
@@ -11,6 +12,7 @@ const props = defineProps({
     odontogram: Object,
     toothStatuses: Array,
     fdiTeeth: Array,
+    treatmentsByTooth: { type: Object, default: () => ({}) },
     clinicBranding: Object,
 })
 
@@ -93,8 +95,8 @@ const teethData = ref({ ...(props.odontogram.teeth_data ?? {}) })
 const odontogramNotes = ref(props.odontogram.notes ?? '')
 const odontogramForm = useForm({ teeth_data: {}, notes: '' })
 
-const saveOdontogram = () => {
-    odontogramForm.teeth_data = teethData.value
+const saveOdontogram = (updatedTeethData) => {
+    odontogramForm.teeth_data = updatedTeethData ?? teethData.value
     odontogramForm.notes = odontogramNotes.value
     odontogramForm.put(route('patients.prontuario.odontogram', props.patient.id), { preserveScroll: true })
 }
@@ -224,6 +226,7 @@ const labelClass = 'block text-xs font-semibold text-slate-600 uppercase trackin
                         <label :class="labelClass">Queixa principal</label>
                         <textarea v-model="anamnesisForm.queixa_principal" rows="2" :class="fieldClass"
                                   placeholder="Motivo da consulta, sintomas relatados pelo paciente..." />
+                        <InputError :message="anamnesisForm.errors.queixa_principal" />
                     </div>
 
                     <div>
@@ -249,16 +252,19 @@ const labelClass = 'block text-xs font-semibold text-slate-600 uppercase trackin
                         ]" :key="field.key">
                             <label :class="labelClass">{{ field.label }}</label>
                             <textarea v-model="anamnesisForm[field.key]" rows="3" :class="fieldClass" :placeholder="field.ph" />
+                            <InputError :message="anamnesisForm.errors[field.key]" />
                         </div>
                     </div>
 
                     <div>
                         <label :class="labelClass">Outros hábitos</label>
                         <input v-model="anamnesisForm.habitos_outros" type="text" :class="fieldClass" placeholder="Bruxismo, respiração bucal, etc." />
+                        <InputError :message="anamnesisForm.errors.habitos_outros" />
                     </div>
                     <div>
                         <label :class="labelClass">Observações complementares</label>
                         <textarea v-model="anamnesisForm.observacoes" rows="2" :class="fieldClass" />
+                        <InputError :message="anamnesisForm.errors.observacoes" />
                     </div>
 
                     <div class="flex items-center justify-between pt-2 border-t border-slate-100">
@@ -349,6 +355,7 @@ const labelClass = 'block text-xs font-semibold text-slate-600 uppercase trackin
                     <label :class="labelClass">Nova evolução</label>
                     <textarea v-model="evolutionForm.content" rows="4" :class="fieldClass"
                               placeholder="Ex: Paciente sem dor. Realizada limpeza. Orientações fornecidas." required />
+                    <InputError :message="evolutionForm.errors.content" />
                     <div class="flex justify-end mt-3">
                         <button type="submit" :disabled="evolutionForm.processing"
                                 class="bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-semibold">
@@ -418,18 +425,22 @@ const labelClass = 'block text-xs font-semibold text-slate-600 uppercase trackin
             </SectionCard>
 
             <!-- 8. Odontograma -->
-            <SectionCard id="odontograma" title="Odontograma" subtitle="Mapa dentário FDI — clique para alterar status"
+            <SectionCard id="odontograma" title="Odontograma" subtitle="Passe o mouse para consultar · Clique para editar"
                          icon="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
                 <OdontogramChart
                     :teeth-data="teethData"
                     :fdi-teeth="fdiTeeth"
                     :tooth-statuses="toothStatuses"
-                    @update:teeth-data="teethData = $event" />
+                    :treatments-by-tooth="treatmentsByTooth"
+                    @update:teeth-data="teethData = $event"
+                    @save="saveOdontogram"
+                    @open-treatments="(tooth) => router.visit(route('patients.show', patient.id) + `?tab=treatments` + (tooth ? `&tooth=${tooth}` : ''))" />
 
                 <div class="mt-5">
                     <label :class="labelClass">Observações do odontograma</label>
                     <textarea v-model="odontogramNotes" rows="2" :class="fieldClass"
                               placeholder="Anotações gerais sobre a arcada dentária..." />
+                    <InputError :message="odontogramForm.errors.notes" />
                 </div>
 
                 <div class="flex justify-end mt-4 pt-4 border-t border-slate-100">

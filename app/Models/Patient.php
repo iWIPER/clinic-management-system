@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToClinic;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Patient extends Model
 {
@@ -31,8 +32,9 @@ class Patient extends Model
         'nascimento',
         'sexo',
         'status',             // ativo, inativo, falecido
-        'doc_tipo',           // cpf, rg, passaporte
-        'doc_numero',
+        'status_automatico',  // true = sistema calcula; false = manual
+        'doc_tipo',           // legado — não usado pelo formulário (ver cpf/rg/passaporte)
+        'doc_numero',         // legado — idem
         'cpf',
         'rg',
         'passaporte',
@@ -59,8 +61,7 @@ class Patient extends Model
         'cidade',
         'estado',
         'drive_folder_id',    // Google Drive do paciente (criado no 1º upload)
-        'observacoes',
-        'responsible_professional_id',
+        'responsible_professional_id', // manual — nunca alterado automaticamente pelo histórico
         'created_by_id',
         'updated_by_id',
         'origem',             // manual, indicacao, google, instagram, facebook, site, whatsapp, outro
@@ -74,7 +75,8 @@ class Patient extends Model
     ];
 
     protected $casts = [
-        'nascimento' => 'date',
+        'nascimento'       => 'date',
+        'status_automatico' => 'boolean',
         'is_estrangeiro' => 'boolean',
         'possui_responsavel_legal' => 'boolean',
         'responsavel_legal_estrangeiro' => 'boolean',
@@ -83,6 +85,36 @@ class Patient extends Model
     public function getNomeCompletoAttribute(): string
     {
         return trim($this->nome . ' ' . $this->sobrenome);
+    }
+
+    public function getIdadeAttribute(): ?int
+    {
+        return $this->nascimento?->age;
+    }
+
+    public function responsibleProfessional()
+    {
+        return $this->belongsTo(User::class, 'responsible_professional_id');
+    }
+
+    public function convenio()
+    {
+        return $this->belongsTo(Convenio::class);
+    }
+
+    public function treatments()
+    {
+        return $this->hasMany(PatientTreatment::class);
+    }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by_id');
+    }
+
+    public function updatedBy()
+    {
+        return $this->belongsTo(User::class, 'updated_by_id');
     }
 
     public function appointments()
@@ -123,6 +155,31 @@ class Patient extends Model
     public function odontogram()
     {
         return $this->hasOne(PatientOdontogram::class);
+    }
+
+    public function anamnesisInstances()
+    {
+        return $this->hasMany(AnamnesisInstance::class);
+    }
+
+    public function anamnesisAlerts()
+    {
+        return $this->hasMany(AnamnesisAlert::class)->where('is_active', true);
+    }
+
+    public function notes()
+    {
+        return $this->hasMany(PatientNote::class);
+    }
+
+    public function documents()
+    {
+        return $this->hasMany(Document::class);
+    }
+
+    public function markers(): BelongsToMany
+    {
+        return $this->belongsToMany(PatientTag::class, 'patient_marker_assignments')->markers();
     }
 
     public function patientInvites()

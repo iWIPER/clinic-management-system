@@ -6,6 +6,8 @@ use App\Models\Appointment;
 use App\Models\Consultation;
 use App\Models\ClinicalEvolution;
 use App\Services\ClinicalRecordService;
+use App\Services\PatientStatusService;
+use App\Services\TreatmentMaterialConsumptionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -113,6 +115,8 @@ class ConsultationController extends Controller
 
         $clinicalRecord = $recordService->createFromConsultation($consultation->fresh());
 
+        app(PatientStatusService::class)->recalculate($consultation->patient);
+
         if ($consultation->notes) {
             ClinicalEvolution::create([
                 'clinic_id' => $consultation->clinic_id,
@@ -160,7 +164,7 @@ class ConsultationController extends Controller
      * Register procedure execution from consultation.
      * This will also consume materials from inventory (basic).
      */
-    public function addExecution(Request $request, Consultation $consultation)
+    public function addExecution(Request $request, Consultation $consultation, TreatmentMaterialConsumptionService $stockService)
     {
         $validated = $request->validate([
             'treatment_id' => 'required|exists:treatments,id',
@@ -178,14 +182,7 @@ class ConsultationController extends Controller
             'notes' => $validated['notes'],
         ]);
 
-        // Basic stock consumption
-        foreach ($treatment->materials as $materialPivot) {
-            $item = $materialPivot->pivot->inventory_item_id ? \App\Models\InventoryItem::find($materialPivot->pivot->inventory_item_id) : null;
-            if ($item) {
-                $qty = $materialPivot->pivot->quantidade ?? 1;
-                $item->decrement('quantidade', $qty);
-            }
-        }
+        $stockService->consume($treatment);
 
         // Auto create receita transaction
         \App\Models\Transaction::create([

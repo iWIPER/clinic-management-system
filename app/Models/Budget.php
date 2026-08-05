@@ -26,4 +26,7 @@ class Budget extends Model
 
     public function patient() { return $this->belongsTo(Patient::class); }
     public function items() { return $this->hasMany(BudgetItem::class); }
+    public function financingProposals() { return $this->hasMany(FinancingProposal::class); }
+    public function financingSimulations() { return $this->hasMany(FinancingSimulation::class); }
+    public function documents() { return $this->morphToMany(Document::class, 'related', 'document_relations'); }
 }
