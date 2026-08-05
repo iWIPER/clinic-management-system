@@ -15,11 +15,26 @@ class Patient extends Model
         'nome',
         'sobrenome',
         'nascimento',
+        'sexo',
         'status',             // ativo, inativo, falecido
         'doc_tipo',           // cpf, rg, passaporte
         'doc_numero',
+        'cpf',
+        'rg',
+        'passaporte',
+        'is_estrangeiro',
+        'profissao',
+        'canal_lembrete',     // whatsapp, sms, email, nao_enviar — só armazena, sem envio implementado
         'telefone',
         'email',
+        'possui_responsavel_legal',
+        'responsavel_legal_nome',
+        'responsavel_legal_cpf',
+        'responsavel_legal_rg',
+        'responsavel_legal_estrangeiro',
+        'responsavel_legal_passaporte',
+        'responsavel_legal_telefone',
+        'responsavel_legal_parentesco',
         'contato_emergencia_nome',
         'contato_emergencia_telefone',
         'cep',
@@ -31,10 +46,24 @@ class Patient extends Model
         'estado',
         'drive_folder_id',    // Google Drive do paciente (criado no 1º upload)
         'observacoes',
+        'responsible_professional_id',
+        'created_by_id',
+        'updated_by_id',
+        'origem',             // manual, indicacao, google, instagram, facebook, site, whatsapp, outro
+        'convenio_id',
+        'tipo_atendimento',   // particular, convenio, outro
+        'convenio_numero_carteirinha',
+        'convenio_titular',
+        'convenio_titular_cpf',
+        'convenio_titular_parentesco',
+        'tipo_atendimento_outro_descricao',
     ];
 
     protected $casts = [
         'nascimento' => 'date',
+        'is_estrangeiro' => 'boolean',
+        'possui_responsavel_legal' => 'boolean',
+        'responsavel_legal_estrangeiro' => 'boolean',
     ];
 
     public function getNomeCompletoAttribute(): string
