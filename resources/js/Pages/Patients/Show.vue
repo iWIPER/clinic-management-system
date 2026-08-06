@@ -12,7 +12,8 @@ import PatientEvolutionCard from '@/Components/Patient/PatientEvolutionCard.vue'
 import InviteStatusBadge from '@/Components/Patient/InviteStatusBadge.vue';
 import { Link, useForm, usePage, router } from '@inertiajs/vue3';
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue';
-import { maskCpf } from '@/composables/useInputMasks.js';
+import { resolvePatientDocument } from '@/composables/usePatientDocument.js';
+import { PhoneIcon, CakeIcon } from '@heroicons/vue/24/outline';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 const props = defineProps({
@@ -214,14 +215,14 @@ const patientAge = computed(() => {
     return age;
 });
 
-// Prioriza CPF (mascarado) — RG e Passaporte exibidos crus quando é o único
-// documento disponível (doc_tipo/doc_numero são legado, não usados mais).
-const formattedDoc = computed(() => {
-    if (props.patient.cpf) return maskCpf(props.patient.cpf);
-    if (props.patient.rg) return props.patient.rg;
-    if (props.patient.passaporte) return props.patient.passaporte;
-    return null;
-});
+// doc_tipo/doc_numero são legado, não usados mais — cpf/rg/passaporte são as
+// colunas atuais. Lógica de prioridade/máscara centralizada em
+// usePatientDocument.js (mesmo resolvedor usado por PatientOverviewTab.vue).
+const documentInfo = computed(() => resolvePatientDocument({
+    cpf: props.patient.cpf,
+    rg: props.patient.rg,
+    passaporte: props.patient.passaporte,
+}));
 
 // ─── Copiar telefone/CPF (cabeçalho) ───────────────────────────────────────────
 // Mesmo padrão de Pages/Team/Index.vue: uma chave (não um boolean) permite
@@ -777,28 +778,39 @@ function tlExport() {
                         </Transition>
                     </div>
                 </div>
-                <div class="flex items-center gap-1.5 text-sm text-slate-500 flex-wrap">
+                <div class="flex items-center gap-1.5 text-sm font-medium text-slate-500 flex-wrap">
                     <button v-if="patient.telefone" type="button"
                             @click="copyToClipboard(patient.telefone, 'phone')"
-                            class="hover:text-teal-700 transition-colors"
+                            class="inline-flex items-center gap-1 hover:text-teal-700 transition-colors"
                             title="Clique para copiar">
-                        {{ copiedKey === 'phone' ? '✓ Copiado' : patient.telefone }}
+                        <PhoneIcon class="w-4 h-4 shrink-0" />
+                        <span>{{ copiedKey === 'phone' ? '✓ Copiado' : patient.telefone }}</span>
                     </button>
-                    <span v-else>Sem telefone</span>
+                    <span v-else class="inline-flex items-center gap-1">
+                        <PhoneIcon class="w-4 h-4 shrink-0" />
+                        <span>Sem telefone</span>
+                    </span>
 
-                    <template v-if="formattedDoc">
-                        <span class="text-slate-300">·</span>
-                        <button type="button"
-                                @click="copyToClipboard(formattedDoc, 'doc')"
-                                class="hover:text-teal-700 transition-colors"
-                                title="Clique para copiar">
-                            {{ copiedKey === 'doc' ? '✓ Copiado' : formattedDoc }}
-                        </button>
-                    </template>
+                    <span class="text-slate-300">•</span>
+
+                    <button v-if="documentInfo.copyValue" type="button"
+                            @click="copyToClipboard(documentInfo.copyValue, 'doc')"
+                            class="inline-flex items-center gap-1 hover:text-teal-700 transition-colors"
+                            title="Clique para copiar">
+                        <component :is="documentInfo.icon" class="w-4 h-4 shrink-0" />
+                        <span>{{ copiedKey === 'doc' ? '✓ Copiado' : documentInfo.text }}</span>
+                    </button>
+                    <span v-else class="inline-flex items-center gap-1">
+                        <component :is="documentInfo.icon" class="w-4 h-4 shrink-0" />
+                        <span>{{ documentInfo.text }}</span>
+                    </span>
 
                     <template v-if="patientAge !== null">
-                        <span class="text-slate-300">·</span>
-                        <span>{{ patientAge }} anos</span>
+                        <span class="text-slate-300">•</span>
+                        <span class="inline-flex items-center gap-1">
+                            <CakeIcon class="w-4 h-4 shrink-0" />
+                            <span>{{ patientAge }} anos</span>
+                        </span>
                     </template>
                 </div>
                 <PatientAlertChips

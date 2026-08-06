@@ -3,6 +3,9 @@ import { ref, computed } from 'vue'
 import SummaryCards from '@/Components/PatientHub/SummaryCards.vue'
 import OdontogramChart from '@/Components/Prontuario/OdontogramChart.vue'
 import OdontogramPreviewModal from '@/Components/Prontuario/OdontogramPreviewModal.vue'
+import InfoPopover from '@/Components/UI/InfoPopover.vue'
+import { resolvePatientDocument } from '@/composables/usePatientDocument.js'
+import { UserIcon, ChevronDownIcon } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
     patient: Object,
@@ -60,57 +63,85 @@ function fmtDateTime(iso) {
 const codigoInterno = computed(() => '#' + String(props.patient.id).padStart(6, '0'))
 
 // Responsável legal substitui o contato de emergência quando existir — não
-// duplica a informação, é uma alternativa ao mesmo cartão.
+// duplica a informação, é uma alternativa ao mesmo cartão. `fields` alimenta
+// o InfoPopover — cada bloco informativo do Patient Hub monta a sua própria
+// lista, o componente em si não sabe nada sobre "responsável" ou "emergência".
 const emergencyCard = computed(() => {
     if (props.patient.possui_responsavel_legal) {
+        const doc = resolvePatientDocument({
+            cpf: props.patient.responsavel_legal_cpf,
+            rg: props.patient.responsavel_legal_rg,
+            passaporte: props.patient.responsavel_legal_passaporte,
+        })
+        // Nome não entra em `fields` — já aparece no gatilho, o popover só
+        // mostra os dados complementares (evita repetir a mesma informação).
+        const fields = []
+        if (props.patient.responsavel_legal_telefone) {
+            fields.push({ label: 'Telefone', value: props.patient.responsavel_legal_telefone, copyValue: props.patient.responsavel_legal_telefone })
+        }
+        if (doc.copyValue) fields.push({ label: doc.label, value: doc.text, copyValue: doc.copyValue })
+        if (props.patient.responsavel_legal_parentesco) {
+            fields.push({ label: 'Grau de parentesco', value: props.patient.responsavel_legal_parentesco })
+        }
+
         return {
-            label: 'Responsável Legal',
-            name: props.patient.responsavel_legal_nome,
-            phone: props.patient.responsavel_legal_telefone,
+            label: 'Responsável',
+            name: props.patient.responsavel_legal_nome || 'Não informado',
+            fields,
         }
     }
     if (props.patient.contato_emergencia_nome || props.patient.contato_emergencia_telefone) {
+        const fields = []
+        if (props.patient.contato_emergencia_telefone) {
+            fields.push({ label: 'Telefone', value: props.patient.contato_emergencia_telefone, copyValue: props.patient.contato_emergencia_telefone })
+        }
+
         return {
             label: 'Contato de emergência',
-            name: props.patient.contato_emergencia_nome,
-            phone: props.patient.contato_emergencia_telefone,
+            name: props.patient.contato_emergencia_nome || 'Não informado',
+            fields,
         }
     }
     return null
 })
 
 // doc_tipo/doc_numero são legado — cpf/rg/passaporte são as colunas atuais.
+// Mesmo resolvedor usado em Pages/Patients/Show.vue e no doc do responsável
+// legal acima — uma única fonte de verdade para a prioridade CPF > RG > Passaporte.
+// Mantém o fallback "—" já usado nesta lista (o resolvedor por si só devolve
+// "Sem documento", mas aqui preserva-se o texto original desta tela).
 const documentoPrincipal = computed(() => {
-    if (props.patient.cpf) return `CPF ${props.patient.cpf}`
-    if (props.patient.rg) return `RG ${props.patient.rg}`
-    if (props.patient.passaporte) return `Passaporte ${props.patient.passaporte}`
-    return '—'
+    const doc = resolvePatientDocument({ cpf: props.patient.cpf, rg: props.patient.rg, passaporte: props.patient.passaporte })
+    return doc.copyValue ? doc.text : '—'
 })
 </script>
 
 <template>
     <div class="space-y-8">
         <!-- Dados pessoais + Odontograma, lado a lado -->
-        <div class="grid md:grid-cols-5 gap-6 items-start">
-            <section class="md:col-span-3 rounded-xl border border-slate-200 p-4 sm:p-5">
+        <div class="grid md:grid-cols-2 gap-6 items-start">
+            <section class="rounded-xl border border-slate-200 p-4 sm:p-5">
                 <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">Dados pessoais</p>
                 <dl class="space-y-1.5 text-sm">
-                    <div v-if="emergencyCard"
-                         class="flex items-baseline gap-2 rounded-lg bg-red-50 border border-red-100 px-2.5 py-1.5 mb-1.5">
-                        <dt class="text-red-700 font-medium shrink-0">{{ emergencyCard.label }}</dt>
-                        <dd class="text-red-900 truncate">
-                            {{ emergencyCard.name || 'Não informado' }}
-                            <template v-if="emergencyCard.phone"> · {{ emergencyCard.phone }}</template>
-                        </dd>
-                    </div>
-                    <div class="flex items-baseline gap-2"><dt class="text-slate-500 shrink-0 w-28">Nome</dt><dd>{{ patient.nome }} {{ patient.sobrenome }}</dd></div>
-                    <div class="flex items-baseline gap-2"><dt class="text-slate-500 shrink-0 w-28">Nascimento</dt><dd>{{ fmtDate(patient.nascimento) || '—' }}</dd></div>
-                    <div class="flex items-baseline gap-2"><dt class="text-slate-500 shrink-0 w-28">Status</dt><dd class="capitalize">{{ patient.status }}</dd></div>
-                    <div class="flex items-baseline gap-2"><dt class="text-slate-500 shrink-0 w-28">Documento</dt><dd>{{ documentoPrincipal }}</dd></div>
-                    <div class="flex items-baseline gap-2"><dt class="text-slate-500 shrink-0 w-28">Email</dt><dd class="truncate">{{ patient.email || '—' }}</dd></div>
-                    <div class="flex items-baseline gap-2"><dt class="text-slate-500 shrink-0 w-28">Telefone</dt><dd>{{ patient.telefone || '—' }}</dd></div>
-                    <div class="flex items-baseline gap-2">
-                        <dt class="text-slate-500 shrink-0 w-28">Endereço</dt>
+                    <InfoPopover v-if="emergencyCard" :title="emergencyCard.label" :title-icon="UserIcon" :fields="emergencyCard.fields" class="mb-1.5">
+                        <template #trigger="{ open }">
+                            <div class="flex items-center justify-between gap-2 rounded-lg bg-red-50 border border-red-100/60 px-2.5 py-1.5 cursor-pointer hover:bg-red-100/40 transition-colors">
+                                <span class="flex items-baseline gap-2 min-w-0 flex-1">
+                                    <dt class="text-red-600 font-medium shrink-0">{{ emergencyCard.label }}</dt>
+                                    <dd class="text-red-800 truncate min-w-0" :title="emergencyCard.name">{{ emergencyCard.name }}</dd>
+                                </span>
+                                <ChevronDownIcon stroke-width="2.5" class="w-4 h-4 text-slate-700 shrink-0 transition-transform duration-[180ms]" :class="{ 'rotate-180': open }" />
+                            </div>
+                        </template>
+                    </InfoPopover>
+                    <div class="flex items-baseline gap-1.5"><dt class="text-slate-500 shrink-0 w-24">Nome</dt><dd>{{ patient.nome }} {{ patient.sobrenome }}</dd></div>
+                    <div class="flex items-baseline gap-1.5"><dt class="text-slate-500 shrink-0 w-24">Nascimento</dt><dd>{{ fmtDate(patient.nascimento) || '—' }}</dd></div>
+                    <div class="flex items-baseline gap-1.5"><dt class="text-slate-500 shrink-0 w-24">Status</dt><dd class="capitalize">{{ patient.status }}</dd></div>
+                    <div class="flex items-baseline gap-1.5"><dt class="text-slate-500 shrink-0 w-24">Documento</dt><dd>{{ documentoPrincipal }}</dd></div>
+                    <div class="flex items-baseline gap-1.5"><dt class="text-slate-500 shrink-0 w-24">Email</dt><dd class="truncate">{{ patient.email || '—' }}</dd></div>
+                    <div class="flex items-baseline gap-1.5"><dt class="text-slate-500 shrink-0 w-24">Telefone</dt><dd>{{ patient.telefone || '—' }}</dd></div>
+                    <div class="flex items-baseline gap-1.5">
+                        <dt class="text-slate-500 shrink-0 w-24">Endereço</dt>
                         <dd v-if="hasAddress">
                             {{ streetLine }}<template v-if="patient.complemento"> - {{ patient.complemento }}</template>
                             <template v-if="patient.bairro">, {{ patient.bairro }}</template>
@@ -122,7 +153,7 @@ const documentoPrincipal = computed(() => {
             </section>
 
             <!-- Odontograma (miniatura) — mesmo componente da aba Odontograma, só em escala reduzida -->
-            <section class="md:col-span-2 rounded-xl border border-slate-200 p-4 sm:p-5">
+            <section class="rounded-xl border border-slate-200 p-4 sm:p-5">
                 <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">Odontograma</p>
                 <button type="button" class="block w-full text-left" @click="showOdontogramModal = true">
                     <OdontogramChart
