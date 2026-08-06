@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\PatientsExport;
 use App\Models\AnamnesisTemplate;
 use App\Models\Convenio;
 use App\Models\DriveActivityLog;
@@ -11,48 +12,59 @@ use App\Models\PatientOdontogram;
 use App\Services\Anamnesis\AnamnesisService;
 use App\Services\Documents\DocumentHubService;
 use App\Services\GoogleDriveService;
+use App\Services\PatientExportService;
 use App\Services\PatientHubService;
+use App\Services\PatientListingService;
 use App\Services\PatientMarkerService;
 use App\Services\PatientNoteService;
 use App\Services\PatientStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
 
 class PatientController extends Controller
 {
-    public function index(Request $request, PatientMarkerService $markerService)
+    /**
+     * Únicas quantidades de itens por página aceitas na listagem — mesma
+     * lista exposta ao front (prop perPageOptions) para o <select> nunca
+     * divergir do que o backend realmente aceita.
+     */
+    public const PER_PAGE_OPTIONS = [10, 25, 50, 100];
+
+    public function index(Request $request, PatientMarkerService $markerService, PatientListingService $listingService)
     {
-        $query = Patient::query()->with(['consultations', 'responsibleProfessional:id,name']); // eager for future
+        $search = $request->input('search');
+        $markerId = $request->input('marker');
 
-        // Busca simples conforme spec (nome, CPF/telefone)
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('nome', 'like', "%{$search}%")
-                  ->orWhere('sobrenome', 'like', "%{$search}%")
-                  ->orWhere('doc_numero', 'like', "%{$search}%")
-                  ->orWhere('cpf', 'like', "%{$search}%")
-                  ->orWhere('rg', 'like', "%{$search}%")
-                  ->orWhere('telefone', 'like', "%{$search}%");
-            });
+        $perPage = (int) $request->input('per_page', 10);
+        if (! in_array($perPage, self::PER_PAGE_OPTIONS, true)) {
+            $perPage = 10;
         }
 
-        if ($markerId = $request->input('marker')) {
-            $query->whereHas('markers', fn ($q) => $q->where('patient_tags.id', $markerId));
-        }
-
-        $patients = $query->latest()
-            ->paginate(15)
+        $patients = $listingService->filteredQuery(['search' => $search, 'marker' => $markerId])
+            ->with('responsibleProfessional:id,name')
+            ->paginate($perPage)
             ->withQueryString();
 
         $patients->getCollection()->each->append('idade');
 
         return Inertia::render('Patients/Index', [
-            'patients' => $patients,
+            'patients' => [
+                'data' => $patients->items(),
+                'pagination' => [
+                    'current_page' => $patients->currentPage(),
+                    'last_page'    => $patients->lastPage(),
+                    'total'        => $patients->total(),
+                    'per_page'     => $patients->perPage(),
+                ],
+            ],
             'filters' => [
                 'search' => $search,
                 'marker' => $markerId,
+                'per_page' => $perPage,
             ],
+            'perPageOptions' => self::PER_PAGE_OPTIONS,
             'availableMarkers' => $markerService->availableMarkers(session('current_clinic_id')),
             // Modelos de anamnese para o modal "Enviar cadastro ao paciente"
             // (Convites — Fase 1) — não precisa de convênios: a escolha do
@@ -60,6 +72,35 @@ class PatientController extends Controller
             // preenche (Fase 2), aqui só existe o checkbox "permitir".
             'anamnesisTemplates' => AnamnesisTemplate::active()->forClinic(session('current_clinic_id'))->orderBy('sort_order')->get(['id', 'name']),
         ]);
+    }
+
+    /**
+     * Exporta exatamente os pacientes que a listagem exibiria com os mesmos
+     * filtros (mesma PatientListingService::filteredQuery) — hoje isso é
+     * "todos", mas quando filtros avançados forem implementados em index(),
+     * a exportação passa a respeitá-los automaticamente, sem precisar ser
+     * reescrita: os dois consomem a mesma fonte de dados.
+     */
+    public function export(Request $request, PatientListingService $listingService, PatientExportService $exportService)
+    {
+        $format = $request->input('format', 'csv');
+        abort_unless(in_array($format, ['csv', 'excel'], true), 422, 'Formato de exportação inválido.');
+
+        $patients = $listingService->filteredQuery([
+                'search' => $request->input('search'),
+                'marker' => $request->input('marker'),
+            ])
+            ->with(['markers', 'convenio', 'notes', 'responsibleProfessional:id,name'])
+            ->withMax('consultations', 'check_in_at')
+            ->get();
+
+        $filename = 'pacientes-' . now()->format('Y-m-d');
+
+        if ($format === 'excel') {
+            return Excel::download(new PatientsExport($patients, $exportService), "{$filename}.xlsx");
+        }
+
+        return $exportService->streamCsv($patients, "{$filename}.csv");
     }
 
     public function create()

@@ -92,6 +92,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Pacientes - CRUD completo
         Route::get('/patients', [\App\Http\Controllers\PatientController::class, 'index'])->name('patients.index');
         Route::get('/patients/create', [\App\Http\Controllers\PatientController::class, 'create'])->name('patients.create');
+        Route::get('/patients/export', [\App\Http\Controllers\PatientController::class, 'export'])->name('patients.export');
         Route::post('/patients', [\App\Http\Controllers\PatientController::class, 'store'])->name('patients.store');
         Route::get('/patients/{patient}', [\App\Http\Controllers\PatientController::class, 'show'])->name('patients.show');
         Route::get('/patients/{patient}/edit', [\App\Http\Controllers\PatientController::class, 'edit'])->name('patients.edit');

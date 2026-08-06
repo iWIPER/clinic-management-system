@@ -92,6 +92,43 @@ class Patient extends Model
         return $this->nascimento?->age;
     }
 
+    /**
+     * Mesma prioridade usada em Patients/Show.vue (DOCUMENT_TYPES) — CPF >
+     * RG > Passaporte. Precisa ser repetida aqui porque não há como
+     * compartilhar lógica entre PHP e JS; ao adicionar um novo tipo de
+     * documento (RNE, DNI, NIE...), atualizar as duas listas.
+     */
+    public const DOCUMENT_FIELDS = ['cpf' => 'CPF', 'rg' => 'RG', 'passaporte' => 'Passaporte'];
+
+    public function documentInfo(): array
+    {
+        return static::resolveDocument([
+            'cpf' => $this->cpf,
+            'rg' => $this->rg,
+            'passaporte' => $this->passaporte,
+        ]);
+    }
+
+    public function guardianDocumentInfo(): array
+    {
+        return static::resolveDocument([
+            'cpf' => $this->responsavel_legal_cpf,
+            'rg' => $this->responsavel_legal_rg,
+            'passaporte' => $this->responsavel_legal_passaporte,
+        ]);
+    }
+
+    private static function resolveDocument(array $values): array
+    {
+        foreach (static::DOCUMENT_FIELDS as $field => $label) {
+            if (! empty($values[$field])) {
+                return ['type' => $label, 'number' => $values[$field]];
+            }
+        }
+
+        return ['type' => null, 'number' => null];
+    }
+
     public function responsibleProfessional()
     {
         return $this->belongsTo(User::class, 'responsible_professional_id');

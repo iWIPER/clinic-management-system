@@ -7,6 +7,11 @@ const props = defineProps({
         required: true,
         // { current_page, last_page, total, per_page }
     },
+    // false remove a margem/borda superior do bloco de navegação — usado
+    // quando o componente já está dentro de um container com espaçamento
+    // próprio (ex: rodapé da listagem de Pacientes), pra não duplicar borda.
+    // Default true preserva o visual de todos os consumidores existentes.
+    bordered: { type: Boolean, default: true },
 })
 const emit = defineEmits(['change'])
 
@@ -30,7 +35,7 @@ const go = (page) => {
 
 <template>
     <div v-if="pagination.last_page > 1">
-        <div class="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
+        <div class="flex items-center justify-between" :class="bordered ? 'mt-4 pt-4 border-t border-slate-100' : ''">
             <!-- Anterior -->
             <button @click="go(pagination.current_page - 1)"
                     :disabled="pagination.current_page <= 1"

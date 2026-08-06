@@ -1,13 +1,24 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
+import Pagination from '@/Components/Pagination.vue';
+import NavbarDropdown from '@/Components/Navbar/NavbarDropdown.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { digitsOnly } from '@/composables/useInputMasks.js';
 import SendInviteModal from '@/Components/Patient/SendInviteModal.vue';
+import { ArrowDownTrayIcon, ChevronDownIcon, TableCellsIcon, DocumentTextIcon } from '@heroicons/vue/24/outline';
+
+// Lista de formatos do menu "Exportar" — adicionar PDF/XML/Impressão no
+// futuro é só acrescentar uma entrada aqui, sem mexer no resto do template.
+const EXPORT_FORMATS = [
+    { format: 'excel', label: 'Excel (.xlsx)', icon: TableCellsIcon },
+    { format: 'csv', label: 'CSV', icon: DocumentTextIcon },
+];
 
 const props = defineProps({
-    patients: Object, // paginated
+    patients: Object, // { data, pagination: { current_page, last_page, total, per_page } }
     filters: Object,
+    perPageOptions: { type: Array, default: () => [10, 25, 50, 100] },
     availableMarkers: { type: Array, default: () => [] },
     anamnesisTemplates: { type: Array, default: () => [] },
 });
@@ -16,13 +27,35 @@ const showInviteModal = ref(false);
 
 const search = ref(props.filters?.search || '');
 const marker = ref(props.filters?.marker || '');
+const perPage = ref(props.filters?.per_page || 10);
 
-function applyFilters() {
+function applyFilters(extra = {}) {
     router.get(route('patients.index'), {
         search: search.value || undefined,
         marker: marker.value || undefined,
+        per_page: perPage.value,
+        ...extra,
     }, { preserveState: true, replace: true, only: ['patients', 'filters'] });
 }
+
+function goToPage(page) {
+    applyFilters({ page });
+}
+
+function onPerPageChange(newPerPage) {
+    perPage.value = newPerPage;
+    // Muda de tamanho de página sempre volta pra página 1 — a página atual
+    // pode não existir mais no novo tamanho (ex: pág. 5 de 10-em-10 não
+    // existe mais ao trocar para 100-em-100).
+    applyFilters({ page: 1 });
+}
+
+const exportUrl = (format) => {
+    const params = new URLSearchParams({ format });
+    if (search.value) params.set('search', search.value);
+    if (marker.value) params.set('marker', marker.value);
+    return `${route('patients.export')}?${params.toString()}`;
+};
 
 // Debounce só reage a digitação real (evento "input" do DOM) — mutações
 // programáticas de search.value (ex.: clearSearch) não disparam esse
@@ -83,7 +116,7 @@ const deletePatient = (patient) => {
                     ×
                 </button>
             </div>
-            <select v-if="availableMarkers.length" v-model="marker" @change="applyFilters"
+            <select v-if="availableMarkers.length" v-model="marker" @change="applyFilters()"
                     class="border rounded-lg px-3 py-2 text-sm text-slate-600">
                 <option value="">Todos os marcadores</option>
                 <option v-for="m in availableMarkers" :key="m.id" :value="m.id">{{ m.name }}</option>
@@ -149,12 +182,41 @@ const deletePatient = (patient) => {
             </table>
         </div>
 
-        <!-- Paginação simples -->
-        <div class="mt-4 flex justify-between text-sm text-slate-500" v-if="patients.data.length > 0">
-            <div>Mostrando {{ patients.from }} a {{ patients.to }} de {{ patients.total }}</div>
-            <div class="space-x-2">
-                <button v-if="patients.prev_page_url" @click="router.get(patients.prev_page_url)" class="hover:text-slate-700">← Anterior</button>
-                <button v-if="patients.next_page_url" @click="router.get(patients.next_page_url)" class="hover:text-slate-700">Próxima →</button>
+        <div v-if="patients.data.length > 0"
+             class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+            <div class="justify-self-center sm:justify-self-start">
+                <NavbarDropdown align="left" width="w-44" direction="up">
+                    <template #trigger>
+                        <button type="button"
+                                class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors">
+                            <ArrowDownTrayIcon class="w-4 h-4" />
+                            Exportar
+                            <ChevronDownIcon class="w-3.5 h-3.5" />
+                        </button>
+                    </template>
+                    <template #default="{ close }">
+                        <a v-for="f in EXPORT_FORMATS" :key="f.format"
+                           :href="exportUrl(f.format)" @click="close"
+                           class="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                            <component :is="f.icon" class="w-4 h-4 text-slate-400 shrink-0" />
+                            {{ f.label }}
+                        </a>
+                    </template>
+                </NavbarDropdown>
+            </div>
+
+            <div class="justify-self-center">
+                <Pagination :pagination="patients.pagination" :bordered="false" @change="goToPage" />
+            </div>
+
+            <div class="justify-self-center sm:justify-self-end">
+                <label class="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                    Itens por página:
+                    <select :value="perPage" @change="onPerPageChange(Number($event.target.value))"
+                            class="border rounded-lg px-2 py-1 text-xs text-slate-600">
+                        <option v-for="opt in perPageOptions" :key="opt" :value="opt">{{ opt }}</option>
+                    </select>
+                </label>
             </div>
         </div>
     </AppLayout>
