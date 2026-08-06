@@ -5,6 +5,7 @@ import PatientOverviewTab from './PatientOverviewTab.vue'
 import PatientAnamnesesTab from './PatientAnamnesesTab.vue'
 import PatientDocumentsTab from './PatientDocumentsTab.vue'
 import PatientTreatmentsTab from './PatientTreatmentsTab.vue'
+import PatientPaymentsTab from './PatientPaymentsTab.vue'
 import PatientNotesTab from './PatientNotesTab.vue'
 
 const emit = defineEmits(['tab-change'])
@@ -30,6 +31,10 @@ const props = defineProps({
     convenios:                 { type: Array,  default: () => [] },
     eligibleProfessionals:     { type: Array,  default: () => [] },
     treatmentStatuses:         { type: Array,  default: () => [] },
+    patientPayments:           { type: Object, default: () => ({ data: [], pagination: null }) },
+    paymentSummary:            { type: Object, default: () => ({ received: 0, outstanding: 0, overdue: 0, total_charged: 0 }) },
+    paymentMethods:            { type: Array,  default: () => [] },
+    paymentStatuses:           { type: Array,  default: () => [] },
     patientFullName:           String,
     patientAge:                { type: Number, default: null },
 })
@@ -45,6 +50,7 @@ const tabs = [
     { id: 'anamneses',   label: 'Anamneses' },
     { id: 'documents',   label: 'Documentos' },
     { id: 'treatments',  label: 'Tratamentos' },
+    { id: 'payments',    label: 'Pagamentos' },
     { id: 'notes',       label: 'Observações' },
 ]
 
@@ -137,6 +143,13 @@ onBeforeUnmount(() => {
             :convenios="convenios"
             :professionals="eligibleProfessionals"
             :treatment-statuses="treatmentStatuses" />
+
+        <PatientPaymentsTab v-else-if="tab === 'payments'"
+            :patient="patient"
+            :patient-payments="patientPayments"
+            :payment-summary="paymentSummary"
+            :payment-methods="paymentMethods"
+            :payment-statuses="paymentStatuses" />
 
         <PatientNotesTab v-else-if="tab === 'notes'"
             :patient="patient"

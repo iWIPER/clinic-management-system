@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ClinicalEvolution;
 use App\Models\Patient;
+use App\Models\PatientPayment;
 use App\Models\PatientTreatment;
 use App\Models\PatientTreatmentAuditLog;
 use App\Models\Transaction;
@@ -190,7 +191,7 @@ class PatientTreatmentController extends Controller
                 ]);
             }
 
-            Transaction::create([
+            $transaction = Transaction::create([
                 'clinic_id'    => $patient->clinic_id,
                 'patient_id'   => $patient->id,
                 'tipo'         => 'receita',
@@ -201,6 +202,27 @@ class PatientTreatmentController extends Controller
                 'origem_id'    => $patientTreatment->id,
                 'status'       => 'pendente',
             ]);
+
+            // Toda PatientTreatment finalizada precisa de pelo menos uma
+            // PatientPayment (cobrança) para aparecer na aba Pagamentos —
+            // cria a parcela "à vista" (1/1) só se um plano de parcelas
+            // (aba Pagamentos → "Criar plano de pagamento") ainda não
+            // existir para este tratamento. A Transaction acima é o
+            // espelho dela no livro-razão da clínica (ver PatientPayment::registerPayment()).
+            if (! PatientPayment::where('patient_treatment_id', $patientTreatment->id)->exists()) {
+                PatientPayment::create([
+                    'clinic_id'            => $patient->clinic_id,
+                    'patient_id'           => $patient->id,
+                    'patient_treatment_id' => $patientTreatment->id,
+                    'installment_number'   => 1,
+                    'installment_total'    => 1,
+                    'amount'               => $patientTreatment->value_charged,
+                    'status'               => PatientPayment::STATUS_PENDENTE,
+                    'due_date'             => $completedAt->toDateString(),
+                    'transaction_id'       => $transaction->id,
+                    'created_by_id'        => Auth::id(),
+                ]);
+            }
         });
 
         if (! empty($validated['update_stock']) && ! $patientTreatment->stock_updated_at && $patientTreatment->treatment_id) {

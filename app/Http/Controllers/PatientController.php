@@ -194,12 +194,16 @@ class PatientController extends Controller
         DocumentHubService $documentHubService,
         PatientMarkerService $markerService,
         \App\Services\PatientInviteService $inviteService,
+        \App\Services\PatientPaymentService $paymentService,
     ) {
         $anamnesesPage   = max(1, (int) $request->get('anamneses_page', 1));
         $notesPage       = max(1, (int) $request->get('notes_page', 1));
         $documentsPage   = max(1, (int) $request->get('documents_page', 1));
         $treatmentsPage  = max(1, (int) $request->get('treatments_page', 1));
         $evolutionsPage  = max(1, (int) $request->get('evolutions_page', 1));
+        $paymentsPage    = max(1, (int) $request->get('payments_page', 1));
+        $paymentsStatus  = $request->get('payments_status');
+        $paymentsPeriod  = $request->get('payments_period');
 
         // Contexto barato (sem I/O de rede, sem query pesada) — usado por
         // várias props abaixo. Todo o resto do payload é construído como
@@ -381,6 +385,52 @@ class PatientController extends Controller
             'catalogTreatments' => fn () => \App\Models\Treatment::active()->orderBy('nome')->get(['id', 'nome', 'preco_base', 'custo_padrao']),
             'convenios'         => fn () => Convenio::active()->orderBy('ordem')->orderBy('nome')->get(['id', 'nome']),
             'treatmentStatuses' => collect(\App\Models\PatientTreatment::STATUSES)
+                ->map(fn ($label, $value) => ['value' => $value, 'label' => $label])
+                ->values(),
+            // Aba "Pagamentos" — mesmo padrão de paginação/filtro de patientTreatments.
+            // paymentSummary é sempre o agregado completo do paciente (não filtrado por
+            // status), então recarrega junto com a lista para os cards nunca desatualizar.
+            'patientPayments' => function () use ($patient, $paymentsPage, $paymentsStatus, $paymentsPeriod) {
+                $query = \App\Models\PatientPayment::where('patient_id', $patient->id)
+                    ->with(['treatment:id,procedure_name,budget_code,professional_id,value_charged', 'treatment.professional:id,name']);
+
+                if ($paymentsStatus === 'atrasado') {
+                    $query->whereIn('status', [\App\Models\PatientPayment::STATUS_PENDENTE, \App\Models\PatientPayment::STATUS_PARCIAL])
+                        ->where('due_date', '<', now()->toDateString());
+                } elseif (in_array($paymentsStatus, array_keys(\App\Models\PatientPayment::STATUSES), true)) {
+                    $query->where('status', $paymentsStatus);
+                }
+
+                // Filtro de período por vencimento — só as 3 janelas fixas do
+                // spec (sem date-picker livre nesta fase, ver plano aprovado).
+                [$periodFrom, $periodTo] = match ($paymentsPeriod) {
+                    'este_mes'        => [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()],
+                    'mes_passado'     => [now()->subMonthNoOverflow()->startOfMonth()->toDateString(), now()->subMonthNoOverflow()->endOfMonth()->toDateString()],
+                    'ultimos_90_dias' => [now()->subDays(90)->toDateString(), now()->toDateString()],
+                    default           => [null, null],
+                };
+                if ($periodFrom && $periodTo) {
+                    $query->whereBetween('due_date', [$periodFrom, $periodTo]);
+                }
+
+                $paginator = $query->orderBy('due_date')->orderBy('id')
+                    ->paginate(10, ['*'], 'page', $paymentsPage);
+
+                return [
+                    'data'       => $paginator->items(),
+                    'pagination' => [
+                        'current_page' => $paginator->currentPage(),
+                        'last_page'    => $paginator->lastPage(),
+                        'total'        => $paginator->total(),
+                        'per_page'     => $paginator->perPage(),
+                    ],
+                ];
+            },
+            'paymentSummary'  => fn () => $paymentService->summary($patient),
+            'paymentMethods'  => collect(\App\Models\PatientPayment::METHODS)
+                ->map(fn ($label, $value) => ['value' => $value, 'label' => $label])
+                ->values(),
+            'paymentStatuses' => collect(\App\Models\PatientPayment::STATUSES)
                 ->map(fn ($label, $value) => ['value' => $value, 'label' => $label])
                 ->values(),
             'documentHub' => function () use ($documentHubService, $patient, $documentsPage, $clinic) {

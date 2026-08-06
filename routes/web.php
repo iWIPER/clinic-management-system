@@ -216,6 +216,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/patients/{patient}/treatments/{patientTreatment}/duplicate', [\App\Http\Controllers\PatientTreatmentController::class, 'duplicate'])->name('patients.treatments.duplicate');
         Route::delete('/patients/{patient}/treatments/{patientTreatment}', [\App\Http\Controllers\PatientTreatmentController::class, 'destroy'])->name('patients.treatments.destroy');
 
+        // Pagamentos (aba "Pagamentos" na ficha do paciente — cobranças por parcela ligadas a Tratamentos)
+        Route::post('/patients/{patient}/payments/{patientPayment}/receive', [\App\Http\Controllers\PatientPaymentController::class, 'receive'])->name('patients.payments.receive');
+        Route::put('/patients/{patient}/payments/{patientPayment}', [\App\Http\Controllers\PatientPaymentController::class, 'update'])->name('patients.payments.update');
+        Route::post('/patients/{patient}/payments/{patientPayment}/cancel', [\App\Http\Controllers\PatientPaymentController::class, 'cancel'])->name('patients.payments.cancel');
+        Route::delete('/patients/{patient}/payments/{patientPayment}', [\App\Http\Controllers\PatientPaymentController::class, 'destroy'])->name('patients.payments.destroy');
+        Route::post('/patients/{patient}/treatments/{patientTreatment}/payment-plan', [\App\Http\Controllers\PatientPaymentController::class, 'createPlan'])->name('patients.treatments.payment-plan');
+        Route::get('/patients/{patient}/payments/{patientPayment}/receipt', [\App\Http\Controllers\PatientPaymentController::class, 'receipt'])->name('patients.payments.receipt');
+        Route::get('/patients/{patient}/payments/export', [\App\Http\Controllers\PatientPaymentController::class, 'export'])->name('patients.payments.export');
+
         // Evoluções clínicas (card na Visão Geral da ficha do paciente)
         Route::post('/patients/{patient}/evolutions', [\App\Http\Controllers\PatientEvolutionController::class, 'store'])->name('patients.evolutions.store');
         Route::post('/patients/{patient}/evolutions/photos/{photo}/retry', [\App\Http\Controllers\PatientEvolutionController::class, 'retryPhoto'])->name('patients.evolutions.photos.retry');

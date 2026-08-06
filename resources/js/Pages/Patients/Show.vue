@@ -47,6 +47,10 @@ const props = defineProps({
     catalogTreatments:   { type: Array,  default: () => [] },
     convenios:           { type: Array,  default: () => [] },
     treatmentStatuses:   { type: Array,  default: () => [] },
+    patientPayments:     { type: Object, default: () => ({ data: [], pagination: null }) },
+    paymentSummary:      { type: Object, default: () => ({ received: 0, outstanding: 0, overdue: 0, total_charged: 0 }) },
+    paymentMethods:      { type: Array,  default: () => [] },
+    paymentStatuses:     { type: Array,  default: () => [] },
 });
 
 // ─── Flash ────────────────────────────────────────────────────────────────────
@@ -59,7 +63,7 @@ const showRelationshipPopover = ref(false);
 // ─── Sidebar recolhível (auto-retrai só na aba Tratamentos) ──────────────────
 const sidebarOpen = ref(true);
 function onTabChange(tabId) {
-    sidebarOpen.value = tabId !== 'treatments';
+    sidebarOpen.value = !['treatments', 'payments'].includes(tabId);
 }
 
 // ─── Categorias odontológicas ─────────────────────────────────────────────────
@@ -869,6 +873,10 @@ function tlExport() {
                     :convenios="convenios"
                     :eligible-professionals="eligibleProfessionals"
                     :treatment-statuses="treatmentStatuses"
+                    :patient-payments="patientPayments"
+                    :payment-summary="paymentSummary"
+                    :payment-methods="paymentMethods"
+                    :payment-statuses="paymentStatuses"
                 />
             </div>
             <div v-show="sidebarOpen" class="space-y-6">
