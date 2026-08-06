@@ -36,6 +36,7 @@ const props = defineProps({
     noteAlerts:                { type: Array,  default: () => [] },
     patientMarkers:            { type: Array,  default: () => [] },
     availableMarkers:          { type: Array,  default: () => [] },
+    markerLimit:               { type: Number, default: 6 },
     activeTab:           { type: String, default: 'overview' },
     odontogram:          { type: Object, default: () => ({}) },
     toothStatuses:       { type: Array,  default: () => [] },
@@ -809,6 +810,7 @@ function tlExport() {
                         :patient="patient"
                         :markers="patientMarkers"
                         :available-markers="availableMarkers"
+                        :marker-limit="markerLimit"
                     />
                 </div>
             </div>

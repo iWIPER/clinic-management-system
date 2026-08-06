@@ -292,6 +292,7 @@ class PatientController extends Controller
             'noteAlerts'      => fn () => $noteService->alertNotes($patient),
             'patientMarkers'   => fn () => $patient->markers()->get(['patient_tags.id', 'name', 'slug', 'color']),
             'availableMarkers' => fn () => $markerService->availableMarkers($clinic?->id),
+            'markerLimit'      => PatientMarkerService::MAX_MARKERS_PER_PATIENT,
             'clinicId'            => $clinic?->id,
             'isDriveConnected'    => $isDriveConnected,
             'storageQuota'        => fn () => $isDriveConnected ? $driveService->getStorageQuota($clinic) : null,

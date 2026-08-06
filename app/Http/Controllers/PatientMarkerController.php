@@ -31,8 +31,10 @@ class PatientMarkerController extends Controller
     public function sync(Request $request, Patient $patient)
     {
         $validated = $request->validate([
-            'marker_ids' => 'array',
+            'marker_ids' => ['array', 'max:' . PatientMarkerService::MAX_MARKERS_PER_PATIENT],
             'marker_ids.*' => PatientTag::markerExistsRule(),
+        ], [
+            'marker_ids.max' => 'O paciente já possui o limite máximo de ' . PatientMarkerService::MAX_MARKERS_PER_PATIENT . ' etiquetas. Remova uma etiqueta antes de adicionar outra.',
         ]);
 
         $this->service->syncForPatient($patient, $validated['marker_ids'] ?? []);

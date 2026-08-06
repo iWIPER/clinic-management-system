@@ -20,6 +20,13 @@ class PatientMarkerService
     public const PALETTE = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b'];
 
     /**
+     * Fonte de verdade do limite de marcadores por paciente — usada pela
+     * validação em PatientMarkerController::sync() e exposta ao front via
+     * prop (PatientController) para o contador/estado desabilitado do popover.
+     */
+    public const MAX_MARKERS_PER_PATIENT = 6;
+
+    /**
      * Usado tanto pelo pop-up "Categorizar" (atribuir/remover) quanto pelo
      * modal "Gerenciar Marcadores" (criar/editar/excluir) — uma única
      * consulta, patients_count já incluído para a confirmação de exclusão.
