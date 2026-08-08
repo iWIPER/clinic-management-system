@@ -11,6 +11,7 @@ import NavbarDropdown from '@/Components/Navbar/NavbarDropdown.vue'
 import NavbarDropdownItem from '@/Components/Navbar/NavbarDropdownItem.vue'
 import NotificationBadge from '@/Components/Navbar/NotificationBadge.vue'
 import SignaturePendingButton from '@/Components/Navbar/SignaturePendingButton.vue'
+import TaskPanel from '@/Components/Tasks/TaskPanel.vue'
 
 // ── Largura do conteúdo ──────────────────────────────────────────────────
 // Páginas de conteúdo largo (tabelas, dashboards, agenda, kanban) usam o
@@ -116,6 +117,11 @@ const notifDotColor = {
 }
 
 const isSettingsActive = computed(() => page.url.split('?')[0].startsWith('/clinic-settings'))
+
+// ── Painel de Tarefas ────────────────────────────────────────────────────
+// Overlay client-side, não uma página — fica montado no layout para abrir
+// sobre qualquer tela sem navegar (ver TaskPanel.vue).
+const showTasksPanel = ref(false)
 </script>
 
 <template>
@@ -146,6 +152,16 @@ const isSettingsActive = computed(() => page.url.split('?')[0].startsWith('/clin
 
           <!-- Ícones utilitários (expansível) -->
           <div class="flex items-center gap-0.5">
+          <NavbarIconButton
+            tooltip="Tarefas"
+            :active="showTasksPanel"
+            @click="showTasksPanel = true"
+          >
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125Z"/>
+            </svg>
+          </NavbarIconButton>
           <SignaturePendingButton />
           <NavbarDropdown width="w-80">
             <template #trigger="{ open }">
@@ -279,6 +295,8 @@ const isSettingsActive = computed(() => page.url.split('?')[0].startsWith('/clin
       </div>
     </div>
   </nav>
+
+  <TaskPanel :show="showTasksPanel" @close="showTasksPanel = false" />
 
   <!-- ── Região rolável (só o conteúdo rola; a navbar acima fica fora deste
        container, então a scrollbar nativa nasce já abaixo dela).

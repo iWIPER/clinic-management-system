@@ -184,6 +184,13 @@ class Patient extends Model
         return $this->hasOne(PatientAnamnesis::class);
     }
 
+    // Habilita uma futura aba "Tarefas relacionadas" no prontuário — a
+    // relação já existe, a UI no Patient Hub fica pra outra entrega.
+    public function tasks()
+    {
+        return $this->hasMany(Task::class);
+    }
+
     public function evolutions()
     {
         return $this->hasMany(ClinicalEvolution::class);

@@ -93,6 +93,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/patients', [\App\Http\Controllers\PatientController::class, 'index'])->name('patients.index');
         Route::get('/patients/create', [\App\Http\Controllers\PatientController::class, 'create'])->name('patients.create');
         Route::get('/patients/export', [\App\Http\Controllers\PatientController::class, 'export'])->name('patients.export');
+        Route::get('/patients/search', [\App\Http\Controllers\PatientSearchController::class, 'index'])->name('patients.search');
         Route::post('/patients', [\App\Http\Controllers\PatientController::class, 'store'])->name('patients.store');
         Route::get('/patients/{patient}', [\App\Http\Controllers\PatientController::class, 'show'])->name('patients.show');
         Route::get('/patients/{patient}/edit', [\App\Http\Controllers\PatientController::class, 'edit'])->name('patients.edit');
@@ -361,6 +362,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 'referral_notifications' => $referralNotifs,
             ]);
         })->name('notifications.counts');
+
+        // Tarefas — módulo de produtividade da equipe (visões Lista e Board)
+        Route::prefix('tasks')->name('tasks.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\TaskController::class, 'index'])->name('index');
+            Route::get('/controle', [\App\Http\Controllers\TaskController::class, 'controlPanel'])->name('controle');
+            Route::post('/', [\App\Http\Controllers\TaskController::class, 'store'])->name('store');
+            Route::put('/{task}', [\App\Http\Controllers\TaskController::class, 'update'])->name('update');
+            Route::patch('/{task}/status', [\App\Http\Controllers\TaskController::class, 'updateStatus'])->name('update-status');
+            Route::patch('/{task}/move', [\App\Http\Controllers\TaskController::class, 'move'])->name('move');
+            Route::patch('/{task}/pin', [\App\Http\Controllers\TaskController::class, 'togglePin'])->name('toggle-pin');
+            Route::patch('/{task}/favorite', [\App\Http\Controllers\TaskController::class, 'toggleFavorite'])->name('toggle-favorite');
+            Route::delete('/{task}', [\App\Http\Controllers\TaskController::class, 'destroy'])->name('destroy');
+        });
+        Route::post('/task-labels', [\App\Http\Controllers\TaskLabelController::class, 'store'])->name('task-labels.store');
+        Route::delete('/task-labels/{label}', [\App\Http\Controllers\TaskLabelController::class, 'destroy'])->name('task-labels.destroy');
+        Route::put('/task-lists/{key}', [\App\Http\Controllers\TaskListController::class, 'update'])->name('task-lists.update')->where('key', 'mine|team');
+        Route::post('/task-lists', [\App\Http\Controllers\TaskListController::class, 'store'])->name('task-lists.store');
+        Route::put('/task-lists/{taskList}', [\App\Http\Controllers\TaskListController::class, 'updateCustom'])->name('task-lists.update-custom')->whereNumber('taskList');
+        Route::delete('/task-lists/{taskList}', [\App\Http\Controllers\TaskListController::class, 'destroy'])->name('task-lists.destroy')->whereNumber('taskList');
 
         // Profile
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

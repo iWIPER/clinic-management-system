@@ -20,6 +20,7 @@
         "vue": "^3.4"
     },
     "dependencies": {
+        "@floating-ui/dom": "^1.8.0",
         "@headlessui/vue": "^1.7",
         "@heroicons/vue": "^2.1",
         "@tiptap/extension-text-align": "^3.27.1",
