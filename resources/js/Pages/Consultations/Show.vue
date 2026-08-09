@@ -10,30 +10,15 @@ const props = defineProps({ consultation: Object, treatments: Array })
 const notes        = ref(props.consultation.notes || '')
 const executionForm = ref({ treatment_id: '', notes: '' })
 
-// ── Relógio reativo para alerta de espera ─────────────────────────────────
-const nowRef = ref(new Date())
-let _clockTimer = null
-
-const waitingMinutes = computed(() => {
-    if (!props.consultation.check_in_at) return 0
-    return Math.floor((nowRef.value - new Date(props.consultation.check_in_at)) / 60000)
-})
-
-const isWaitingTooLong = computed(() =>
-    props.consultation.status === 'aguardando' && waitingMinutes.value >= 15
-)
-
 // ── Polling: atualiza props a cada 30s ───────────────────────────────────
 let _pollTimer = null
 
 onMounted(() => {
-    _clockTimer = setInterval(() => { nowRef.value = new Date() }, 60000)
-    _pollTimer  = setInterval(() => {
+    _pollTimer = setInterval(() => {
         router.reload({ only: ['consultation'], preserveState: true, preserveScroll: true })
     }, 30000)
 })
 onUnmounted(() => {
-    clearInterval(_clockTimer)
     clearInterval(_pollTimer)
 })
 
@@ -67,23 +52,6 @@ const currentFlow = computed(() => FLOW[props.consultation.status] ?? FLOW.aguar
 
 <template>
 <AppLayout>
-
-  <!-- ── Alerta paciente esperando muito ───────────────────────────────── -->
-  <div v-if="isWaitingTooLong"
-       class="mb-4 flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-    <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-    </svg>
-    <div>
-      <span class="font-semibold text-red-700 text-sm">Paciente esperando há {{ waitingMinutes }} minutos.</span>
-      <span class="text-red-600 text-sm ml-1">Recomendado iniciar o atendimento.</span>
-    </div>
-    <button v-if="consultation.status === 'aguardando'"
-            @click="doStart"
-            class="ml-auto bg-red-600 hover:bg-red-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
-      Iniciar agora
-    </button>
-  </div>
 
   <!-- ── Header ─────────────────────────────────────────────────────────── -->
   <div class="mb-6 flex items-center justify-between flex-wrap gap-3">
@@ -189,12 +157,6 @@ const currentFlow = computed(() => FLOW[props.consultation.status] ?? FLOW.aguar
             {{ consultation.check_in_at
                 ? new Date(consultation.check_in_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
                 : '—' }}
-          </span>
-        </div>
-        <div v-if="consultation.status === 'aguardando'" class="flex justify-between">
-          <span class="text-slate-500">Aguardando</span>
-          <span class="font-semibold" :class="waitingMinutes >= 15 ? 'text-red-600' : 'text-slate-700'">
-            {{ waitingMinutes }} min
           </span>
         </div>
         <div v-if="consultation.appointment">

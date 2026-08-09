@@ -2,7 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue'
 import StatusIndicator from '@/Components/StatusIndicator.vue'
 import { Link, router } from '@inertiajs/vue3'
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { resolveConsultationStatus } from '@/composables/useAppointmentStatus'
 
 const props = defineProps({
@@ -33,29 +33,15 @@ const actionClass = (status) => {
     return 'text-slate-500 hover:text-slate-700'
 }
 
-// ── Alerta de espera (15 min) ─────────────────────────────────────────────
-const nowRef = ref(new Date())
-let _clockTimer = null
-
-const waitMinutes = (checkInAt) => {
-    if (!checkInAt) return 0
-    return Math.floor((nowRef.value - new Date(checkInAt)) / 60000)
-}
-
-const isLateWaiting = (cons) =>
-    cons.status === 'aguardando' && waitMinutes(cons.check_in_at) >= 15
-
 // ── Polling ────────────────────────────────────────────────────────────────
 let _pollTimer = null
 
 onMounted(() => {
-    _clockTimer = setInterval(() => { nowRef.value = new Date() }, 60000)
     _pollTimer = setInterval(() => {
         router.reload({ only: ['consultations'], preserveState: true, preserveScroll: true })
     }, 30000)
 })
 onUnmounted(() => {
-    clearInterval(_clockTimer)
     clearInterval(_pollTimer)
 })
 </script>
@@ -93,22 +79,14 @@ onUnmounted(() => {
         </tr>
       </thead>
       <tbody class="divide-y">
-        <tr v-for="cons in consultations.data" :key="cons.id"
-            :class="isLateWaiting(cons) ? 'bg-red-50/60' : ''">
+        <tr v-for="cons in consultations.data" :key="cons.id">
 
-          <!-- Check-in horário + alerta de demora -->
+          <!-- Check-in horário -->
           <td class="p-4">
             <div class="text-slate-700">
               {{ cons.check_in_at
                   ? new Date(cons.check_in_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
                   : '—' }}
-            </div>
-            <div v-if="isLateWaiting(cons)"
-                 class="flex items-center gap-1 mt-0.5 text-[11px] font-semibold text-red-600">
-              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-              </svg>
-              {{ waitMinutes(cons.check_in_at) }} min esperando
             </div>
           </td>
 

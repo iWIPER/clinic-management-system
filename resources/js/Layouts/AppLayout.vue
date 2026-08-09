@@ -1,6 +1,6 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3'
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useToast } from '@/composables/useToast'
 import TopProgress from '@/Components/Navbar/TopProgress.vue'
 import NavbarBrand from '@/Components/Navbar/NavbarBrand.vue'
@@ -9,8 +9,7 @@ import NavbarItem from '@/Components/Navbar/NavbarItem.vue'
 import NavbarIconButton from '@/Components/Navbar/NavbarIconButton.vue'
 import NavbarDropdown from '@/Components/Navbar/NavbarDropdown.vue'
 import NavbarDropdownItem from '@/Components/Navbar/NavbarDropdownItem.vue'
-import NotificationBadge from '@/Components/Navbar/NotificationBadge.vue'
-import SignaturePendingButton from '@/Components/Navbar/SignaturePendingButton.vue'
+import NotificationCenter from '@/Components/Navbar/NotificationCenter.vue'
 import TaskPanel from '@/Components/Tasks/TaskPanel.vue'
 
 // ── Largura do conteúdo ──────────────────────────────────────────────────
@@ -43,55 +42,6 @@ const { toasts, show: showToast, dismiss } = useToast()
 watch(() => page.props.flash?.success, (val) => { if (val) showToast(val, 'success') }, { immediate: true })
 watch(() => page.props.flash?.error,   (val) => { if (val) showToast(val, 'error') },   { immediate: true })
 
-// ── Notificações ─────────────────────────────────────────────────────────
-const counts = ref({ total: 0, aguardando_confirmacao: 0, aguardando_atendimento: 0, esperando_15min: 0, consulta_proxima: 0, referral_notifications: [] })
-const bellAnimating = ref(false)
-let notifTimer = null
-let prevTotal = 0
-
-const fetchCounts = async () => {
-    try {
-        const res = await fetch(route('notifications.counts'), {
-            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-        })
-        if (res.ok) counts.value = await res.json()
-    } catch {}
-}
-
-watch(() => counts.value.total, (next) => {
-    if (next > prevTotal && next > 0) {
-        bellAnimating.value = true
-        setTimeout(() => { bellAnimating.value = false }, 700)
-    }
-    prevTotal = next
-})
-
-onMounted(() => {
-    fetchCounts()
-    prevTotal = counts.value.total
-    notifTimer = setInterval(fetchCounts, 60000)
-})
-onUnmounted(() => {
-    clearInterval(notifTimer)
-})
-
-// ── Itens de notificação derivados dos counts ─────────────────────────────
-const notifItems = computed(() => {
-    const items = []
-    if (counts.value.aguardando_confirmacao > 0)
-        items.push({ type: 'warning', text: `${counts.value.aguardando_confirmacao} agendamento(s) aguardando confirmação hoje` })
-    if (counts.value.esperando_15min > 0)
-        items.push({ type: 'error', text: `${counts.value.esperando_15min} paciente(s) esperando há mais de 15 min` })
-    if (counts.value.aguardando_atendimento > 0)
-        items.push({ type: 'info', text: `${counts.value.aguardando_atendimento} paciente(s) aguardando atendimento` })
-    if (counts.value.consulta_proxima > 0)
-        items.push({ type: 'success', text: `${counts.value.consulta_proxima} consulta(s) nos próximos 30 min` })
-    if (counts.value.referral_notifications?.length) {
-        counts.value.referral_notifications.forEach((n) => items.push(n))
-    }
-    return items
-})
-
 const isSuperAdmin = computed(() => page.props.auth?.isSuperAdmin ?? false)
 const isReferralsActive = computed(() => page.url.split('?')[0].startsWith('/indicacoes'))
 
@@ -107,13 +57,6 @@ const toastColors = {
     error:   { bg: 'bg-red-50 border-red-200',         icon: 'text-red-500',     text: 'text-red-800' },
     warning: { bg: 'bg-amber-50 border-amber-200',     icon: 'text-amber-500',   text: 'text-amber-800' },
     info:    { bg: 'bg-blue-50 border-blue-200',        icon: 'text-blue-500',    text: 'text-blue-800' },
-}
-
-const notifDotColor = {
-    success: 'bg-emerald-500',
-    error:   'bg-red-500',
-    warning: 'bg-amber-400',
-    info:    'bg-blue-500',
 }
 
 const isSettingsActive = computed(() => page.url.split('?')[0].startsWith('/clinic-settings'))
@@ -162,67 +105,8 @@ const showTasksPanel = ref(false)
                     d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125Z"/>
             </svg>
           </NavbarIconButton>
-          <SignaturePendingButton />
-          <NavbarDropdown width="w-80">
-            <template #trigger="{ open }">
-              <button
-                type="button"
-                :aria-expanded="open"
-                aria-label="Notificações"
-                class="relative cursor-pointer rounded-lg p-1.5 text-slate-500 transition-all duration-[180ms] ease hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:ring-offset-1 active:scale-[0.97]"
-              >
-                <svg
-                  class="h-5 w-5 transition-transform duration-[180ms] ease"
-                  :class="{ 'navbar-bell-ring': bellAnimating }"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                >
-                  <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                </svg>
-                <NotificationBadge :count="counts.total" />
-              </button>
-            </template>
 
-            <template #default="{ close }">
-              <div class="flex items-center justify-between border-b px-4 py-2.5">
-                <span class="text-xs font-semibold uppercase tracking-wide text-slate-700">Notificações</span>
-                <span
-                  v-if="counts.total > 0"
-                  class="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-600"
-                >
-                  {{ counts.total }} pendente{{ counts.total > 1 ? 's' : '' }}
-                </span>
-              </div>
-
-              <div v-if="notifItems.length === 0" class="px-4 py-6 text-center text-xs text-slate-400">
-                Nenhuma notificação no momento.
-              </div>
-
-              <div v-else class="max-h-72 divide-y overflow-y-auto">
-                <div
-                  v-for="(item, i) in notifItems"
-                  :key="i"
-                  class="flex cursor-default items-start gap-3 px-4 py-3 transition-colors duration-[180ms] ease hover:bg-slate-50"
-                >
-                  <div class="mt-0.5 h-2 w-2 flex-shrink-0 rounded-full" :class="notifDotColor[item.type]" />
-                  <span class="text-xs leading-snug text-slate-700">{{ item.text }}</span>
-                </div>
-              </div>
-
-              <div class="border-t px-4 py-2">
-                <Link
-                  :href="route('consultations.index')"
-                  class="cursor-pointer text-xs font-medium text-emerald-600 transition-colors duration-[180ms] ease hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/35"
-                  @click="close"
-                >
-                  Ver consultas ativas →
-                </Link>
-              </div>
-            </template>
-          </NavbarDropdown>
+          <NotificationCenter />
 
           <NavbarIconButton
             :href="route('clinic-settings.edit')"
@@ -341,18 +225,4 @@ const showTasksPanel = ref(false)
 .toast-enter-from   { opacity: 0; transform: translateX(40px); }
 .toast-leave-to     { opacity: 0; transform: translateX(40px); }
 .toast-move         { transition: transform 0.3s ease; }
-
-@keyframes navbar-bell-ring {
-    0%, 100% { transform: rotate(0deg); }
-    15%      { transform: rotate(8deg); }
-    30%      { transform: rotate(-6deg); }
-    45%      { transform: rotate(4deg); }
-    60%      { transform: rotate(-2deg); }
-    75%      { transform: rotate(0deg); }
-}
-
-.navbar-bell-ring {
-    animation: navbar-bell-ring 0.6s ease;
-    transform-origin: top center;
-}
 </style>

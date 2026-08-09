@@ -27,9 +27,6 @@ const DEFAULTS = {
     // Consultas passadas
     dimPastAppointments: false,
 
-    // Pacientes aguardando
-    showWaiting:         true,
-
     // Modo compacto (reduz padding interno dos cards)
     compactMode:         false,
 }

@@ -316,12 +316,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->whereDate('start', today())
                 ->count();
 
-            $aguardandoAtendimento = \App\Models\Consultation::where('status', 'aguardando')->count();
-
-            $esperando15min = \App\Models\Consultation::where('status', 'aguardando')
-                ->where('check_in_at', '<=', $now->copy()->subMinutes(15))
-                ->count();
-
             $consultaProxima = \App\Models\Appointment::whereIn('status', ['scheduled', 'confirmed'])
                 ->whereBetween('start', [$now, $now->copy()->addMinutes(30)])
                 ->count();
@@ -351,13 +345,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 : collect();
 
             $referralCount = $referralNotifs->count();
-            $clinicalTotal = $aguardandoConfirmacao + $aguardandoAtendimento + $esperando15min + $consultaProxima;
+            $clinicalTotal = $aguardandoConfirmacao + $consultaProxima;
 
             return response()->json([
                 'total'                  => $clinicalTotal + $referralCount,
                 'aguardando_confirmacao' => $aguardandoConfirmacao,
-                'aguardando_atendimento' => $aguardandoAtendimento,
-                'esperando_15min'        => $esperando15min,
                 'consulta_proxima'       => $consultaProxima,
                 'referral_notifications' => $referralNotifs,
             ]);

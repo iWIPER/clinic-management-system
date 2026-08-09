@@ -445,27 +445,6 @@ function switchToDayView(day) {
     settings.viewMode  = 'day'
 }
 
-// ── Pacientes aguardando ───────────────────────────────────────────────────
-const waitingPatients = computed(() => {
-    if (!settings.showWaiting) return []
-    return props.appointments
-        .filter(a => a.start.slice(0, 10) === todayStr && a.status === 'in_attendance')
-        .map(a => {
-            const checkIn = a.consultation?.check_in_at
-                ? new Date(a.consultation.check_in_at)
-                : new Date(a.start)
-            return { ...a, waitMinutes: Math.max(0, Math.floor((nowRef.value - checkIn) / 60000)) }
-        })
-        .sort((a, b) => a.waitMinutes - b.waitMinutes)
-})
-
-function formatWaitTime(min) {
-    if (min < 60) return `${min} min`
-    const h = Math.floor(min / 60)
-    const m = min % 60
-    return m ? `${h}h ${m}min` : `${h}h`
-}
-
 // ── Banda de almoço (posição zoom-aware) ───────────────────────────────────
 const lunchBandStyle = computed(() => {
     if (!settings.showLunchBand) return null
@@ -493,7 +472,6 @@ const todayStats = computed(() => {
         confirmed: list.filter(a => a.status === 'confirmed').length,
         cancelled: list.filter(a => a.status === 'cancelled').length,
         no_show:   list.filter(a => a.status === 'no_show').length,
-        waiting:   list.filter(a => a.status === 'in_attendance').length,
         occupancy: Math.min(Math.round((usedMin / TOTAL_MIN) * 100), 100),
     }
 })
@@ -685,7 +663,6 @@ onUnmounted(() => {
           <div class="px-3 py-1.5 space-y-0.5">
             <label v-for="(opt) in [
                 { key: 'hideCancelled',       label: 'Ocultar canceladas' },
-                { key: 'showWaiting',         label: 'Mostrar pacientes aguardando' },
                 { key: 'showNowLine',         label: 'Mostrar horário atual' },
                 { key: 'showSecondaryGrid',   label: 'Mostrar grade de meia hora' },
                 { key: 'showLunchBand',       label: 'Mostrar horário de almoço' },
@@ -813,10 +790,6 @@ onUnmounted(() => {
               <span class="text-slate-500">Faltas</span>
               <span class="font-semibold text-amber-500">{{ todayStats.no_show }}</span>
             </div>
-            <div v-if="todayStats.waiting > 0" class="flex justify-between text-xs">
-              <span class="text-slate-500">Aguardando</span>
-              <span class="font-semibold text-orange-500">{{ todayStats.waiting }}</span>
-            </div>
           </div>
 
           <!-- Barra de ocupação -->
@@ -833,22 +806,6 @@ onUnmounted(() => {
                      'bg-red-500':     todayStats.occupancy >= 90,
                    }"
                    :style="{ width: todayStats.occupancy + '%' }" />
-            </div>
-          </div>
-
-          <!-- Pacientes aguardando -->
-          <div v-if="waitingPatients.length && settings.showWaiting" class="mt-3 pt-3 border-t border-slate-100">
-            <div class="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-2">Aguardando</div>
-            <div class="space-y-1.5">
-              <div v-for="appt in waitingPatients" :key="'w-' + appt.id"
-                   class="flex items-center justify-between">
-                <span class="text-[10px] text-slate-700 truncate flex-1">
-                  {{ appt.patient?.nome }} {{ appt.patient?.sobrenome?.charAt(0) }}.
-                </span>
-                <span class="text-[9px] text-orange-500 font-medium flex-shrink-0 ml-1 tabular-nums">
-                  {{ formatWaitTime(appt.waitMinutes) }}
-                </span>
-              </div>
             </div>
           </div>
 

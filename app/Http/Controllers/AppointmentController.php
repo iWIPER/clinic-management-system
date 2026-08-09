@@ -25,7 +25,7 @@ class AppointmentController extends Controller
                 'patient:id,nome,sobrenome,telefone',
                 'professional:id,name',
                 'treatment:id,nome,duracao_padrao',
-                'consultation:id,appointment_id,status,check_in_at',
+                'consultation:id,appointment_id,status',
             ])
             ->whereBetween('start', [$weekStart->startOfDay(), $weekEnd])
             ->when($request->input('professional_id'), fn ($q, $id) => $q->where('professional_id', $id))
