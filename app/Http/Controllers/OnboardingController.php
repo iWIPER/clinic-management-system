@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Chair;
 use App\Models\Clinic;
 use App\Models\Convenio;
 use App\Models\Invite;
@@ -49,6 +50,7 @@ class OnboardingController extends Controller
 
         return Inertia::render('Onboarding/CreateClinic', [
             'plans' => $plans,
+            'maxChairs' => Chair::MAX_PER_CLINIC,
         ]);
     }
 
@@ -59,6 +61,9 @@ class OnboardingController extends Controller
             'type' => 'required|string|in:odontologia,medicina,estetica,outros',
             'cnpj' => 'nullable|string|max:20',
             'plan_slug' => 'required|string|exists:plans,slug',
+            'onboarding_stage' => 'required|string|in:new,under_1y,1_to_5y,over_5y',
+            'onboarding_current_system' => 'required|string|in:paper_or_calendar,spreadsheet,other_system',
+            'chairs_count' => 'required|integer|min:1|max:' . Chair::MAX_PER_CLINIC,
         ]);
 
         $user = Auth::user();
@@ -70,6 +75,8 @@ class OnboardingController extends Controller
                 'name' => $validated['name'],
                 'slug' => Str::slug($validated['name']) . '-' . Str::random(6),
                 'type' => $validated['type'],
+                'onboarding_stage' => $validated['onboarding_stage'],
+                'onboarding_current_system' => $validated['onboarding_current_system'],
                 'cnpj' => $validated['cnpj'],
                 'plan_id' => $plan->id,
                 'status' => 'trial',
@@ -111,6 +118,8 @@ class OnboardingController extends Controller
 
             app(WildentalCatalogService::class)->seedForClinic($clinic, $user->id);
 
+            Chair::seedDefaultsForClinic($clinic->id, (int) $validated['chairs_count']);
+
             Convenio::create([
                 'clinic_id' => $clinic->id,
                 'nome'      => 'Particular',
@@ -126,8 +135,21 @@ class OnboardingController extends Controller
             ]);
         });
 
-        return redirect()->route('onboarding.invite-team')
+        return redirect()->route('onboarding.complete')
             ->with('success', 'Clínica criada com sucesso!');
+    }
+
+    /**
+     * Tela final do onboarding — resumo do que foi configurado.
+     */
+    public function complete()
+    {
+        $clinic = Clinic::findOrFail(session('current_clinic_id'));
+
+        return Inertia::render('Onboarding/Complete', [
+            'clinicName' => $clinic->name,
+            'chairsCount' => Chair::where('clinic_id', $clinic->id)->count(),
+        ]);
     }
 
     /**
