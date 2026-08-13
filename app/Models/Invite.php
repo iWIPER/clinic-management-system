@@ -20,16 +20,22 @@ class Invite extends Model
     // equipe quanto no campo "Cargo na clínica" do perfil do usuário. Não deve
     // haver campo livre em nenhuma tela: sempre selecionar a partir daqui.
     const JOB_TITLES = [
-        'Dentista', 'Secretário(a)', 'Administrador', 'Outro',
+        'Dentista', 'Dentista Administrador', 'Secretário(a)', 'Administrador', 'Outro',
     ];
 
     // Mapeamento cargo → nível de permissão
     const JOB_TITLE_ROLES = [
-        'Administrador' => 'admin',
-        'Dentista'      => 'professional',
-        'Secretário(a)' => 'staff',
-        'Outro'         => 'staff',
+        'Administrador'           => 'admin',
+        'Dentista'                => 'professional',
+        'Dentista Administrador'  => 'admin',
+        'Secretário(a)'           => 'staff',
+        'Outro'                   => 'staff',
     ];
+
+    // Cargos que têm agenda de atendimento própria — usado pra decidir quem
+    // aparece na seção "Agendas" da Agenda e na aba Configurações > Agendas.
+    // Ver também User::scopeClinicalProfessionals().
+    const CLINICAL_JOB_TITLES = ['Dentista', 'Dentista Administrador'];
 
     public static function boot()
     {

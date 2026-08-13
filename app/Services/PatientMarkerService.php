@@ -56,6 +56,49 @@ class PatientMarkerService
     }
 
     /**
+     * União de todas as etiquetas já associadas a este paciente — direto
+     * (marcadores do paciente) OU via qualquer um dos seus agendamentos
+     * (appointment_tag_assignments) — contadas por patient_tag_id distinto.
+     * É o mesmo "vocabulário" (patient_tags) nos dois casos, só o alvo da
+     * associação muda; o limite é sobre o paciente, não sobre onde a
+     * etiqueta foi aplicada.
+     */
+    public function distinctTagIdsForPatient(Patient $patient, ?int $excludeAppointmentId = null): array
+    {
+        $directIds = $patient->markers()->pluck('patient_tags.id');
+
+        $viaAppointments = PatientTag::query()
+            ->whereHas('appointments', function ($q) use ($patient, $excludeAppointmentId) {
+                $q->where('appointments.patient_id', $patient->id);
+                if ($excludeAppointmentId) {
+                    $q->where('appointments.id', '!=', $excludeAppointmentId);
+                }
+            })
+            ->pluck('id');
+
+        return $directIds->merge($viaAppointments)->unique()->values()->all();
+    }
+
+    /**
+     * Regra do agendamento: a união de marcadores do paciente + etiquetas de
+     * TODOS os seus agendamentos (excluindo o próprio agendamento sendo
+     * salvo, no caso de edição) + as etiquetas recém-selecionadas não pode
+     * ultrapassar o mesmo teto de MAX_MARKERS_PER_PATIENT — contando só
+     * ids distintos, nunca duplicando quem já está nos dois lados.
+     */
+    public function assertAppointmentTagsWithinLimit(Patient $patient, array $tagIds, ?int $excludeAppointmentId = null): void
+    {
+        $existing = $this->distinctTagIdsForPatient($patient, $excludeAppointmentId);
+        $total = count(array_unique(array_merge($existing, $tagIds)));
+
+        if ($total > self::MAX_MARKERS_PER_PATIENT) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'tag_ids' => "Este paciente já possui o limite máximo de " . self::MAX_MARKERS_PER_PATIENT . ' etiquetas distintas (entre marcadores do paciente e etiquetas de outros agendamentos). Remova uma etiqueta antes de adicionar outra.',
+            ]);
+        }
+    }
+
+    /**
      * Único ponto que decide se um nome de marcador está disponível na
      * clínica — reaproveitado por create() e update() para não duplicar a
      * checagem de unicidade de slug.

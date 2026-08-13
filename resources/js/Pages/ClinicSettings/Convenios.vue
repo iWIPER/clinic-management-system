@@ -1,8 +1,9 @@
 <script setup>
 import { ref } from 'vue'
-import { Link, router, useForm } from '@inertiajs/vue3'
+import { router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import InputError from '@/Components/InputError.vue'
+import SettingsTabs from '@/Components/ClinicSettings/SettingsTabs.vue'
 
 const props = defineProps({
     convenios: { type: Array, default: () => [] },
@@ -39,14 +40,15 @@ const toggle = (c) => {
 
 <template>
     <AppLayout>
-        <div class="max-w-2xl mx-auto px-4 py-8">
-            <div class="mb-6">
-                <Link :href="route('clinic-settings.edit')" class="text-[11px] text-slate-400 hover:text-teal-600 transition-colors">← Configurações da clínica</Link>
-                <h1 class="text-xl font-bold text-slate-900 mt-1">Convênios</h1>
+        <SettingsTabs active="convenios" />
+
+        <div class="max-w-3xl">
+            <div class="mb-4">
+                <h2 class="text-lg font-semibold text-slate-900">Convênios</h2>
                 <p class="text-sm text-slate-500 mt-1">Convênios disponíveis para o cadastro de pacientes e para o módulo de Tratamentos.</p>
             </div>
 
-            <div class="rounded-2xl border border-slate-200 bg-white p-5 mb-5">
+            <div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 mb-5">
                 <h2 class="text-sm font-bold text-slate-900 mb-3">Novo convênio</h2>
                 <form @submit.prevent="create" class="flex gap-2 items-start">
                     <div class="flex-1">
@@ -61,7 +63,7 @@ const toggle = (c) => {
                 </form>
             </div>
 
-            <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+            <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                 <div v-for="c in convenios" :key="c.id"
                      class="flex items-center justify-between gap-3 px-5 py-3 border-b border-slate-100 last:border-0">
                     <template v-if="editingId === c.id">

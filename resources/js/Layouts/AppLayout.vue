@@ -13,16 +13,18 @@ import NotificationCenter from '@/Components/Navbar/NotificationCenter.vue'
 import TaskPanel from '@/Components/Tasks/TaskPanel.vue'
 
 // ── Largura do conteúdo ──────────────────────────────────────────────────
-// Páginas de conteúdo largo (tabelas, dashboards, agenda, kanban) usam o
-// padrão `full`. Páginas de conteúdo naturalmente estreito (formulários de
+// Páginas de conteúdo largo (tabelas, dashboards, kanban) usam o padrão
+// `full`. Páginas de conteúdo naturalmente estreito (formulários de
 // cadastro/edição de uma entidade, telas de configuração) devem passar
 // `content-width="sm|md|lg"` em vez de recriar um wrapper `max-w-*` próprio —
-// mantém a régua de larguras centralizada num único lugar.
+// mantém a régua de larguras centralizada num único lugar. `screen` é pra
+// telas de trabalho de verdade (Agenda) que precisam usar 100% da largura
+// disponível em qualquer monitor, sem o teto de 1280px do `full`.
 const props = defineProps({
     contentWidth: {
         type: String,
         default: 'full',
-        validator: (v) => ['sm', 'md', 'lg', 'full'].includes(v),
+        validator: (v) => ['sm', 'md', 'lg', 'full', 'screen'].includes(v),
     },
 })
 
@@ -31,6 +33,7 @@ const CONTENT_WIDTH_CLASSES = {
     md: 'max-w-2xl',
     lg: 'max-w-4xl',
     full: 'max-w-7xl',
+    screen: 'max-w-none',
 }
 
 const mainWidthClass = computed(() => CONTENT_WIDTH_CLASSES[props.contentWidth] ?? CONTENT_WIDTH_CLASSES.full)
@@ -162,13 +165,7 @@ const showTasksPanel = ref(false)
                       Novidade
                     </span>
                   </Link>
-                  <NavbarDropdownItem :href="route('team.index')" @click="close">Equipe</NavbarDropdownItem>
-                  <NavbarDropdownItem :href="route('anamnesis-templates.index')" @click="close">Modelos de Anamnese</NavbarDropdownItem>
-                  <NavbarDropdownItem :href="route('documents.index')" @click="close">Documentos</NavbarDropdownItem>
-                  <NavbarDropdownItem :href="route('clinic-settings.documents.edit')" @click="close">Config. de Documentos</NavbarDropdownItem>
-                  <NavbarDropdownItem :href="route('clinic-settings.convenios.index')" @click="close">Convênios</NavbarDropdownItem>
-                  <NavbarDropdownItem :href="route('clinic-settings.edit')" @click="close">Configurações</NavbarDropdownItem>
-                  <NavbarDropdownItem :href="route('clinic-settings.edit')" @click="close">Google Drive</NavbarDropdownItem>
+                  <NavbarDropdownItem :href="route('clinic-settings.edit')" @click="close" :class="isSettingsActive ? 'bg-emerald-50 text-emerald-800' : ''">Configurações</NavbarDropdownItem>
                   <div class="my-1 border-t border-slate-100" />
                   <NavbarDropdownItem :href="route('logout')" method="post" danger @click="close">Sair</NavbarDropdownItem>
                 </div>

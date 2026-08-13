@@ -9,6 +9,20 @@ import { computePosition, flip, shift, size, offset, autoUpdate } from '@floatin
 // sem precisar buscar de novo só pra descobrir o nome de um id que já temos.
 const selected = defineModel({ type: Object, default: null })
 
+// Props aditivas — defaults reproduzem o comportamento exato de antes, então
+// o único consumidor existente (TaskFormModal) não muda em nada.
+const props = defineProps({
+    // Texto do input vazio. Vazio (default) mantém o "—" que já existia;
+    // quem passar algo (ex.: "Buscar por nome, telefone ou CPF...") troca
+    // pra um placeholder nativo — faz sentido num campo obrigatório, onde
+    // "—" pareceria um valor já definido em vez de "nada selecionado ainda".
+    searchPlaceholder: { type: String, default: '' },
+    // Em Tarefas, "Sem paciente" é uma opção válida (vínculo é opcional).
+    // Num agendamento, paciente é obrigatório — essa opção não faz sentido
+    // ali, então quem usar o combobox nesse contexto pode escondê-la.
+    allowEmpty: { type: Boolean, default: true },
+})
+
 const query = ref('')
 const results = ref([])
 const searching = ref(false)
@@ -34,7 +48,7 @@ watch(query, (q) => {
 // "—" em vez de um placeholder cinza pra "Sem paciente" — placeholder sempre
 // lê como campo desabilitado; um traço no texto normal do valor deixa claro
 // que é um estado válido e definitivo, não um campo vazio esperando algo.
-const displayValue = (p) => p ? fullName(p) : '—'
+const displayValue = (p) => p ? fullName(p) : (props.searchPlaceholder ? '' : '—')
 
 const fullName = (p) => `${p.nome} ${p.sobrenome ?? ''}`.trim()
 
@@ -144,6 +158,7 @@ function onFocus(e) {
             <ComboboxInput
                 class="w-full rounded-lg border-slate-300 text-sm text-slate-800 transition-colors focus:border-emerald-500 focus:ring-emerald-500"
                 :display-value="displayValue"
+                :placeholder="searchPlaceholder"
                 @change="query = $event.target.value"
                 @focus="onFocus" />
             <ComboboxButton class="absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400">
@@ -157,7 +172,7 @@ function onFocus(e) {
             <div v-if="open" ref="dropdownRef" :style="{ position: 'absolute', ...dropdownStyle }"
                  class="z-[60] overflow-hidden rounded-lg border border-slate-200 bg-white text-sm shadow-lg">
                 <ComboboxOptions static>
-                    <ComboboxOption :value="null" v-slot="{ active }">
+                    <ComboboxOption v-if="allowEmpty" :value="null" v-slot="{ active }">
                         <div class="flex cursor-pointer items-center justify-between border-b border-slate-100 px-3.5 py-2 transition-colors"
                              :class="active ? 'bg-emerald-50 text-emerald-800' : 'text-slate-500'">
                             Sem paciente
@@ -165,7 +180,7 @@ function onFocus(e) {
                         </div>
                     </ComboboxOption>
 
-                    <div class="overflow-y-auto" :style="{ maxHeight: `calc(${dropdownStyle.maxHeight} - ${ROW_HEIGHT}px)` }">
+                    <div class="overflow-y-auto" :style="{ maxHeight: allowEmpty ? `calc(${dropdownStyle.maxHeight} - ${ROW_HEIGHT}px)` : dropdownStyle.maxHeight }">
                         <div v-if="searching" class="px-3.5 py-2 text-xs text-slate-400">Buscando...</div>
                         <div v-else-if="query && results.length === 0" class="px-3.5 py-2 text-xs text-slate-400">Nenhum paciente encontrado.</div>
 

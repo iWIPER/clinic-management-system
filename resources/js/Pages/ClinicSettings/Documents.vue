@@ -1,7 +1,8 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
-import { Link, router, useForm } from '@inertiajs/vue3'
+import { router, useForm } from '@inertiajs/vue3'
 import InputError from '@/Components/InputError.vue'
+import SettingsTabs from '@/Components/ClinicSettings/SettingsTabs.vue'
 
 const props = defineProps({
     clinic: Object,
@@ -37,15 +38,16 @@ const setDefault = (template) => {
 
 <template>
     <AppLayout>
-        <div class="max-w-3xl mx-auto px-4 py-8">
-            <div class="mb-6">
-                <Link :href="route('documents.index')" class="text-[11px] text-slate-400 hover:text-teal-600 transition-colors">← Documentos</Link>
-                <h1 class="text-xl font-bold text-slate-900 mt-1">Configurações de Documentos</h1>
+        <SettingsTabs active="documents-config" />
+
+        <div class="max-w-3xl">
+            <div class="mb-4">
+                <h2 class="text-lg font-semibold text-slate-900">Config. de Documentos</h2>
                 <p class="text-sm text-slate-500 mt-1">Dados exibidos no rodapé dos PDFs e comportamento padrão de assinatura — sem precisar mexer em código.</p>
             </div>
 
             <form @submit.prevent="submit" class="space-y-5">
-                <div class="rounded-2xl border border-slate-200 bg-white p-5">
+                <div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
                     <h2 class="text-sm font-bold text-slate-900 mb-4">Dados de contato (rodapé do PDF)</h2>
                     <div class="grid md:grid-cols-2 gap-4">
                         <div>
@@ -134,7 +136,7 @@ const setDefault = (template) => {
                 <button type="submit" :disabled="form.processing" class="rounded-xl bg-teal-600 px-6 py-2.5 text-sm font-semibold text-white disabled:opacity-50 hover:bg-teal-700 transition-colors shadow-sm">Salvar configurações</button>
             </form>
 
-            <div class="rounded-2xl border border-slate-200 bg-white p-5 mt-6">
+            <div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 mt-6">
                 <h2 class="text-sm font-bold text-slate-900 mb-4">Modelos ativos</h2>
                 <div class="space-y-2">
                     <div v-for="t in templates" :key="t.id" class="flex items-center justify-between text-[13px] py-2 border-b border-slate-50 last:border-0">

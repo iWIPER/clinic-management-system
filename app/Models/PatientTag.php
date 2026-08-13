@@ -40,6 +40,11 @@ class PatientTag extends Model
         return $this->belongsToMany(Patient::class, 'patient_marker_assignments');
     }
 
+    public function appointments(): BelongsToMany
+    {
+        return $this->belongsToMany(Appointment::class, 'appointment_tag_assignments');
+    }
+
     public function scopeForClinic($query, ?int $clinicId)
     {
         return $query->where(function ($q) use ($clinicId) {

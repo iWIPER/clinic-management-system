@@ -6,10 +6,11 @@ use App\Models\Patient;
 use Illuminate\Http\Request;
 
 /**
- * Busca leve de pacientes por nome, pra combobox pesquisável (ex.: vincular
- * paciente a uma tarefa) — não carrega a clínica inteira de uma vez, só os
- * resultados da busca. Patient::query() já vem escopado pela clínica atual
- * via BelongsToClinic, sem precisar de where manual.
+ * Busca leve de pacientes por nome/telefone/CPF, pra combobox pesquisável
+ * (ex.: vincular paciente a uma tarefa, ou selecionar na Agenda) — não
+ * carrega a clínica inteira de uma vez, só os resultados da busca.
+ * Patient::query() já vem escopado pela clínica atual via BelongsToClinic,
+ * sem precisar de where manual.
  */
 class PatientSearchController extends Controller
 {
@@ -21,11 +22,13 @@ class PatientSearchController extends Controller
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(fn ($q) => $q
                     ->where('nome', 'like', "%{$search}%")
-                    ->orWhere('sobrenome', 'like', "%{$search}%"));
+                    ->orWhere('sobrenome', 'like', "%{$search}%")
+                    ->orWhere('telefone', 'like', "%{$search}%")
+                    ->orWhere('cpf', 'like', "%{$search}%"));
             })
             ->orderBy('nome')
             ->limit(15)
-            ->get(['id', 'nome', 'sobrenome']);
+            ->get(['id', 'nome', 'sobrenome', 'telefone', 'cpf']);
 
         return response()->json($patients);
     }

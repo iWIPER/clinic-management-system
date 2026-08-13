@@ -23,6 +23,8 @@ class Clinic extends Model
         'default_logo',
         'slug',
         'type',
+        'onboarding_stage',
+        'onboarding_current_system',
         'cnpj',
         'city',
         'status',
@@ -41,13 +43,22 @@ class Clinic extends Model
         'address_city',
         'address_state',
         'address_zipcode',
+        'business_hours',
+        'business_hours_enforced',
     ];
 
     protected $casts = [
         'settings'                        => 'array',
+        'business_hours'                  => 'array',
+        'business_hours_enforced'         => 'boolean',
         'google_connected_at'             => 'datetime',
         'storage_disclaimer_confirmed_at' => 'datetime',
     ];
+
+    // Sugestão pro FORMULÁRIO de Regras da clínica quando um dia nunca foi
+    // configurado (ver businessHoursResolved) — mesmo espírito de
+    // ClinicUserPivot::DEFAULT_WORKING_HOURS, não restringe ninguém sozinho.
+    public const DEFAULT_BUSINESS_HOURS_DAY = ['enabled' => true, 'start' => '09:00', 'end' => '18:00'];
 
     /**
      * Usuários da clínica (N:N via clinic_user)
@@ -145,6 +156,58 @@ class Clinic extends Model
     public function logoUrl(): string
     {
         return ClinicLogoService::url($this);
+    }
+
+    /**
+     * Feriado é regra da clínica, não do profissional (ver Configurações →
+     * Agendas). Guardado dentro do "settings" genérico já existente — não
+     * mereceu coluna própria. Default false: uma clínica que nunca mexeu
+     * nessa configuração continua exatamente como sempre foi.
+     */
+    public function considersNationalHolidays(): bool
+    {
+        return (bool) ($this->settings['consider_national_holidays'] ?? false);
+    }
+
+    /**
+     * Regra crua de UM dia (mon..sun), ou null se a clínica nunca configurou
+     * esse dia — null aqui é o sinal de "sem restrição, decide o
+     * profissional", igual ao null de ClinicUserPivot::workingHoursConfigured().
+     * Não usar pro formulário de edição (ver businessHoursResolved).
+     *
+     * @return array{enabled: bool, start: ?string, end: ?string}|null
+     */
+    public function businessHoursFor(string $dayKey): ?array
+    {
+        return $this->business_hours[$dayKey] ?? null;
+    }
+
+    /**
+     * Sem isto ligado, business_hours é só referência/sugestão — nunca
+     * restringe a configuração individual do profissional (ver
+     * ClinicUserPivot::effectiveWorkingHours/effectiveWorkingDayEnabled).
+     */
+    public function businessHoursEnforced(): bool
+    {
+        return (bool) $this->business_hours_enforced;
+    }
+
+    /**
+     * Semana inteira com defaults preenchidos pros dias nunca configurados —
+     * só pro FORMULÁRIO de Regras da clínica (mesmo espírito de
+     * ClinicUserPivot::workingHoursResolved()). Não usar isto pra decidir
+     * bloqueio de agendamento: ver businessHoursFor() + businessHoursEnforced().
+     *
+     * @return array<string, array{enabled: bool, start: ?string, end: ?string}>
+     */
+    public function businessHoursResolved(): array
+    {
+        $resolved = [];
+        foreach (ClinicUserPivot::DAY_KEYS as $day) {
+            $resolved[$day] = $this->business_hours[$day] ?? self::DEFAULT_BUSINESS_HOURS_DAY;
+        }
+
+        return $resolved;
     }
 
     public function toSessionPayload(): array

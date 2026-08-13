@@ -59,8 +59,28 @@ class User extends Authenticatable
     public function clinics()
     {
         return $this->belongsToMany(Clinic::class, 'clinic_user')
-                    ->withPivot('role', 'drive_doctor_folder_id')
-                    ->withTimestamps();
+                    ->withPivot('role', 'drive_doctor_folder_id', 'agenda_visible_to_team', 'working_days', 'working_start', 'working_end')
+                    ->withTimestamps()
+                    ->using(ClinicUserPivot::class);
+    }
+
+    /**
+     * Membros com agenda de atendimento própria numa clínica: cargo clínico
+     * (Dentista/Dentista Administrador) OU dono da clínica — o dono muitas
+     * vezes é o próprio profissional principal e pode nunca ter passado pelo
+     * fluxo de convite (job_title vazio), então cai aqui de qualquer forma.
+     * Única fonte dessa regra — usada pela sidebar da Agenda e por
+     * Configurações > Agendas.
+     */
+    public function scopeClinicalProfessionalsOf($query, int $clinicId)
+    {
+        return $query->whereHas('clinics', function ($q) use ($clinicId) {
+            $q->where('clinics.id', $clinicId)
+              ->where(function ($q2) {
+                  $q2->whereIn('users.job_title', Invite::CLINICAL_JOB_TITLES)
+                     ->orWhere('clinic_user.role', 'owner');
+              });
+        });
     }
 
     /**
@@ -89,5 +109,32 @@ class User extends Authenticatable
             ->where('clinics.id', $clinic->id)
             ->wherePivot('role', 'owner')
             ->exists();
+    }
+
+    /**
+     * Pivot (role, agenda_visible_to_team, working_days...) do vínculo deste
+     * usuário com uma clínica específica — evita repetir a mesma consulta
+     * em cada controller que precisa ler configuração de agenda.
+     */
+    public function clinicPivotFor(int $clinicId): ?ClinicUserPivot
+    {
+        return $this->clinics()->where('clinics.id', $clinicId)->first()?->pivot;
+    }
+
+    /**
+     * Um profissional sempre vê a própria agenda; a de outro só se ele
+     * ativou "Disponibilizar minha agenda para a equipe". Autoridade real
+     * dessa regra — usada tanto pra montar a lista quanto pra bloquear
+     * acesso direto via professional_id na URL (ver AppointmentController).
+     */
+    public function canViewAgendaOf(int $targetUserId, int $clinicId): bool
+    {
+        if ($this->id === $targetUserId) {
+            return true;
+        }
+
+        $target = static::find($targetUserId);
+
+        return (bool) $target?->clinicPivotFor($clinicId)?->agenda_visible_to_team;
     }
 }

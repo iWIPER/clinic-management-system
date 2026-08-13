@@ -224,7 +224,13 @@ test('allows deletion when no linked attendances', function () {
     expect(Treatment::find($treatment->id))->toBeNull();
 });
 
-test('inactive and grupo treatments do not appear in appointment create', function () {
+// Agendamento não seleciona mais tratamento (ver AppointmentController::
+// store/edit — o campo foi removido da Agenda, tratamento agora só é
+// definido depois, no atendimento). forScheduling() continua existindo e
+// sendo usado de verdade em ConsultationController (seleção de
+// procedimento durante o atendimento) — o teste passa a validar o scope
+// direto no model, em vez de via um payload da Agenda que não existe mais.
+test('forScheduling excludes inactive and grupo treatments — used when logging a procedure during Atendimento', function () {
     ['user' => $user, 'clinic' => $clinic] = setupTreatmentContext();
 
     Treatment::create([
@@ -256,11 +262,7 @@ test('inactive and grupo treatments do not appear in appointment create', functi
         'tipo' => 'grupo',
     ]);
 
-    $response = $this->actingAs($user)->get(route('appointments.create'));
-
-    $response->assertOk();
-    $treatments = $response->original->getData()['page']['props']['treatments'] ?? [];
-    $names = collect($treatments)->pluck('nome')->all();
+    $names = Treatment::where('clinic_id', $clinic->id)->forScheduling()->pluck('nome')->all();
 
     expect($names)->toContain('Ativo')
         ->not->toContain('Inativo')

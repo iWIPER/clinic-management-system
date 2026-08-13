@@ -2,6 +2,7 @@
 import InputError from '@/Components/InputError.vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import ClinicLogo from '@/Components/ClinicLogo.vue'
+import SettingsTabs from '@/Components/ClinicSettings/SettingsTabs.vue'
 import { useForm, usePage } from '@inertiajs/vue3'
 import { ref, computed, watch } from 'vue'
 
@@ -81,11 +82,15 @@ const removeLogo = () => {
 </script>
 
 <template>
-<AppLayout content-width="md">
-    <h1 class="text-2xl font-semibold mb-2">Configurações da Clínica</h1>
-    <p class="text-sm text-slate-500 mb-6">Personalize a identidade visual usada nos PDFs de atendimento.</p>
+<AppLayout>
+    <SettingsTabs active="general" />
 
-    <form @submit.prevent="submit" class="bg-white rounded-2xl border p-6 space-y-5">
+    <div class="mb-4">
+        <h2 class="text-lg font-semibold text-slate-900">Geral</h2>
+        <p class="text-sm text-slate-500 mt-1">Personalize a identidade visual usada nos PDFs de atendimento.</p>
+    </div>
+
+    <form @submit.prevent="submit" class="max-w-2xl bg-white rounded-2xl border shadow-sm p-6 space-y-5">
 
       <!-- Nome fantasia -->
       <div>

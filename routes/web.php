@@ -55,6 +55,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/create-clinic', [\App\Http\Controllers\OnboardingController::class, 'createClinic'])->name('create-clinic');
         Route::post('/create-clinic', [\App\Http\Controllers\OnboardingController::class, 'storeClinic']);
 
+        Route::get('/complete', [\App\Http\Controllers\OnboardingController::class, 'complete'])->name('complete');
+
         Route::get('/invite-team', [\App\Http\Controllers\OnboardingController::class, 'inviteTeam'])->name('invite-team');
         Route::post('/invite-team', [\App\Http\Controllers\OnboardingController::class, 'sendInvites']);
 
@@ -241,13 +243,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Agenda (Agendamentos)
         Route::get('/appointments', [\App\Http\Controllers\AppointmentController::class, 'index'])->name('appointments.index');
         Route::get('/appointments/create', [\App\Http\Controllers\AppointmentController::class, 'create'])->name('appointments.create');
+        Route::get('/appointments/available-slots', [\App\Http\Controllers\AppointmentController::class, 'availableSlots'])->name('appointments.available-slots');
         Route::get('/appointments/fullscreen', [\App\Http\Controllers\AppointmentController::class, 'fullscreen'])->name('appointments.fullscreen');
         Route::post('/appointments', [\App\Http\Controllers\AppointmentController::class, 'store'])->name('appointments.store');
         Route::get('/appointments/{appointment}/edit', [\App\Http\Controllers\AppointmentController::class, 'edit'])->name('appointments.edit');
         Route::put('/appointments/{appointment}', [\App\Http\Controllers\AppointmentController::class, 'update'])->name('appointments.update');
         Route::post('/appointments/{appointment}/check-in', [\App\Http\Controllers\AppointmentController::class, 'checkIn'])->name('appointments.check-in');
         Route::patch('/appointments/{appointment}/status', [\App\Http\Controllers\AppointmentController::class, 'updateStatus'])->name('appointments.update-status');
-        Route::delete('/appointments/{appointment}', [\App\Http\Controllers\AppointmentController::class, 'destroy'])->name('appointments.destroy');
+
+        // Cadeiras — recursos físicos da clínica, independentes do profissional (ver Chair model).
+        Route::post('/chairs', [\App\Http\Controllers\ChairController::class, 'store'])->name('chairs.store');
+        Route::put('/chairs/{chair}', [\App\Http\Controllers\ChairController::class, 'update'])->name('chairs.update');
+        Route::delete('/chairs/{chair}', [\App\Http\Controllers\ChairController::class, 'destroy'])->name('chairs.destroy');
 
         // Histórico de atendimentos (registros permanentes)
         Route::get('/clinical-records', [\App\Http\Controllers\ClinicalRecordController::class, 'index'])->name('clinical-records.index');
@@ -258,6 +265,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/clinic-settings', [\App\Http\Controllers\ClinicSettingsController::class, 'edit'])->name('clinic-settings.edit');
         Route::post('/clinic-settings', [\App\Http\Controllers\ClinicSettingsController::class, 'update'])->name('clinic-settings.update');
         Route::delete('/clinic-settings/logo', [\App\Http\Controllers\ClinicSettingsController::class, 'removeLogo'])->name('clinic-settings.logo.remove');
+
+        // Cadeiras — reaproveita o ChairController já usado pela Agenda.
+        Route::get('/clinic-settings/chairs', [\App\Http\Controllers\ChairController::class, 'index'])->name('clinic-settings.chairs');
+
+        // Agendas — dias/horário de trabalho e visibilidade por profissional.
+        Route::get('/clinic-settings/agendas', [\App\Http\Controllers\AgendaSettingsController::class, 'index'])->name('clinic-settings.agendas');
+        Route::put('/clinic-settings/agendas/{user}', [\App\Http\Controllers\AgendaSettingsController::class, 'update'])->name('clinic-settings.agendas.update');
+        // Feriados nacionais — configuração geral da clínica, não do
+        // profissional; path próprio pra não colidir com {user} acima.
+        Route::put('/clinic-settings/agendas-holidays', [\App\Http\Controllers\AgendaSettingsController::class, 'updateHolidaySettings'])->name('clinic-settings.agendas.holidays');
+        // Horário de funcionamento da clínica (regras administrativas,
+        // mesmo espírito da rota de feriados acima).
+        Route::put('/clinic-settings/agendas-business-hours', [\App\Http\Controllers\AgendaSettingsController::class, 'updateBusinessHours'])->name('clinic-settings.agendas.business-hours');
 
         // Convênios (usados no cadastro de paciente e no módulo de Tratamentos)
         Route::get('/clinic-settings/convenios', [\App\Http\Controllers\ConvenioController::class, 'index'])->name('clinic-settings.convenios.index');

@@ -1,22 +1,42 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import StatusIndicator from '@/Components/StatusIndicator.vue'
+import ChairFormModal from '@/Components/Agenda/ChairFormModal.vue'
+import HolidayNoticeModal from '@/Components/Agenda/HolidayNoticeModal.vue'
+import ScheduleBlockedModal from '@/Components/Agenda/ScheduleBlockedModal.vue'
+import OffGridAppointmentsBadge from '@/Components/Agenda/OffGridAppointmentsBadge.vue'
+import AppointmentFormModal from '@/Components/Agenda/AppointmentFormModal.vue'
 import { Link, router } from '@inertiajs/vue3'
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
-import { resolveStatus, getDelayMinutes, sortByPriority } from '@/composables/useAppointmentStatus'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted, toRef } from 'vue'
+import { PhoneIcon, EnvelopeIcon, CalendarDaysIcon, ClockIcon, ChevronDownIcon } from '@heroicons/vue/20/solid'
+import { resolveStatus, getDelayMinutes, sortByPriority, cardAppearance, STATUS_CONFIG, STATUS_DROPDOWN_OPTIONS } from '@/composables/useAppointmentStatus'
 import { useAgendaSettings } from '@/composables/useAgendaSettings'
+import { useAgendaDragSelect } from '@/composables/useAgendaDragSelect'
+import { useAgendaScheduleRules, effectiveDayWindow, GRID_CEIL_HOUR } from '@/composables/useEffectiveSchedule'
+import { useToast } from '@/composables/useToast'
+
+const toast = useToast()
 
 const props = defineProps({
     appointments: Array,
     professionals: Array,
+    chairs: Array,
+    availableMarkers: { type: Array, default: () => [] },
+    markerLimit: { type: Number, default: 6 },
+    maxChairs: { type: Number, default: 6 },
     weekStart: String,
     filters: Object,
+    considerNationalHolidays: { type: Boolean, default: false },
+    holidays: { type: Object, default: () => ({}) },
+    businessHours: { type: Object, default: () => ({}) },
+    businessHoursEnforced: { type: Boolean, default: false },
 })
 
 // ── Constantes do grid ─────────────────────────────────────────────────────
-const START_HOUR = 7
-const END_HOUR   = 21
-const TOTAL_MIN  = (END_HOUR - START_HOUR) * 60 // 840
+// END_HOUR é o teto ABSOLUTO da grade (nunca ultrapassado, ver item 3 do
+// pedido) — gridStartHour é dinâmico (ver bloco "Regras administrativas"
+// mais abaixo, depois que visibleDays/selectedProfessional existem).
+const END_HOUR = GRID_CEIL_HOUR
 
 // ── Helpers de data ────────────────────────────────────────────────────────
 const parseLocalDate = (str) => new Date(str + 'T00:00:00')
@@ -33,7 +53,13 @@ const PT_MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
 const dayIndex  = (date) => date.getDay() === 0 ? 6 : date.getDay() - 1
 const formatHour = (h) => `${String(h).padStart(2, '0')}:00`
 const formatTime = (str) => new Date(str).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-const formatCurrency = (val) => val != null ? `R$ ${Number(val).toFixed(2).replace('.', ',')}` : null
+// Card da Agenda: nome curto (até 3 palavras) pra caber numa linha só —
+// o nome completo continua disponível no hover (tooltip) e no clique
+// (popover), que já usam patient.nome/sobrenome sem esse corte.
+const shortPatientName = (appt) => {
+    const full = `${appt.patient?.nome || ''} ${appt.patient?.sobrenome || ''}`.trim()
+    return full.split(/\s+/).filter(Boolean).slice(0, 3).join(' ')
+}
 const isToday = (date) => {
     const t = new Date()
     return date.getDate() === t.getDate() &&
@@ -48,7 +74,24 @@ const settings = useAgendaSettings()
 // ── Estado da UI ───────────────────────────────────────────────────────────
 const showSidebar    = ref(true)
 const showMiniCal    = ref(true)
-const profFilter     = ref(props.filters?.professional_id || '')
+const showChairsSection = ref(true)
+const showAgendasSection = ref(true)
+// 'all' = "Todas" (sem filtro, comportamento de sempre); id numérico = agenda
+// de um profissional específico. Mesmo sentinel usado por chairFilter, por
+// consistência — mas aqui não há "default" especial: sem professional_id na
+// URL já é 'all' (ver AppointmentController::resolveProfessionalFilter).
+const profFilter     = ref(props.filters?.professional_id || 'all')
+// 'all' = "Todas" (escolha explícita); um id numérico = cadeira específica.
+// O servidor sempre resolve isso antes de chegar aqui — sem chair_id na URL,
+// já vem com a cadeira default (a mais antiga, "Cadeira 01"); "Todas" só
+// acontece quando o usuário escolhe explicitamente (ver AppointmentController
+// ::resolveChairFilter). Cópia local (não a prop direta) porque cadeiras são
+// criadas/editadas/excluídas sem recarregar a página inteira (ver
+// onChairSaved/onChairDeleted).
+const chairFilter    = ref(props.filters?.chair_id || 'all')
+const chairsList     = ref([...(props.chairs || [])])
+const showChairModal = ref(false)
+const editingChair   = ref(null)
 const activePopover  = ref(null)
 const popoverStyle   = ref({})
 const popoverRef     = ref(null)
@@ -63,11 +106,17 @@ const viewMode = computed({
     set: (v) => { settings.viewMode = v },
 })
 
+// Comparação por string (YYYY-MM-DD), não por Date — "we" é meia-noite do
+// último dia da semana, então comparar Date objects direto (today <= we)
+// falha sempre que "agora" for depois da meia-noite desse dia (ou seja,
+// quase sempre), fazendo o dia atual nunca "bater" e cair no fallback (ws).
+// É por isso que reabrir a Agenda não marcava mais hoje como selecionado.
 const selectedDay = ref((() => {
     const today = new Date()
     const ws    = parseLocalDate(props.weekStart)
     const we    = addDays(ws, 6)
-    return (today >= ws && today <= we) ? today : ws
+    const t     = toDateStr(today)
+    return (t >= toDateStr(ws) && t <= toDateStr(we)) ? today : ws
 })())
 
 const pendingDayAfterNav = ref(null)
@@ -79,12 +128,24 @@ watch(() => props.weekStart, () => {
 })
 
 // ── Zoom ───────────────────────────────────────────────────────────────────
+// Limites únicos do zoom — toda mutação (botões, slider de configurações,
+// CTRL+Scroll) passa por clampZoom(), então não há como ultrapassá-los por
+// outro caminho.
+const ZOOM_MIN  = 0.9
+const ZOOM_MAX  = 1.8
+const ZOOM_STEP = 0.1
+const clampZoom = (v) => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.round(v * 10) / 10))
+
 const zoomLevel = computed({
-    get: () => settings.zoomLevel,
-    set: (v) => { settings.zoomLevel = Math.max(0.4, Math.min(3.0, Math.round(v * 10) / 10)) },
+    // O getter também clampa: um valor persistido antes desse limite existir
+    // (ex.: zoom salvo em 40% ou 300%) é normalizado ao ler, não só ao setar.
+    get: () => clampZoom(settings.zoomLevel),
+    set: (v) => { settings.zoomLevel = clampZoom(v) },
 })
+const isZoomAtMin = computed(() => zoomLevel.value <= ZOOM_MIN)
+const isZoomAtMax = computed(() => zoomLevel.value >= ZOOM_MAX)
 const pxPerMin = computed(() => zoomLevel.value)
-const gridHeight = computed(() => TOTAL_MIN * pxPerMin.value)
+const gridHeight = computed(() => TOTAL_MIN.value * pxPerMin.value)
 
 // ── Datas da semana ────────────────────────────────────────────────────────
 const weekDates = computed(() => {
@@ -92,13 +153,66 @@ const weekDates = computed(() => {
     return Array.from({ length: 7 }, (_, i) => addDays(monday, i))
 })
 
+// Chaves na mesma ordem de ClinicUserPivot::DAY_KEYS (backend) — índice
+// aqui é o dayIndex() já usado no resto do componente (0=Seg..6=Dom).
+const WORKING_DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+
+// Só relevante quando uma agenda específica está selecionada — "Todos" nunca
+// filtra dia nenhum (ver regra: sábado continua existindo em "Todos" mesmo
+// que só parte dos profissionais atenda nele).
+const selectedProfessional = computed(() =>
+    profFilter.value !== 'all'
+        ? props.professionals.find(p => String(p.id) === String(profFilter.value))
+        : null)
+
 const visibleDays = computed(() => {
     if (viewMode.value === 'day') return [selectedDay.value]
     const days = [...weekDates.value.slice(0, 5)]
     if (settings.showSaturday) days.push(weekDates.value[5])
     if (settings.showSunday)   days.push(weekDates.value[6])
-    return days
+
+    const workingDays = selectedProfessional.value?.working_days
+    if (!workingDays) return days
+
+    // Composição, não substituição: só remove dias que o showSaturday/
+    // showSunday já deixou visíveis E que esse profissional não atende.
+    const filtered = days.filter(d => workingDays[WORKING_DAY_KEYS[dayIndex(d)]] !== false)
+    // Salvaguarda: um profissional sem nenhum dia ativo não pode deixar a
+    // grade sem colunas — melhor mostrar a semana normal (sem horários
+    // disponíveis) do que uma grade quebrada.
+    return filtered.length ? filtered : days
 })
+
+// ── Regras administrativas da clínica (horário/dia efetivo) ────────────────
+// Só decide a APARÊNCIA da grade — o bloqueio real de criação continua no
+// backend (AppointmentController::assertProfessionalAvailable), que já usa
+// a mesma regra via ClinicUserPivot::effective*. Única fonte dessa lógica
+// no frontend (ver useEffectiveSchedule.js) — Fullscreen.vue reaproveita a
+// mesma composable, não duplica a matemática.
+const scheduleRules = useAgendaScheduleRules({
+    visibleDays,
+    getProfessionalScopeForDay: () => selectedProfessional.value
+        ? { working_days: selectedProfessional.value.working_days, working_hours: selectedProfessional.value.working_hours }
+        : null,
+    considerNationalHolidays: toRef(props, 'considerNationalHolidays'),
+    holidays: toRef(props, 'holidays'),
+    businessHours: toRef(props, 'businessHours'),
+    businessHoursEnforced: toRef(props, 'businessHoursEnforced'),
+    toDateStr,
+})
+const gridStartHour = scheduleRules.gridStartHour
+const dayWindow = scheduleRules.dayWindow
+
+// Só afeta a largura MÍNIMA das colunas (ver min-w mais abaixo) — o
+// container continua sempre no mesmo teto de max-w-7xl (content-width=
+// "full"), igual 5/6 dias. Com Sáb+Dom juntos (7 colunas), 130px cada
+// (o mínimo usado em 5/6 dias) não cabia dentro desse teto — sidebar
+// (320px) + coluna de horas (56px) + 7×130px passava da largura
+// disponível (~1216px), cortando domingo pra fora com scroll horizontal.
+// Com 110px de mínimo, o flex-1 de cada coluna se acomoda sozinho em
+// ~120px dentro do MESMO espaço de sempre — nunca precisa alargar o
+// container. 6 dias ou menos continuam com min-w-[130px], inalterados.
+const isSevenDayWeek = computed(() => viewMode.value === 'week' && visibleDays.value.length === 7)
 
 const periodLabel = computed(() => {
     if (viewMode.value === 'day') {
@@ -118,7 +232,10 @@ const periodRangeLabel = computed(() => {
 })
 
 // ── Linhas de hora ─────────────────────────────────────────────────────────
-const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i)
+// TOTAL_MIN/hours agora derivam de gridStartHour (dinâmico) — END_HOUR
+// continua fixo (teto absoluto de sempre, 21h).
+const TOTAL_MIN = computed(() => (END_HOUR - gridStartHour.value) * 60)
+const hours = computed(() => Array.from({ length: END_HOUR - gridStartHour.value }, (_, i) => gridStartHour.value + i))
 
 // ── Lógica de sobreposição ─────────────────────────────────────────────────
 function assignColumns(list) {
@@ -151,8 +268,10 @@ const byDay = computed(() => {
     visibleDays.value.forEach(day => {
         const ds = toDateStr(day)
         let list = props.appointments.filter(a => {
-            const match = a.start.slice(0, 10) === ds
-            return profFilter.value ? match && a.professional_id == profFilter.value : match
+            let ok = a.start.slice(0, 10) === ds
+            if (profFilter.value !== 'all') ok = ok && a.professional_id == profFilter.value
+            if (chairFilter.value && chairFilter.value !== 'all') ok = ok && a.chair_id == chairFilter.value
+            return ok
         })
         if (settings.hideCancelled) list = list.filter(a => a.status !== 'cancelled')
         map[ds] = assignColumns(list)
@@ -160,11 +279,110 @@ const byDay = computed(() => {
     return map
 })
 
+// ── Visão "Todas as cadeiras" — só faz sentido na visão Dia (colunas já são
+// usadas pelos dias na visão Semana; dividir também por cadeira ali criaria
+// uma grade dias×cadeiras ilegível). Reaproveita o mesmo assignColumns/
+// apptStyle de sempre, só troca o que vira coluna: cadeira em vez de dia. ──
+const showResourceColumns = computed(() =>
+    viewMode.value === 'day' && chairFilter.value === 'all' && chairsList.value.length > 0)
+
+// ── Modal de novo agendamento (substitui a navegação pra Appointments/
+// Create.vue ao clicar na grade ou em "+ Novo") — mantém o usuário dentro
+// da própria Agenda, sem perder sidebar/zoom/scroll. `redirectWeek/
+// ProfessionalId/ChairId` viajam com o form pra o backend devolver o
+// usuário pra ESTA mesma visão depois de criar (ver AppointmentController
+// ::store), não pra semana atual/"Todos".
+const showApptModal    = ref(false)
+const apptModalPrefill = ref({})
+const editingAppointment = ref(null)
+
+function openApptModal(prefill = {}) {
+    editingAppointment.value = null
+    apptModalPrefill.value = prefill
+    showApptModal.value = true
+}
+
+// "Editar" do popover — mesmo modal de criação, agora em modo edição (ver
+// AppointmentFormModal.vue, prop `appointment`). Substitui a navegação pra
+// Edit.vue dentro da Agenda; a página avulsa continua existindo só pro link
+// que vem do prontuário (Consultations/Show.vue).
+function openEditApptModal(appt) {
+    editingAppointment.value = appt
+    showApptModal.value = true
+    closePopover()
+}
+
+// "+ Novo" herda o contexto em foco: cadeira/agenda específica selecionada
+// (se houver) e o dia visível na visão Dia — mesmo comportamento que o
+// formulário avulso já tinha pra cadeira, agora também considerando
+// profissional/dia (o campo de paciente etc continuam totalmente livres).
+function openNewAppointmentModal() {
+    openApptModal({
+        date: viewMode.value === 'day' ? toDateStr(selectedDay.value) : undefined,
+        chairId: chairFilter.value !== 'all' ? chairFilter.value : undefined,
+        professionalId: profFilter.value !== 'all' ? profFilter.value : undefined,
+    })
+}
+
+// Agendamentos antigos sem cadeira (chair_id nulo) ganham uma coluna
+// "Sem cadeira" só quando existem de fato naquele dia — não cria uma coluna
+// vazia à toa, mas também nunca esconde um agendamento legado.
+const resourceColumns = computed(() => {
+    if (!showResourceColumns.value) return []
+    const cols = chairsList.value.map(c => ({ id: c.id, name: c.name, color: c.color }))
+    const ds = toDateStr(selectedDay.value)
+    const hasUnassigned = props.appointments.some(a => a.start.slice(0, 10) === ds && !a.chair_id)
+    if (hasUnassigned) cols.push({ id: null, name: 'Sem cadeira', color: '#94a3b8' })
+    return cols
+})
+
+const byResource = computed(() => {
+    const map = {}
+    if (!showResourceColumns.value) return map
+    const ds = toDateStr(selectedDay.value)
+    resourceColumns.value.forEach(col => {
+        let list = props.appointments.filter(a => {
+            let ok = a.start.slice(0, 10) === ds
+            ok = ok && (col.id === null ? !a.chair_id : a.chair_id === col.id)
+            if (profFilter.value !== 'all') ok = ok && a.professional_id == profFilter.value
+            return ok
+        })
+        if (settings.hideCancelled) list = list.filter(a => a.status !== 'cancelled')
+        map[col.id ?? 'none'] = assignColumns(list)
+    })
+    return map
+})
+
+// ── Colunas do grid, unificadas ─────────────────────────────────────────
+// Dias (padrão) ou cadeiras (Dia + "Todas") descrevem a mesma "coluna" pro
+// cabeçalho e pro corpo da grade — evita duplicar o bloco de renderização
+// dos cards (que é grande) só pra trocar o que virou coluna.
+const gridColumns = computed(() => {
+    if (showResourceColumns.value) {
+        return resourceColumns.value.map(col => ({
+            key: col.id ?? 'none',
+            isResource: true,
+            label: col.name,
+            color: col.color,
+            chairId: col.id,
+            day: selectedDay.value,
+            appts: byResource.value[col.id ?? 'none'] || [],
+        }))
+    }
+    return visibleDays.value.map(day => ({
+        key: toDateStr(day),
+        isResource: false,
+        day,
+        chairId: null,
+        appts: byDay.value[toDateStr(day)] || [],
+    }))
+})
+
 // ── Posicionamento dos cards (zoom-aware) ──────────────────────────────────
 function apptStyle(appt) {
     const s   = new Date(appt.start)
     const e   = new Date(appt.end)
-    const top = ((s.getHours() - START_HOUR) * 60 + s.getMinutes()) * pxPerMin.value
+    const top = ((s.getHours() - gridStartHour.value) * 60 + s.getMinutes()) * pxPerMin.value
     const dur = Math.max((e - s) / 60000, 15)
     const cw  = 100 / appt._totalCols
     return {
@@ -177,22 +395,47 @@ function apptStyle(appt) {
     }
 }
 
-function apptHeightPx(appt) {
-    const s = new Date(appt.start)
-    const e = new Date(appt.end)
-    return Math.max((e - s) / 60000, 15) * pxPerMin.value
-}
+// ── Configuração de status ───────────────────────────────────────────────
+// cardAppearance() (useAppointmentStatus.js) é a fonte única de cor —
+// chaveada pelo status RESOLVIDO (resolveStatus), não pelo appt.status cru,
+// pra "aguardando" e "em atendimento" ficarem visualmente diferentes.
+const s = (appt) => cardAppearance(resolveStatus(appt, nowRef.value))
 
-// ── Configuração de status (cores premium) ─────────────────────────────────
-const STATUS = {
-    scheduled:     { label: 'Agendada',       bg: 'bg-blue-50',    border: 'border-l-blue-400',    text: 'text-blue-700' },
-    confirmed:     { label: 'Confirmada',      bg: 'bg-green-50',   border: 'border-l-green-500',   text: 'text-green-700' },
-    in_attendance: { label: 'Em atendimento',  bg: 'bg-orange-50',  border: 'border-l-orange-400',  text: 'text-orange-700' },
-    completed:     { label: 'Concluída',       bg: 'bg-emerald-50', border: 'border-l-emerald-600', text: 'text-emerald-800' },
-    cancelled:     { label: 'Cancelada',       bg: 'bg-slate-50',   border: 'border-l-slate-300',   text: 'text-slate-400' },
-    no_show:       { label: 'Faltou',          bg: 'bg-red-50',     border: 'border-l-red-400',     text: 'text-red-600' },
+// ── Cadeiras (recursos) ──────────────────────────────────────────────────
+// O backend (ChairController::store) é a autoridade real do limite — isto
+// aqui só evita abrir um formulário que o servidor sempre rejeitaria.
+const atChairLimit = computed(() => chairsList.value.length >= props.maxChairs)
+
+function openCreateChairModal() {
+    if (atChairLimit.value) {
+        toast.info(`Sua clínica já possui o máximo de ${props.maxChairs} cadeiras.`)
+        return
+    }
+    editingChair.value = null
+    showChairModal.value = true
 }
-const s = (status) => STATUS[status] ?? STATUS.scheduled
+function openEditChairModal(chair) {
+    editingChair.value = chair
+    showChairModal.value = true
+}
+function onChairSaved(chair) {
+    const i = chairsList.value.findIndex(c => c.id === chair.id)
+    if (i === -1) chairsList.value = [...chairsList.value, chair]
+    else chairsList.value = chairsList.value.map((c, idx) => idx === i ? chair : c)
+    showChairModal.value = false
+}
+function onChairDeleted(id) {
+    chairsList.value = chairsList.value.filter(c => c.id !== id)
+    showChairModal.value = false
+    // A cadeira excluída era o filtro ativo — volta pra "Todas" (que já
+    // dispara refetch) em vez de deixar o filtro apontando pro vazio.
+    if (String(chairFilter.value) === String(id)) {
+        chairFilter.value = 'all'
+        onFilterChange()
+    } else {
+        router.reload({ only: ['appointments'], preserveState: true, preserveScroll: true })
+    }
+}
 
 // ── Consultas passadas (dim) ───────────────────────────────────────────────
 function isPastAppt(appt) {
@@ -206,7 +449,7 @@ function navWeek(delta) {
     const d = parseLocalDate(props.weekStart)
     d.setDate(d.getDate() + delta * 7)
     router.get(route('appointments.index'),
-        { week: toDateStr(d), professional_id: profFilter.value || undefined },
+        { week: toDateStr(d), professional_id: profFilter.value, chair_id: chairFilter.value },
         { preserveState: true, only: ['appointments', 'weekStart'] })
 }
 
@@ -217,7 +460,7 @@ function navPrev() {
         if (prev >= ws) { selectedDay.value = prev; return }
         pendingDayAfterNav.value = toDateStr(prev)
         router.get(route('appointments.index'),
-            { week: toDateStr(addDays(ws, -7)), professional_id: profFilter.value || undefined },
+            { week: toDateStr(addDays(ws, -7)), professional_id: profFilter.value, chair_id: chairFilter.value },
             { preserveState: true, only: ['appointments', 'weekStart'] })
     } else {
         navWeek(-1)
@@ -232,7 +475,7 @@ function navNext() {
         if (next <= we) { selectedDay.value = next; return }
         pendingDayAfterNav.value = toDateStr(next)
         router.get(route('appointments.index'),
-            { week: toDateStr(addDays(ws, 7)), professional_id: profFilter.value || undefined },
+            { week: toDateStr(addDays(ws, 7)), professional_id: profFilter.value, chair_id: chairFilter.value },
             { preserveState: true, only: ['appointments', 'weekStart'] })
     } else {
         navWeek(1)
@@ -242,13 +485,15 @@ function navNext() {
 const goToday = () => {
     const today = new Date()
     router.get(route('appointments.index'),
-        { professional_id: profFilter.value || undefined },
+        { professional_id: profFilter.value, chair_id: chairFilter.value },
         { preserveState: true, only: ['appointments', 'weekStart'],
           onSuccess: () => { selectedDay.value = today } })
 }
 
-const onProfChange = () => router.get(route('appointments.index'),
-    { week: props.weekStart, professional_id: profFilter.value || undefined },
+// Reaproveitado pelos dois selects (Profissional e Cadeira) — cada mudança
+// manda os dois filtros juntos, combináveis (ver AppointmentController::index).
+const onFilterChange = () => router.get(route('appointments.index'),
+    { week: props.weekStart, professional_id: profFilter.value, chair_id: chairFilter.value },
     { preserveState: true, only: ['appointments'] })
 
 // ── Linha do horário atual ─────────────────────────────────────────────────
@@ -256,7 +501,7 @@ const nowRef = ref(new Date())
 let _clockTimer = null
 
 const nowTop = computed(() =>
-    ((nowRef.value.getHours() - START_HOUR) * 60 + nowRef.value.getMinutes()) * pxPerMin.value)
+    ((nowRef.value.getHours() - gridStartHour.value) * 60 + nowRef.value.getMinutes()) * pxPerMin.value)
 
 // ── Zoom via CTRL+Scroll ───────────────────────────────────────────────────
 function onGridWheel(e) {
@@ -268,9 +513,9 @@ function onGridWheel(e) {
     const container = gridScrollRef.value
     if (!container) return
 
-    const delta    = e.deltaY < 0 ? 0.1 : -0.1
+    const delta    = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP
     const oldZoom  = zoomLevel.value
-    const newZoom  = Math.max(0.4, Math.min(3.0, Math.round((oldZoom + delta) * 10) / 10))
+    const newZoom  = clampZoom(oldZoom + delta)
     if (newZoom === oldZoom) return
 
     const rect             = container.getBoundingClientRect()
@@ -330,15 +575,18 @@ function openPopover(appt, e) {
     if (activePopover.value?.id === appt.id) { activePopover.value = null; return }
     activePopover.value = appt
     const rect = e.currentTarget.getBoundingClientRect()
-    const PW   = 300
+    const PW   = 340
     let left   = rect.right + 8
     if (left + PW > window.innerWidth - 8) left = rect.left - PW - 8
     if (left < 8) left = 8
-    let top    = Math.min(rect.top, window.innerHeight - 360)
+    // Reserva mais altura que antes (popover cresceu: status em destaque,
+    // data/hora em linha própria, telefone/e-mail) — ainda um teto
+    // aproximado, o popover pode ser mais curto que isso sem problema.
+    let top    = Math.min(rect.top, window.innerHeight - 480)
     if (top < 8) top = 8
     popoverStyle.value = { left: `${left}px`, top: `${top}px`, width: `${PW}px` }
 }
-const closePopover = () => { activePopover.value = null }
+const closePopover = () => { activePopover.value = null; statusMenuOpenFor.value = null }
 
 function onOutsideClick(e) {
     if (popoverRef.value && !popoverRef.value.contains(e.target)) closePopover()
@@ -352,25 +600,158 @@ function onOutsideSettings(e) {
 }
 
 // ── Ações rápidas ──────────────────────────────────────────────────────────
-const quickConfirm = (appt) =>
-    router.patch(route('appointments.update-status', appt.id), { status: 'confirmed' },
+// Único ponto que chama appointments.update-status — botões e o dropdown de
+// status do popover (ver STATUS_DROPDOWN_OPTIONS) reutilizam esta mesma
+// função, nunca duas implementações da mesma mudança de status.
+function changeStatus(appt, status) {
+    router.patch(route('appointments.update-status', appt.id), { status },
         { preserveState: true, preserveScroll: true,
           onSuccess: () => { closePopover(); router.reload({ only: ['appointments'], preserveState: true, preserveScroll: true }) } })
+}
 
+const quickConfirm = (appt) => changeStatus(appt, 'confirmed')
+
+// Check-in continua com fluxo próprio (cria/atualiza Consultation, não é só
+// um status) — endpoint e comportamento inalterados.
 const quickCheckin = (appt) =>
     router.post(route('appointments.check-in', appt.id), {},
         { preserveScroll: true, onSuccess: closePopover })
 
+// Cancelar/Faltou nunca apagam o agendamento (ver AppointmentController::
+// updateStatus), só mudam o status; cancelado/faltou já não bloqueiam mais
+// disponibilidade (assertNoConflict exclui os dois). Confirmação nativa
+// antes de disparar, como pedido — ação difícil de desfazer pela Agenda.
+const quickCancel = (appt) => {
+    if (!confirm('Cancelar este agendamento? O horário será liberado, mas o registro continua no histórico do paciente.')) return
+    changeStatus(appt, 'cancelled')
+}
+
+const quickNoShow = (appt) => {
+    if (!confirm('Marcar esta consulta como falta do paciente? O horário será liberado, mas o registro continua no histórico do paciente.')) return
+    changeStatus(appt, 'no_show')
+}
+
+// ── Dropdown de status do popover — "controle completo", complementar aos
+// botões de atalho acima (mesmo endpoint, ver changeStatus). Guardado pelo
+// id do agendamento pra nunca ficar aberto "fantasma" ao trocar de popover.
+const statusMenuOpenFor = ref(null)
+function toggleStatusMenu(appt) {
+    statusMenuOpenFor.value = statusMenuOpenFor.value === appt.id ? null : appt.id
+}
+function pickStatus(appt, status) {
+    statusMenuOpenFor.value = null
+    changeStatus(appt, status)
+}
+
+// ── Confirmação por WhatsApp/e-mail — só a interface por enquanto; não há
+// infraestrutura de envio real no projeto, então o clique nunca finge um
+// envio, só avisa que a funcionalidade ainda não está disponível.
+function notifyContactComingSoon(channel) {
+    toast.info(channel === 'whatsapp'
+        ? 'Confirmação por WhatsApp ainda não está disponível.'
+        : 'Confirmação por e-mail ainda não está disponível.')
+}
+
+function formatFullDate(iso) {
+    const label = new Date(iso).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
+    return label.charAt(0).toUpperCase() + label.slice(1)
+}
+
 // ── Criar agendamento clicando na grade ────────────────────────────────────
-function clickSlot(day, e) {
+const showHolidayModal = ref(false)
+const holidayModalInfo = ref({ name: '', dateLabel: '' })
+
+// ── Seleção por arraste (estilo Excel) ──────────────────────────────────
+// mousedown na coluna decide sozinho, no mouseup, se virou um arraste ou
+// continua sendo um clique simples (ver useAgendaDragSelect) — clickSlot
+// só precisa consultar consumeDragFlag() pra não abrir o modal duas vezes
+// (uma pelo drag, outra pelo @click nativo que o navegador sempre dispara
+// depois de qualquer mouseup/mousedown na mesma coluna).
+// ── Bloqueio administrativo ao criar (não altera agendamentos existentes,
+// só decide se o modal de CRIAÇÃO abre) ─────────────────────────────────
+// Fonte de verdade real continua no backend (assertProfessionalAvailable);
+// isto aqui só evita abrir um formulário que o servidor sempre rejeitaria,
+// com um recado melhor do que o erro de validação do submit.
+const showScheduleBlockedModal = ref(false)
+const scheduleBlockedInfo = ref({ title: '', message: '' })
+
+function attemptOpenApptModal(day, timeStr, extra = {}) {
+    const holidayName = holidayNameFor(day)
+    if (holidayName) {
+        holidayModalInfo.value = { name: holidayName, dateLabel: `${day.getDate()} de ${PT_MONTHS[day.getMonth()]}` }
+        showHolidayModal.value = true
+        return
+    }
+
+    if (props.businessHoursEnforced) {
+        const w = dayWindow(day)
+        if (w.closed) {
+            scheduleBlockedInfo.value = {
+                title: 'Dia sem atendimento',
+                message: 'Este dia está configurado pela clínica como dia sem atendimento.',
+            }
+            showScheduleBlockedModal.value = true
+            return
+        }
+        if ((w.start && timeStr < w.start) || (w.end && timeStr >= w.end)) {
+            scheduleBlockedInfo.value = {
+                title: 'Fora do horário de atendimento',
+                message: `A clínica está configurada para atender das ${w.start} às ${w.end} neste dia. Este horário está fora do período permitido para novos agendamentos.`,
+            }
+            showScheduleBlockedModal.value = true
+            return
+        }
+    }
+
+    openApptModal({ date: toDateStr(day), time: timeStr, ...extra })
+}
+
+function openFromInterval(columnKey, startMinutesFromTop, durationMinutes) {
+    const col = gridColumns.value.find(c => c.key === columnKey)
+    if (!col) return
+    const totalMin = gridStartHour.value * 60 + startMinutesFromTop
+    const h = String(Math.floor(totalMin / 60)).padStart(2, '0')
+    const m = String(totalMin % 60).padStart(2, '0')
+    const effectiveChairId = col.chairId || (chairFilter.value !== 'all' ? chairFilter.value : undefined)
+    attemptOpenApptModal(col.day, `${h}:${m}`, {
+        durationMinutes,
+        chairId: effectiveChairId,
+        professionalId: profFilter.value !== 'all' ? profFilter.value : undefined,
+    })
+}
+
+const dragSelect = useAgendaDragSelect({
+    pxPerMin,
+    stepMinutes: 15,
+    onSelect: openFromInterval,
+})
+
+// Rótulo "HH:MM" pro retângulo de seleção durante o arraste — mesmo snap
+// de 15min do useAgendaDragSelect, só formatado pra exibição.
+function dragTimeLabel(yPx) {
+    const minutes  = Math.round(yPx / pxPerMin.value / 15) * 15
+    const totalMin = gridStartHour.value * 60 + Math.max(0, minutes)
+    const h = String(Math.floor(totalMin / 60)).padStart(2, '0')
+    const m = String(totalMin % 60).padStart(2, '0')
+    return `${h}:${m}`
+}
+
+function clickSlot(day, e, chairId) {
+    if (dragSelect.consumeDragFlag()) return
     if (activePopover.value) { closePopover(); return }
     if (e.target !== e.currentTarget && e.target.closest('[data-appt]')) return
     const rect       = e.currentTarget.getBoundingClientRect()
-    const minutes    = Math.floor(((e.clientY - rect.top) / pxPerMin.value) / 30) * 30
-    const totalMin   = START_HOUR * 60 + minutes
+    const minutes    = Math.floor(((e.clientY - rect.top) / pxPerMin.value) / 15) * 15
+    const totalMin   = gridStartHour.value * 60 + minutes
     const h          = String(Math.floor(totalMin / 60)).padStart(2, '0')
     const m          = String(totalMin % 60).padStart(2, '0')
-    router.get(route('appointments.create'), { date: toDateStr(day), time: `${h}:${m}` })
+    // Coluna de recurso (Dia + Todas) informa a própria cadeira; fora dela,
+    // herda a cadeira em foco na sidebar (se houver uma específica ativa).
+    const effectiveChairId = chairId || (chairFilter.value !== 'all' ? chairFilter.value : undefined)
+    attemptOpenApptModal(day, `${h}:${m}`, {
+        chairId: effectiveChairId,
+        professionalId: profFilter.value !== 'all' ? profFilter.value : undefined,
+    })
 }
 
 // ── Mini calendário ────────────────────────────────────────────────────────
@@ -402,14 +783,19 @@ const navMiniMonth = (d) => {
     miniMonthDate.value = m
 }
 
-const isInCurrentWeek = (date) => {
-    const ws = parseLocalDate(props.weekStart)
-    const we = addDays(ws, 6)
-    return date >= ws && date <= we
-}
+// Destaque do dia selecionado DENTRO da visão Semana (grade principal) —
+// reaproveita o mesmo selectedDay usado pela visão Dia, só que sem trocar
+// de view: clicar num dia da semana apenas destaca a coluna; se depois o
+// usuário for pra "Dia", já abre nesse mesmo dia.
+const isWeekSelectedDay = (date) =>
+    viewMode.value === 'week' && toDateStr(date) === toDateStr(selectedDay.value)
 
-const isSelectedDay = (date) =>
-    viewMode.value === 'day' && toDateStr(date) === toDateStr(selectedDay.value)
+// Destaque do mini-calendário: SEMPRE o dia (selectedDay), nunca a semana
+// inteira — independe de viewMode. "Semana exibida" (quais dias estão
+// carregados, via props.weekStart) e "dia selecionado" são conceitos
+// diferentes; o mini-calendário só representa o segundo, nunca pinta a
+// semana inteira de verde só porque ela é a semana carregada.
+const isMiniCalSelected = (date) => toDateStr(date) === toDateStr(selectedDay.value)
 
 function jumpToDate(date) {
     const d    = new Date(date)
@@ -427,36 +813,124 @@ function jumpToDate(date) {
     pendingDayAfterNav.value = toDateStr(d)
     if (viewMode.value !== 'day') viewMode.value = 'day'
     router.get(route('appointments.index'),
-        { week: wsStr, professional_id: profFilter.value || undefined },
+        { week: wsStr, professional_id: profFilter.value, chair_id: chairFilter.value },
         { preserveState: true, only: ['appointments', 'weekStart'] })
 }
 
 function jumpToWeek(date) {
     const d   = new Date(date)
     const dow = d.getDay()
-    d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow))
+    const ws  = new Date(d)
+    ws.setDate(ws.getDate() + (dow === 0 ? -6 : 1 - dow))
+    const wsStr = toDateStr(ws)
+
+    if (wsStr === props.weekStart) {
+        // Semana já carregada — só atualiza qual dia fica destacado no
+        // mini-calendário (ver isMiniCalSelected), sem navegação nenhuma.
+        selectedDay.value = d
+        return
+    }
+    pendingDayAfterNav.value = toDateStr(d)
     router.get(route('appointments.index'),
-        { week: toDateStr(d) },
+        { week: wsStr },
         { preserveState: true, only: ['appointments', 'weekStart'] })
 }
 
-function switchToDayView(day) {
-    selectedDay.value = day
-    settings.viewMode  = 'day'
-}
 
 // ── Banda de almoço (posição zoom-aware) ───────────────────────────────────
 const lunchBandStyle = computed(() => {
     if (!settings.showLunchBand) return null
     const [lh, lm] = settings.lunchStart.split(':').map(Number)
     const [eh, em] = settings.lunchEnd.split(':').map(Number)
-    const topMin    = (lh - START_HOUR) * 60 + lm
+    const topMin    = (lh - gridStartHour.value) * 60 + lm
     const heightMin = (eh - lh) * 60 + (em - lm)
     return {
         top:    `${topMin    * pxPerMin.value}px`,
         height: `${heightMin * pxPerMin.value}px`,
     }
 })
+
+// ── Feriados — regra da clínica (não do profissional), afeta qualquer
+// agenda visível, inclusive "Todos". Nome vem resolvido do backend
+// (BrazilianHolidayService), nenhuma data fica hardcoded aqui.
+const holidayNameFor = (date) =>
+    props.considerNationalHolidays ? (props.holidays[toDateStr(date)] || null) : null
+
+// ── Fora do horário de atendimento — agora POR COLUNA (dia), usando a
+// janela efetiva (regra da clínica ∩ profissional, ver dayWindow acima).
+// Generaliza o antigo outOfHoursBands (um único par pra semana toda, só
+// quando um profissional específico estava selecionado): sem regra
+// obrigatória ativa, o resultado é idêntico a antes — só decora o horário
+// do profissional selecionado, nada no modo "Todos". Com regra obrigatória,
+// também funciona no modo "Todos" (só a clínica) e varia por dia da semana.
+function outOfHoursBandsFor(day) {
+    const w = dayWindow(day)
+    if (w.closed || !w.start || !w.end) return []
+    const [sh, sm] = w.start.split(':').map(Number)
+    const [eh, em] = w.end.split(':').map(Number)
+    const startMin = (sh - gridStartHour.value) * 60 + sm
+    const endMin   = (eh - gridStartHour.value) * 60 + em
+    const bands = []
+    if (startMin > 0)             bands.push({ top: 0, height: startMin, pos: 'before' })
+    if (endMin < TOTAL_MIN.value) bands.push({ top: endMin, height: TOTAL_MIN.value - endMin, pos: 'after' })
+    return bands.map(b => ({
+        pos: b.pos,
+        style: { top: `${b.top * pxPerMin.value}px`, height: `${b.height * pxPerMin.value}px` },
+    }))
+}
+
+// Dia inteiro bloqueado pela regra da clínica (obrigatória) — diferente de
+// feriado (que já tinha overlay próprio, ver holidayNameFor/template): só
+// dispara quando o motivo é especificamente "clínica fechou esse dia",
+// pra não duplicar overlay num dia que já é feriado.
+function isClinicDayOff(day) {
+    const w = dayWindow(day)
+    return w.closed && w.reason === 'clinic-day-off'
+}
+
+// ── Agendamentos além do teto/piso absoluto da grade (ver GRID_CEIL_HOUR/
+// gridStartHour) — nunca fazem a grade crescer, mas continuam acessíveis
+// via OffGridAppointmentsBadge (ver template). Não tem relação com a janela
+// de horário "normal" (que só decora com banda cinza, sem esconder nada);
+// isto aqui é estritamente sobre o que cabe nas linhas realmente desenhadas.
+function isApptOffGrid(appt) {
+    const s = new Date(appt.start)
+    const hourFrac = s.getHours() + s.getMinutes() / 60
+    return hourFrac < gridStartHour.value || hourFrac >= END_HOUR
+}
+
+function visibleApptsFor(col) {
+    return (col.appts || []).filter(a => !isApptOffGrid(a))
+}
+
+function offGridApptsFor(col) {
+    return (col.appts || []).filter(isApptOffGrid)
+}
+
+// ── Agendamento existente fora da janela efetiva ATUAL (ver item 6/7 do
+// pedido) — usa o profissional DONO do agendamento (não o filtro
+// selecionado), pra funcionar igual em "Todos" e numa agenda específica.
+// Só informativo: nunca bloqueia, move ou cancela o agendamento.
+function apptScheduleNotice(appt) {
+    if (!props.businessHoursEnforced) return null
+    const prof = props.professionals.find(p => p.id === appt.professional_id)
+    const w = effectiveDayWindow({
+        date: new Date(appt.start),
+        holidayName: props.considerNationalHolidays ? (props.holidays[appt.start.slice(0, 10)] || null) : null,
+        considerHolidays: props.considerNationalHolidays,
+        clinicBusinessHours: props.businessHours,
+        clinicEnforced: props.businessHoursEnforced,
+        workingDays: prof?.working_days ?? null,
+        workingHours: prof?.working_hours ?? null,
+    })
+    if (w.closed) return 'Este agendamento está fora do horário atual da clínica.'
+    const startStr = formatTime(appt.start)
+    const endStr   = formatTime(appt.end)
+    if ((w.start && startStr < w.start) || (w.end && endStr > w.end)) {
+        return 'Este agendamento está fora do horário atual da clínica.'
+    }
+    return null
+}
 
 // ── Lista de hoje (sidebar) ────────────────────────────────────────────────
 const todayAppointmentsSorted = computed(() => {
@@ -472,7 +946,7 @@ const todayStats = computed(() => {
         confirmed: list.filter(a => a.status === 'confirmed').length,
         cancelled: list.filter(a => a.status === 'cancelled').length,
         no_show:   list.filter(a => a.status === 'no_show').length,
-        occupancy: Math.min(Math.round((usedMin / TOTAL_MIN) * 100), 100),
+        occupancy: Math.min(Math.round((usedMin / TOTAL_MIN.value) * 100), 100),
     }
 })
 
@@ -480,15 +954,14 @@ const todayStats = computed(() => {
 function exportCSV() {
     const appts = [...props.appointments]
         .sort((a, b) => new Date(a.start) - new Date(b.start))
-    const rows = [['Data', 'Horário', 'Paciente', 'Telefone', 'Tratamento', 'Profissional', 'Status', 'Observações']]
+    const rows = [['Data', 'Horário', 'Paciente', 'Telefone', 'Profissional', 'Status', 'Observações']]
     appts.forEach(a => rows.push([
         a.start.slice(0, 10),
         `${formatTime(a.start)}-${formatTime(a.end)}`,
         `${a.patient?.nome || ''} ${a.patient?.sobrenome || ''}`.trim(),
         a.patient?.telefone || '',
-        a.treatment?.nome || '',
         a.professional?.name || '',
-        STATUS[a.status]?.label || a.status,
+        STATUS_CONFIG[resolveStatus(a, nowRef)]?.label || a.status,
         a.notes || '',
     ]))
     const csv  = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
@@ -527,11 +1000,34 @@ onUnmounted(() => {
 </script>
 
 <template>
-<AppLayout>
-<div class="-mx-4 sm:-mx-6 lg:-mx-8 -mt-6 flex flex-col no-print" style="min-height: calc(100vh - var(--app-navbar-h) - 1.5rem)">
+<AppLayout content-width="full">
+<!-- content-width sempre "full" (max-w-7xl/1280px + mx-auto, igual
+     Pacientes, Consultas etc) — inclusive com os 7 dias da semana (Sáb+Dom
+     juntos). Uma tentativa anterior trocava pra "screen" (sem teto) nesse
+     caso, mas isso deixava a superfície inteira ~1520px de largura — quase
+     do tamanho do Fullscreen — porque as colunas são flex-1 (crescem pra
+     preencher o espaço disponível, não só o mínimo): dar mais espaço ao
+     container só fazia cada coluna esticar mais, sem resolver nada. A
+     causa real do corte de domingo era só o mínimo de 130px não caber
+     nesse teto — ver isSevenDayWeek/min-w mais abaixo, que resolve isso
+     sozinho, mantendo o Normal sempre com a MESMA largura de container em
+     5/6/7 dias (visualmente nunca parece Fullscreen). Só a tela Fullscreen
+     (Appointments/Fullscreen.vue) usa "screen"/largura real do monitor —
+     é essa diferença que faz "sair da tela cheia" parecer uma mudança de
+     verdade. `-mt-3.5` cancela a
+     maior parte do py-6 padrão do AppLayout, deixando só ~10px até a
+     navbar — por isso o cálculo de altura compensa só o que sobrou (10px)
+     + o padding inferior (24px) = 34px. ── A Agenda inteira (toolbar +
+     sidebar + grade) vive dentro de UMA única superfície — borda fina,
+     sombra sutil, cantos levemente arredondados — mesmo vocabulário já
+     usado nos cards de Configurações (Cadeiras, Agendas etc:
+     rounded-2xl/border-slate-200/shadow-sm/bg-white). Não é "card dentro
+     de card": toolbar/sidebar/grade continuam divididos por borda interna
+     simples, como já eram. -->
+<div class="-mt-3.5 flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm no-print" style="min-height: calc(100vh - var(--app-navbar-h) - 34px)">
 
   <!-- ── Barra de ferramentas ────────────────────────────────────────────── -->
-  <div class="flex items-center gap-2 px-4 py-2 border-b bg-white flex-shrink-0 flex-wrap no-print">
+  <div class="flex items-center gap-2 px-4 py-2 border-b bg-white rounded-t-2xl flex-shrink-0 flex-wrap no-print">
 
     <!-- Toggle sidebar -->
     <button @click="showSidebar = !showSidebar"
@@ -563,11 +1059,20 @@ onUnmounted(() => {
       </button>
     </div>
 
-    <!-- Label do período -->
-    <span class="text-sm font-semibold text-slate-700">{{ periodLabel }}</span>
-    <span v-if="periodRangeLabel" class="text-xs text-slate-400 hidden sm:inline">
-      {{ periodRangeLabel }}
-    </span>
+    <!-- Label do período — "Agosto 2026" levemente maior que o padrão
+         (text-sm=14px→16px); "10/8 – 16/8" no tamanho original (text-xs=
+         12px), lado a lado como sempre foi. O grupo é items-baseline (não
+         items-center como o resto da toolbar): centralizar pela CAIXA da
+         linha faz o texto menor "flutuar" acima da base do texto maior;
+         alinhar pela base do texto é o que faz o meio de "Agosto"
+         realmente coincidir com o meio de "10/8 – 16/8" visualmente. Nada
+         mais na toolbar/grade/sidebar muda de tamanho ou posição. -->
+    <div class="flex items-baseline gap-1.5">
+      <span class="text-[16px] font-semibold text-slate-700">{{ periodLabel }}</span>
+      <span v-if="periodRangeLabel" class="text-xs text-slate-400 hidden sm:inline">
+        {{ periodRangeLabel }}
+      </span>
+    </div>
 
     <div class="flex-1" />
 
@@ -599,23 +1104,20 @@ onUnmounted(() => {
       </button>
     </template>
 
-    <!-- Zoom controls -->
-    <div class="hidden sm:flex items-center gap-0.5 text-slate-500">
-      <button @click="zoomLevel = zoomLevel - 0.1"
-              class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100 text-base leading-none transition-colors"
+    <!-- Zoom controls: um único controle agrupado (borda fina, cantos
+         quadrados, sombra bem sutil) — não três elementos soltos. -->
+    <div class="hidden sm:flex items-stretch border border-slate-200 bg-white shadow-sm">
+      <button @click="zoomLevel = zoomLevel - ZOOM_STEP" :disabled="isZoomAtMin"
+              class="w-7 h-7 flex items-center justify-center text-slate-500 text-base leading-none transition-colors hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
               title="Reduzir zoom">−</button>
-      <span class="text-[10px] tabular-nums w-8 text-center">{{ Math.round(zoomLevel * 100) }}%</span>
-      <button @click="zoomLevel = zoomLevel + 0.1"
-              class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100 text-base leading-none transition-colors"
+      <span class="flex items-center justify-center w-11 text-[11px] font-medium tabular-nums text-slate-600 border-x border-slate-200">
+        {{ Math.round(zoomLevel * 100) }}%
+      </span>
+      <button @click="zoomLevel = zoomLevel + ZOOM_STEP" :disabled="isZoomAtMax"
+              class="w-7 h-7 flex items-center justify-center text-slate-500 text-base leading-none transition-colors hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
               title="Aumentar zoom">+</button>
     </div>
 
-    <!-- Filtro profissional -->
-    <select v-model="profFilter" @change="onProfChange"
-            class="text-xs border border-slate-200 rounded-md px-2 py-1.5 text-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-400 bg-white">
-      <option value="">Todos</option>
-      <option v-for="p in professionals" :key="p.id" :value="p.id">{{ p.name }}</option>
-    </select>
 
     <!-- Exportar CSV -->
     <button @click="exportCSV"
@@ -636,6 +1138,12 @@ onUnmounted(() => {
       </svg>
     </button>
 
+    <!-- Ações fixas: Configurações + Tela cheia + Novo viajam juntas e
+         sempre coladas à direita — mesmo se o restante da barra quebrar
+         linha em telas estreitas, esse grupo nunca se separa nem troca de
+         posição (ml-auto se auto-alinha à direita em qualquer linha em que
+         caia, ver relato "o ícone de full muda de lugar"). -->
+    <div class="flex items-center gap-2 ml-auto flex-shrink-0">
     <!-- Configurações -->
     <div class="relative">
       <button ref="settingsBtnRef"
@@ -683,7 +1191,7 @@ onUnmounted(() => {
 
           <div class="px-3 pt-1.5 border-t border-slate-100">
             <div class="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1.5">Zoom</div>
-            <input type="range" min="0.4" max="3.0" step="0.1"
+            <input type="range" :min="ZOOM_MIN" :max="ZOOM_MAX" :step="ZOOM_STEP"
                    :value="zoomLevel"
                    @input="zoomLevel = parseFloat($event.target.value)"
                    class="w-full h-1 accent-emerald-500" />
@@ -693,21 +1201,25 @@ onUnmounted(() => {
       </Transition>
     </div>
 
-    <!-- Tela cheia -->
+    <!-- Novo agendamento -->
+    <button @click="openNewAppointmentModal"
+            class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-4 py-2 rounded-lg transition-colors">
+      + Novo
+    </button>
+
+    <!-- Tela cheia — agora depois de "+ Novo" (mais à direita da toolbar);
+         ml-8 soma ao gap-2 do grupo (~40px ≈ 1cm no total) pra separar
+         visualmente do botão verde sem quebrar o bloco único ancorado à
+         direita. -->
     <Link :href="route('appointments.fullscreen', { week: weekStart })"
-          class="p-1.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+          class="ml-8 p-1.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
           title="Tela cheia">
       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round"
               d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
       </svg>
     </Link>
-
-    <!-- Novo agendamento -->
-    <Link :href="route('appointments.create')"
-          class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-4 py-2 rounded-lg transition-colors">
-      + Novo
-    </Link>
+    </div>
   </div>
 
   <!-- ── Corpo: sidebar + calendário ────────────────────────────────────── -->
@@ -716,24 +1228,23 @@ onUnmounted(() => {
     <!-- ── Sidebar esquerda ─────────────────────────────────────────────── -->
     <transition name="agenda-sidebar">
       <div v-show="showSidebar"
-           class="w-52 flex-shrink-0 border-r bg-white flex flex-col overflow-y-auto overflow-x-hidden no-print">
+           class="w-80 flex-shrink-0 border-r border-slate-200 bg-slate-50/40 rounded-bl-2xl flex flex-col gap-3 p-3 overflow-y-auto overflow-x-hidden no-print">
 
-        <!-- Mini calendário header -->
-        <div class="px-3 py-2.5 border-b">
-          <button @click="showMiniCal = !showMiniCal"
-                  class="flex items-center justify-between w-full text-xs font-semibold text-slate-600 hover:text-slate-800">
-            <span>Calendário</span>
-            <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200"
-                 :class="{ 'rotate-180': !showMiniCal }"
-                 fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-            </svg>
-          </button>
-        </div>
+        <!-- Card: Calendário -->
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden shrink-0">
+        <button @click="showMiniCal = !showMiniCal"
+                class="flex items-center justify-between w-full px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors">
+          <span>Calendário</span>
+          <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200"
+               :class="{ 'rotate-180': !showMiniCal }"
+               fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
 
         <!-- Mini calendário body -->
         <transition name="agenda-collapse">
-          <div v-if="showMiniCal" class="px-3 py-3 border-b">
+          <div v-if="showMiniCal" class="px-3 pb-3 pt-1 border-t border-slate-100">
             <div class="flex items-center justify-between mb-2">
               <button @click="navMiniMonth(-1)" class="p-0.5 rounded hover:bg-slate-100 text-slate-400">
                 <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -759,19 +1270,131 @@ onUnmounted(() => {
                       class="flex items-center justify-center text-[10px] rounded leading-none py-0.5 transition-colors relative"
                       :class="{
                         'text-slate-300':                                !day.cur,
-                        'text-slate-600 hover:bg-slate-100':             day.cur && !isInCurrentWeek(day.date) && !isToday(day.date) && !isSelectedDay(day.date),
-                        'bg-emerald-50 text-emerald-600 font-medium':    day.cur && isInCurrentWeek(day.date) && viewMode === 'week',
-                        'bg-emerald-500 text-white font-semibold rounded-full': day.cur && isSelectedDay(day.date),
-                        'ring-1 ring-inset ring-emerald-400 rounded-full': day.cur && isToday(day.date) && !isSelectedDay(day.date),
+                        'text-slate-600 hover:bg-slate-100':             day.cur && !isToday(day.date) && !isMiniCalSelected(day.date),
+                        'bg-emerald-500 text-white font-semibold rounded-full': day.cur && isMiniCalSelected(day.date),
+                        'ring-1 ring-inset ring-emerald-400 rounded-full': day.cur && isToday(day.date) && !isMiniCalSelected(day.date),
                       }">
                 {{ day.date.getDate() }}
               </button>
             </div>
           </div>
         </transition>
+        </div>
+        <!-- /Card: Calendário -->
 
-        <!-- Resumo diário -->
-        <div class="px-3 py-3 flex-1 flex flex-col">
+        <!-- Card: Cadeiras — ordem fixa: cadeiras primeiro (na ordem de
+             criação), "Todas" sempre por último — nunca no topo. Mesmo
+             padrão visual dos "Escopos" do módulo de Tarefas: bolinha
+             colorida + nome, engrenagem/editar só aparece no hover. -->
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden shrink-0">
+        <button @click="showChairsSection = !showChairsSection"
+                class="flex items-center justify-between w-full px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors">
+          <span>Cadeiras</span>
+          <div class="flex items-center gap-1.5">
+            <span title="Nova cadeira"
+                  role="button"
+                  @click.stop="openCreateChairModal"
+                    class="rounded-md p-0.5 transition-colors"
+                    :class="atChairLimit ? 'text-slate-300' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+              </span>
+              <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200"
+                   :class="{ 'rotate-180': !showChairsSection }"
+                   fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </div>
+          </button>
+
+          <transition name="agenda-collapse">
+            <div v-if="showChairsSection" class="px-3 pb-3 pt-1 border-t border-slate-100 space-y-0.5">
+              <div v-for="chair in chairsList" :key="chair.id"
+                   class="group/chair flex items-center rounded-lg transition-colors"
+                   :class="String(chairFilter) === String(chair.id) ? 'bg-emerald-50' : 'hover:bg-slate-100'">
+                <button @click="chairFilter = String(chair.id); onFilterChange()"
+                        class="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-xs font-medium"
+                        :class="String(chairFilter) === String(chair.id) ? 'text-emerald-700' : 'text-slate-600'">
+                  <span class="h-2 w-2 rounded-full shrink-0" :style="{ backgroundColor: chair.color }" />
+                  <span class="truncate">{{ chair.name }}</span>
+                </button>
+                <button @click="openEditChairModal(chair)" title="Editar cadeira"
+                        class="mr-1 shrink-0 rounded-md p-1 text-slate-400 opacity-0 transition-opacity hover:bg-slate-200 hover:text-slate-600 group-hover/chair:opacity-100">
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+              </div>
+
+              <p v-if="!chairsList.length" class="px-2 py-1.5 text-[11px] text-slate-400">
+                Nenhuma cadeira cadastrada.
+              </p>
+
+              <!-- "Todas" sempre por último, nunca antes das cadeiras. -->
+              <button @click="chairFilter = 'all'; onFilterChange()"
+                      class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors"
+                      :class="chairFilter === 'all' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-100'">
+                <span class="h-2 w-2 rounded-full bg-slate-300 shrink-0" />
+                <span class="truncate">Todas</span>
+              </button>
+
+              <p v-if="atChairLimit" class="px-2 pt-1.5 text-[10px] text-slate-400 leading-snug">
+                Sua clínica já possui o máximo de {{ maxChairs }} cadeiras.
+              </p>
+            </div>
+          </transition>
+        </div>
+        <!-- /Card: Cadeiras -->
+
+        <!-- Card: Agendas — conceito diferente de Cadeiras: cadeira é
+             recurso físico, agenda é do profissional. Usuário logado
+             sempre primeiro, demais depois (ordem já resolvida pelo
+             backend — ver AppointmentController::agendaProfessionalsPayload),
+             "Todos" sempre por último e fora da área com scroll (fica
+             sempre acessível sem precisar rolar até o fim da lista). -->
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden shrink-0">
+        <button @click="showAgendasSection = !showAgendasSection"
+                class="flex items-center justify-between w-full px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors">
+          <span>Agendas</span>
+          <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200"
+               :class="{ 'rotate-180': !showAgendasSection }"
+               fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+
+          <transition name="agenda-collapse">
+            <div v-if="showAgendasSection" class="px-3 pb-3 pt-1 border-t border-slate-100 space-y-0.5">
+              <!-- Até 4 profissionais visíveis, scroll interno a partir daí. -->
+              <div class="max-h-[124px] overflow-y-auto space-y-0.5 pr-0.5">
+                <button v-for="prof in professionals" :key="prof.id"
+                        @click="profFilter = String(prof.id); onFilterChange()"
+                        class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors"
+                        :class="String(profFilter) === String(prof.id) ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-100'">
+                  <span class="h-2 w-2 rounded-full shrink-0" :class="prof.is_current_user ? 'bg-emerald-500' : 'bg-slate-300'" />
+                  <span class="truncate">{{ prof.name }}</span>
+                </button>
+              </div>
+
+              <p v-if="!professionals.length" class="px-2 py-1.5 text-[11px] text-slate-400">
+                Nenhuma agenda disponível.
+              </p>
+
+              <button @click="profFilter = 'all'; onFilterChange()"
+                      class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors"
+                      :class="profFilter === 'all' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-100'">
+                <span class="h-2 w-2 rounded-full bg-slate-300 shrink-0" />
+                <span class="truncate">Todos</span>
+              </button>
+            </div>
+          </transition>
+        </div>
+        <!-- /Card: Agendas -->
+
+        <!-- Resumo diário — bloco leve de apoio, não é um dos 3 cards
+             principais da sidebar (Calendário/Cadeiras/Agendas). -->
+        <div class="px-1 flex-1 flex flex-col">
           <div class="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-2.5">Hoje</div>
           <div class="space-y-2">
             <div class="flex justify-between text-xs">
@@ -834,63 +1457,122 @@ onUnmounted(() => {
     </transition>
 
     <!-- ── Grade do calendário ─────────────────────────────────────────── -->
-    <div ref="gridScrollRef" class="flex-1 overflow-auto bg-slate-50/40 relative">
+    <div ref="gridScrollRef" class="flex-1 overflow-auto bg-slate-50/40 rounded-br-2xl relative">
 
-      <!-- Cabeçalho dos dias (sticky) -->
+      <!-- Cabeçalho dos dias/cadeiras (sticky) — em Dia + "Todas" as
+           cadeiras, cada coluna vira um recurso (estilo Codental) em vez de
+           um dia; nas demais visões continua sendo um dia, como sempre. -->
       <div class="flex bg-white border-b sticky top-0 z-20" style="min-width: max-content">
-        <div class="w-14 flex-shrink-0 border-r bg-white" />
-        <div v-for="day in visibleDays" :key="'hd-' + toDateStr(day)"
-             class="flex-1 text-center py-2.5 border-r last:border-r-0 cursor-pointer transition-colors"
+        <div class="w-14 flex-shrink-0 border-r bg-white sticky left-0 z-40" />
+        <div v-for="col in gridColumns" :key="'hd-' + col.key"
+             class="flex-1 text-center py-2.5 border-r last:border-r-0 transition-colors"
              :class="[
-               isToday(day) ? 'bg-emerald-50/80' : 'hover:bg-slate-50',
-               viewMode === 'week' ? 'min-w-[130px]' : 'min-w-[200px]',
+               col.isResource ? '' : 'cursor-pointer',
+               !col.isResource && isWeekSelectedDay(col.day)
+                 ? 'bg-emerald-100/70 border-b-2 border-b-emerald-500'
+                 : (!col.isResource && isToday(col.day) ? 'bg-emerald-50/80' : 'hover:bg-slate-50'),
+               viewMode === 'week' ? (isSevenDayWeek ? 'min-w-[110px]' : 'min-w-[130px]') : (showResourceColumns ? 'min-w-[180px]' : 'min-w-[200px]'),
              ]"
-             @click="viewMode === 'week' && switchToDayView(day)">
-          <div class="text-[10px] font-semibold uppercase tracking-wide"
-               :class="isToday(day) ? 'text-emerald-500' : 'text-slate-400'">
-            {{ PT_DAYS[dayIndex(day)] }}
-          </div>
-          <div class="text-lg font-bold leading-tight"
-               :class="isToday(day) ? 'text-emerald-600' : 'text-slate-700'">
-            {{ day.getDate() }}
-          </div>
-          <div v-if="viewMode === 'week'" class="text-[9px] text-slate-400 leading-tight">
-            {{ PT_MONTHS[day.getMonth()].slice(0, 3) }}
-          </div>
+             @click="!col.isResource && viewMode === 'week' && (selectedDay = col.day)">
+          <template v-if="col.isResource">
+            <div class="flex items-center justify-center gap-1.5">
+              <span class="h-2.5 w-2.5 rounded-full shrink-0" :style="{ backgroundColor: col.color }" />
+              <span class="text-sm font-bold leading-tight text-slate-700 truncate">{{ col.label }}</span>
+            </div>
+            <div class="text-[9px] text-slate-400 leading-tight mt-0.5">
+              {{ (col.appts || []).length }} agendamento{{ (col.appts || []).length === 1 ? '' : 's' }}
+            </div>
+          </template>
+          <template v-else>
+            <div class="text-[10px] font-semibold uppercase tracking-wide"
+                 :class="isWeekSelectedDay(col.day) ? 'text-emerald-700' : (isToday(col.day) ? 'text-emerald-500' : 'text-slate-400')">
+              {{ PT_DAYS[dayIndex(col.day)] }}
+            </div>
+            <div class="text-lg font-bold leading-tight"
+                 :class="isWeekSelectedDay(col.day) ? 'text-emerald-800' : (isToday(col.day) ? 'text-emerald-600' : 'text-slate-700')">
+              {{ col.day.getDate() }}
+            </div>
+            <div v-if="viewMode === 'week'" class="text-[9px] text-slate-400 leading-tight">
+              {{ PT_MONTHS[col.day.getMonth()].slice(0, 3) }}
+            </div>
+            <div v-if="holidayNameFor(col.day)" class="text-[8px] font-semibold text-amber-600 leading-tight truncate mt-0.5"
+                 :title="holidayNameFor(col.day)">
+              Feriado
+            </div>
+          </template>
         </div>
       </div>
 
       <!-- Grade de tempo -->
       <div class="flex" :style="{ height: gridHeight + 'px', minWidth: 'max-content' }">
 
-        <!-- Coluna de horas -->
-        <div class="w-14 flex-shrink-0 border-r bg-white relative">
+        <!-- Coluna de horas — sticky à esquerda: continua visível mesmo
+             rolando a grade horizontalmente (muitas cadeiras/dias). -->
+        <div class="w-14 flex-shrink-0 border-r bg-white relative sticky left-0 z-40">
           <div v-for="h in hours" :key="'th-' + h"
-               class="absolute right-0 pr-2 -translate-y-1/2 text-[10px] text-slate-400 text-right tabular-nums"
-               :style="{ top: `${(h - START_HOUR) * 60 * pxPerMin}px` }">
+               class="absolute right-0 pr-2 text-[10px] text-slate-400 text-right tabular-nums"
+               :class="h === gridStartHour ? 'translate-y-0.5' : '-translate-y-1/2'"
+               :style="{ top: `${(h - gridStartHour) * 60 * pxPerMin}px` }">
             {{ formatHour(h) }}
           </div>
         </div>
 
-        <!-- Colunas dos dias -->
-        <div v-for="day in visibleDays" :key="'dc-' + toDateStr(day)"
+        <!-- Colunas dos dias/cadeiras -->
+        <div v-for="col in gridColumns" :key="'dc-' + col.key"
              class="flex-1 relative border-r last:border-r-0"
              :class="[
-               isToday(day) ? 'bg-blue-50/10' : 'bg-white',
-               viewMode === 'week' ? 'min-w-[130px]' : 'min-w-[200px]',
+               !col.isResource && isWeekSelectedDay(col.day)
+                 ? 'bg-emerald-50/40'
+                 : (!col.isResource && isToday(col.day) ? 'bg-blue-50/10' : 'bg-white'),
+               viewMode === 'week' ? (isSevenDayWeek ? 'min-w-[110px]' : 'min-w-[130px]') : (showResourceColumns ? 'min-w-[180px]' : 'min-w-[200px]'),
              ]"
-             @click="clickSlot(day, $event)">
+             @mousedown="dragSelect.onPointerDown($event, col.key)"
+             @click="clickSlot(col.day, $event, col.chairId)">
 
-          <!-- Linhas de hora -->
+          <!-- Seleção por arraste em andamento (estilo Excel) — só nesta
+               coluna, some assim que o mouseup decide abrir o modal. -->
+          <div v-if="dragSelect.dragging.value && dragSelect.dragColumnKey.value === col.key"
+               class="absolute left-0 right-0 z-30 pointer-events-none bg-emerald-500/15 border-y-2 border-emerald-500 rounded-sm flex flex-col justify-between px-1.5 py-0.5"
+               :style="{
+                 top: `${Math.min(dragSelect.dragStartY.value, dragSelect.dragCurrentY.value)}px`,
+                 height: `${Math.max(Math.abs(dragSelect.dragCurrentY.value - dragSelect.dragStartY.value), 4)}px`,
+               }">
+            <span class="text-[9px] font-semibold text-emerald-700 tabular-nums leading-none">
+              {{ dragTimeLabel(Math.min(dragSelect.dragStartY.value, dragSelect.dragCurrentY.value)) }}
+            </span>
+            <span class="text-[9px] font-semibold text-emerald-700 tabular-nums leading-none">
+              {{ dragTimeLabel(Math.max(dragSelect.dragStartY.value, dragSelect.dragCurrentY.value)) }}
+            </span>
+          </div>
+
+          <!-- Bandas alternadas por hora — leve relevo/organização visual
+               (mesmo princípio da "banda de almoço" já existente: tinta
+               translúcida, sem cor nova, não interfere no destaque de
+               "hoje" por baixo por ser semi-transparente). -->
+          <div v-for="(h, i) in hours" :key="'hb-' + h"
+               v-show="i % 2 === 1"
+               class="absolute w-full pointer-events-none bg-slate-100/50"
+               :style="{ top: `${(h - gridStartHour) * 60 * pxPerMin}px`, height: `${60 * pxPerMin}px` }" />
+
+          <!-- Grade principal, 30 min (:00 e :30) — sempre visível, mesmo
+               peso visual nas duas. -->
           <div v-for="h in hours" :key="'hl-' + h"
                class="absolute w-full border-t border-slate-100"
-               :style="{ top: `${(h - START_HOUR) * 60 * pxPerMin}px` }" />
+               :style="{ top: `${(h - gridStartHour) * 60 * pxPerMin}px` }" />
+          <div v-for="h in hours" :key="'hl30-' + h"
+               class="absolute w-full border-t border-slate-100"
+               :style="{ top: `${(h - gridStartHour) * 60 * pxPerMin + 30 * pxPerMin}px` }" />
 
-          <!-- Linhas de meia hora (opcional) -->
+          <!-- Subdivisão fina, 15 min (:15 e :45) — discreta/pontilhada,
+               continua atrás do toggle "Mostrar grade de meia hora" (agora
+               controla só este nível mais fino). -->
           <template v-if="settings.showSecondaryGrid">
-            <div v-for="h in hours.slice(0, -1)" :key="'hhl-' + h"
-                 class="absolute w-full border-t border-dashed border-slate-100/80"
-                 :style="{ top: `${(h - START_HOUR) * 60 * pxPerMin + 30 * pxPerMin}px` }" />
+            <div v-for="h in hours" :key="'hl15-' + h"
+                 class="absolute w-full border-t border-dashed border-slate-100/70"
+                 :style="{ top: `${(h - gridStartHour) * 60 * pxPerMin + 15 * pxPerMin}px` }" />
+            <div v-for="h in hours" :key="'hl45-' + h"
+                 class="absolute w-full border-t border-dashed border-slate-100/70"
+                 :style="{ top: `${(h - gridStartHour) * 60 * pxPerMin + 45 * pxPerMin}px` }" />
           </template>
 
           <!-- Banda de almoço -->
@@ -900,8 +1582,40 @@ onUnmounted(() => {
             <span class="text-[9px] text-slate-300 px-1 select-none">almoço</span>
           </div>
 
+          <!-- Fora do horário de atendimento — banda cinza suave (área
+               "sem novos agendamentos", não invisível — ver
+               outOfHoursBandsFor). Sem regra obrigatória ativa, reflete só
+               o horário do profissional selecionado (comportamento de
+               sempre); com regra ativa, também funciona no modo "Todos" e
+               varia por dia. -->
+          <div v-for="(band, i) in outOfHoursBandsFor(col.day)" :key="'oh-' + i"
+               class="absolute left-0 right-0 pointer-events-none z-[1] bg-slate-200/70"
+               :class="band.pos === 'after' ? 'border-t-2 border-slate-300' : 'border-b-2 border-slate-300'"
+               :style="band.style">
+            <span class="block text-center text-[8px] font-semibold uppercase tracking-wide text-slate-400 pt-1">
+              Fora do horário
+            </span>
+          </div>
+
+          <!-- Feriado — dia inteiro sem atendimento, regra da clínica,
+               afeta qualquer agenda visível (inclusive "Todos"). -->
+          <div v-if="!col.isResource && holidayNameFor(col.day)"
+               class="absolute inset-0 pointer-events-none z-[1] bg-amber-50/50" />
+
+          <!-- Dia bloqueado por regra administrativa obrigatória (sábado/
+               domingo "não trabalha", ou horário fechado esse dia) — cinza,
+               não âmbar, pra não parecer feriado. Agendamentos existentes
+               continuam renderizados normalmente por cima (ver mais abaixo),
+               nunca escondidos. -->
+          <div v-if="!col.isResource && isClinicDayOff(col.day)"
+               class="absolute inset-0 pointer-events-none z-[1] bg-slate-100/70" />
+          <div v-if="!col.isResource && isClinicDayOff(col.day)"
+               class="absolute top-1.5 left-1.5 right-1.5 z-[1] pointer-events-none text-center text-[9px] font-medium text-slate-400">
+            Sem atendimento
+          </div>
+
           <!-- Linha do horário atual -->
-          <div v-if="settings.showNowLine && isToday(day) && nowTop >= 0 && nowTop <= gridHeight"
+          <div v-if="settings.showNowLine && isToday(col.day) && nowTop >= 0 && nowTop <= gridHeight"
                class="absolute left-0 right-0 z-10 pointer-events-none flex items-center"
                :style="{ top: `${nowTop}px` }">
             <div class="w-2.5 h-2.5 rounded-full bg-red-500 -ml-1.5 flex-shrink-0 shadow-md ring-2 ring-red-200" />
@@ -909,14 +1623,14 @@ onUnmounted(() => {
           </div>
 
           <!-- Cards de agendamento (premium) -->
-          <div v-for="appt in byDay[toDateStr(day)]" :key="appt.id"
+          <div v-for="appt in visibleApptsFor(col)" :key="appt.id"
                data-appt="1"
                class="absolute border-l-[3px] overflow-visible cursor-pointer select-none
                       shadow-sm hover:shadow-lg ring-1 ring-black/[0.04]
                       transition-all duration-150 hover:-translate-y-px"
                :class="[
-                 s(appt.status).bg,
-                 s(appt.status).border,
+                 s(appt).bg,
+                 s(appt).border,
                  settings.compactMode ? 'rounded-md' : 'rounded-lg',
                  isPastAppt(appt) ? 'opacity-60 saturate-50' : '',
                ]"
@@ -925,33 +1639,49 @@ onUnmounted(() => {
                @mouseleave="hideTooltip"
                @click.stop="openPopover(appt, $event)">
 
-            <!-- Indicador de status -->
-            <div class="absolute top-1 right-1 z-20">
-              <StatusIndicator
-                :status="resolveStatus(appt, nowRef)"
-                :delay-minutes="getDelayMinutes(appt, nowRef)"
-                size="sm" />
+            <!-- Etiquetas: até 2 bolinhas + "N+" se houver mais, canto
+                 superior direito — status já é a cor/borda do card, isto
+                 aqui é só a etiqueta de verdade (PatientTag), nunca pisca. -->
+            <div v-if="appt.tags?.length" class="absolute top-1 right-1 z-20 flex items-center gap-0.5"
+                 :title="appt.tags.map(t => t.name).join(', ')">
+              <span v-for="tag in appt.tags.slice(0, 2)" :key="tag.id"
+                    class="h-1.5 w-1.5 rounded-full shrink-0" :style="{ backgroundColor: tag.color }" />
+              <span v-if="appt.tags.length > 2" class="text-[7px] font-bold leading-none text-slate-500">{{ appt.tags.length - 2 }}+</span>
             </div>
 
             <div class="h-full flex flex-col justify-start gap-px"
-                 :class="settings.compactMode ? 'px-1 pt-0.5 pr-4' : 'px-1.5 pt-1 pr-4'">
-              <!-- Nome sempre visível -->
-              <div class="text-[10px] font-semibold leading-tight truncate"
-                   :class="s(appt.status).text">
-                {{ appt.patient?.nome }} {{ appt.patient?.sobrenome }}
+                 :class="settings.compactMode ? 'px-1 pt-0.5' : 'px-1.5 pt-1'">
+              <!-- Paciente: primeiro e mais proeminente do card — nome
+                   curto (até 3 palavras, ver shortPatientName); o nome
+                   completo continua acessível no hover/clique (tooltip e
+                   popover). -->
+              <div class="text-[11px] font-bold leading-tight truncate"
+                   :class="s(appt).text">
+                {{ shortPatientName(appt) }}
               </div>
-              <!-- Tratamento: visível se ≥ 28px -->
-              <div v-if="apptHeightPx(appt) >= 28"
-                   class="text-[9px] text-slate-500 truncate leading-tight">
-                {{ appt.treatment?.nome }}
-              </div>
-              <!-- Horário: visível se ≥ 44px -->
-              <div v-if="apptHeightPx(appt) >= 44"
-                   class="text-[9px] text-slate-400 leading-tight tabular-nums">
+              <!-- Horário: logo abaixo do nome, em negrito e um pouco maior. -->
+              <div class="text-[10px] font-bold text-slate-500 leading-none tabular-nums">
                 {{ formatTime(appt.start) }}–{{ formatTime(appt.end) }}
+              </div>
+              <!-- Fora do horário atual da clínica — só informativo (ver
+                   item 6/7 do pedido); nunca altera/move o agendamento. -->
+              <div v-if="apptScheduleNotice(appt)"
+                   class="flex items-center gap-0.5 text-[8px] font-semibold text-amber-600 leading-none truncate"
+                   :title="apptScheduleNotice(appt)">
+                <svg class="w-2 h-2 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l6.28 11.18c.75 1.334-.213 2.987-1.742 2.987H3.72c-1.53 0-2.493-1.653-1.743-2.987l6.28-11.18zM10 6a1 1 0 011 1v3a1 1 0 11-2 0V7a1 1 0 011-1zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
+                Fora do horário
               </div>
             </div>
           </div>
+
+          <!-- Agendamentos além do teto/piso absoluto da grade — nunca
+               fazem a grade crescer, continuam acessíveis por aqui. -->
+          <OffGridAppointmentsBadge
+              class="absolute bottom-0 left-0 right-0 z-20"
+              :appointments="offGridApptsFor(col)"
+              :format-time="formatTime"
+              :patient-name="a => shortPatientName(a)"
+              @select="(appt, e) => openPopover(appt, e)" />
         </div>
       </div>
     </div>
@@ -967,7 +1697,7 @@ onUnmounted(() => {
       <div class="bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
 
         <!-- Header colorido -->
-        <div class="px-3 py-2.5 border-b" :class="s(tooltipAppt.status).bg">
+        <div class="px-3 py-2.5 border-b" :class="s(tooltipAppt).bg">
           <div class="font-semibold text-sm text-slate-800 leading-tight truncate">
             {{ tooltipAppt.patient?.nome }} {{ tooltipAppt.patient?.sobrenome }}
           </div>
@@ -981,17 +1711,24 @@ onUnmounted(() => {
 
         <!-- Detalhes -->
         <div class="px-3 py-2 space-y-1.5">
-          <div v-if="tooltipAppt.treatment?.nome" class="flex gap-2">
-            <span class="text-[9px] uppercase tracking-wide text-slate-400 w-20 flex-shrink-0 pt-px">Procedimento</span>
-            <span class="text-[10px] text-slate-700 leading-snug">{{ tooltipAppt.treatment.nome }}</span>
-          </div>
           <div class="flex gap-2">
             <span class="text-[9px] uppercase tracking-wide text-slate-400 w-20 flex-shrink-0 pt-px">Profissional</span>
             <span class="text-[10px] text-slate-700">{{ tooltipAppt.professional?.name || '—' }}</span>
           </div>
+          <div class="flex gap-2 items-center">
+            <span class="text-[9px] uppercase tracking-wide text-slate-400 w-20 flex-shrink-0">Cadeira</span>
+            <span class="text-[10px] text-slate-700 flex items-center gap-1">
+              <span v-if="tooltipAppt.chair" class="h-1.5 w-1.5 rounded-full shrink-0" :style="{ backgroundColor: tooltipAppt.chair.color }" />
+              {{ tooltipAppt.chair?.name || 'Sem cadeira' }}
+            </span>
+          </div>
           <div v-if="tooltipAppt.patient?.telefone" class="flex gap-2">
             <span class="text-[9px] uppercase tracking-wide text-slate-400 w-20 flex-shrink-0 pt-px">Telefone</span>
             <span class="text-[10px] text-slate-700 tabular-nums">{{ tooltipAppt.patient.telefone }}</span>
+          </div>
+          <div v-if="tooltipAppt.notes" class="flex gap-2">
+            <span class="text-[9px] uppercase tracking-wide text-slate-400 w-20 flex-shrink-0 pt-px">Observações</span>
+            <span class="text-[10px] text-slate-600 leading-snug whitespace-pre-line line-clamp-3">{{ tooltipAppt.notes }}</span>
           </div>
           <div class="flex gap-2 items-center">
             <span class="text-[9px] uppercase tracking-wide text-slate-400 w-20 flex-shrink-0">Status</span>
@@ -1000,13 +1737,21 @@ onUnmounted(() => {
               :delay-minutes="getDelayMinutes(tooltipAppt, nowRef)"
               show-label />
           </div>
-          <div v-if="tooltipAppt.treatment?.preco_base" class="flex gap-2">
-            <span class="text-[9px] uppercase tracking-wide text-slate-400 w-20 flex-shrink-0 pt-px">Valor</span>
-            <span class="text-[10px] text-slate-700 tabular-nums">{{ formatCurrency(tooltipAppt.treatment.preco_base) }}</span>
+          <div v-if="tooltipAppt.tags?.length" class="flex gap-2">
+            <span class="text-[9px] uppercase tracking-wide text-slate-400 w-20 flex-shrink-0 pt-px">Etiquetas</span>
+            <span class="flex flex-wrap gap-1">
+              <span v-for="tag in tooltipAppt.tags" :key="tag.id"
+                    class="inline-flex items-center gap-1 text-[9px] text-slate-600">
+                <span class="h-1.5 w-1.5 rounded-full shrink-0" :style="{ backgroundColor: tag.color }" />{{ tag.name }}
+              </span>
+            </span>
           </div>
-          <div v-if="tooltipAppt.notes" class="flex gap-2">
-            <span class="text-[9px] uppercase tracking-wide text-slate-400 w-20 flex-shrink-0 pt-px">Obs.</span>
-            <span class="text-[10px] text-slate-500 leading-snug line-clamp-2">{{ tooltipAppt.notes }}</span>
+          <div v-if="tooltipAppt.appointment_return" class="flex gap-2">
+            <span class="text-[9px] uppercase tracking-wide text-slate-400 w-20 flex-shrink-0 pt-px">Retorno</span>
+            <span class="text-[10px] text-slate-700 leading-snug">
+              {{ new Date(tooltipAppt.appointment_return.due_date).toLocaleDateString('pt-BR') }}
+              <span v-if="tooltipAppt.appointment_return.reason"> — {{ tooltipAppt.appointment_return.reason }}</span>
+            </span>
           </div>
         </div>
       </div>
@@ -1018,21 +1763,42 @@ onUnmounted(() => {
 <Teleport to="body">
   <div v-if="activePopover"
        ref="popoverRef"
-       class="fixed z-50 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden no-print"
+       class="fixed z-50 bg-white rounded-xl shadow-2xl border border-slate-200 no-print"
        :style="popoverStyle">
 
-    <!-- Header -->
-    <div class="px-4 py-3 border-b" :class="s(activePopover.status).bg">
+    <!-- Header: paciente é o elemento mais importante; confirmação por
+         WhatsApp/e-mail logo abaixo do nome, pequenas e lado a lado (só
+         interface preparada — ver notifyContactComingSoon, nunca finge um
+         envio); status (segundo mais importante) logo abaixo delas —
+         dropdown com controle completo (mesmo endpoint dos botões de
+         atalho, ver changeStatus). Sem horário aqui — já aparece uma única
+         vez, no bloco Data/Horário abaixo — e sem tratamento/procedimento. -->
+    <div class="px-4 py-3 border-b rounded-t-xl relative" :class="s(activePopover).bg">
       <div class="flex items-start justify-between gap-2">
-        <div class="min-w-0">
-          <div class="font-semibold text-sm text-slate-800 leading-tight truncate">
+        <div class="min-w-0 flex-1">
+          <div class="font-bold text-[15px] text-slate-800 leading-tight truncate">
             {{ activePopover.patient?.nome }} {{ activePopover.patient?.sobrenome }}
           </div>
-          <div class="text-xs text-slate-500 mt-0.5 tabular-nums">
-            {{ formatTime(activePopover.start) }} – {{ formatTime(activePopover.end) }}
-            <span class="mx-1">·</span>
-            {{ activePopover.treatment?.nome }}
+          <div v-if="activePopover.patient?.telefone || activePopover.patient?.email"
+               class="mt-1 flex flex-nowrap items-center gap-1">
+            <button v-if="activePopover.patient?.telefone" type="button" @click.stop="notifyContactComingSoon('whatsapp')"
+                    class="inline-flex items-center gap-0.5 whitespace-nowrap shrink-0 text-[9px] font-medium px-1.5 py-0.5 rounded-md bg-white/70 text-emerald-700 hover:bg-white transition-colors">
+              <PhoneIcon class="w-2.5 h-2.5 shrink-0" />
+              Confirmar por WhatsApp
+            </button>
+            <button v-if="activePopover.patient?.email" type="button" @click.stop="notifyContactComingSoon('email')"
+                    class="inline-flex items-center gap-0.5 whitespace-nowrap shrink-0 text-[9px] font-medium px-1.5 py-0.5 rounded-md bg-white/70 text-slate-600 hover:bg-white transition-colors">
+              <EnvelopeIcon class="w-2.5 h-2.5 shrink-0" />
+              Confirmar por e-mail
+            </button>
           </div>
+          <button type="button" @click="toggleStatusMenu(activePopover)"
+                  class="mt-1 inline-flex items-center gap-1.5 pl-2 pr-1.5 py-1 rounded-full text-xs font-bold bg-white/70 hover:bg-white transition-colors"
+                  :class="STATUS_CONFIG[resolveStatus(activePopover, nowRef)]?.text">
+            <span class="h-2 w-2 rounded-full flex-shrink-0" :class="STATUS_CONFIG[resolveStatus(activePopover, nowRef)]?.dot" />
+            {{ STATUS_CONFIG[resolveStatus(activePopover, nowRef)]?.label }}
+            <ChevronDownIcon class="w-3.5 h-3.5 opacity-60" />
+          </button>
         </div>
         <button @click="closePopover"
                 class="p-0.5 rounded hover:bg-black/10 text-slate-400 flex-shrink-0 mt-0.5">
@@ -1041,28 +1807,74 @@ onUnmounted(() => {
           </svg>
         </button>
       </div>
+
+      <div v-if="statusMenuOpenFor === activePopover.id"
+           class="absolute left-4 right-4 top-full mt-1 rounded-lg border border-slate-200 bg-white shadow-lg overflow-hidden z-10 py-1">
+        <button v-for="opt in STATUS_DROPDOWN_OPTIONS" :key="opt.label" type="button"
+                @click="pickStatus(activePopover, opt.value)"
+                class="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 text-left transition-colors">
+          <span class="h-2 w-2 rounded-full flex-shrink-0" :class="STATUS_CONFIG[opt.key].dot" />
+          {{ opt.label }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Data e horário — linha própria, ícones discretos -->
+    <div class="px-4 py-2 border-b space-y-1">
+      <div class="flex items-center gap-2 text-xs text-slate-600">
+        <CalendarDaysIcon class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+        {{ formatFullDate(activePopover.start) }}
+      </div>
+      <div class="flex items-center gap-2 text-xs text-slate-600 tabular-nums">
+        <ClockIcon class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+        {{ formatTime(activePopover.start) }} – {{ formatTime(activePopover.end) }}
+      </div>
+      <!-- Só informativo (ver item 6/7 do pedido) — nunca bloqueia a
+           consulta nem altera o agendamento, apenas avisa que ele foi
+           criado antes de uma mudança de regra administrativa. -->
+      <div v-if="apptScheduleNotice(activePopover)" class="flex items-center gap-2 text-xs text-amber-600">
+        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l6.28 11.18c.75 1.334-.213 2.987-1.742 2.987H3.72c-1.53 0-2.493-1.653-1.743-2.987l6.28-11.18zM10 6a1 1 0 011 1v3a1 1 0 11-2 0V7a1 1 0 011-1zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>
+        {{ apptScheduleNotice(activePopover) }}
+      </div>
     </div>
 
     <!-- Info -->
     <div class="px-4 py-2.5 border-b space-y-1.5">
       <div class="flex items-center gap-2">
         <span class="text-[10px] uppercase tracking-wide text-slate-400 w-20 flex-shrink-0">Profissional</span>
-        <span class="text-xs text-slate-700">{{ activePopover.professional?.name || '—' }}</span>
+        <span class="text-xs text-slate-700 truncate">{{ activePopover.professional?.name || '—' }}</span>
       </div>
+      <!-- Cadeira: sem bolinha colorida — só o status usa indicador de cor
+           aqui, pra não confundir os dois no popover. -->
       <div class="flex items-center gap-2">
-        <span class="text-[10px] uppercase tracking-wide text-slate-400 w-20 flex-shrink-0">Status</span>
-        <StatusIndicator
-          :status="resolveStatus(activePopover, nowRef)"
-          :delay-minutes="getDelayMinutes(activePopover, nowRef)"
-          show-label />
+        <span class="text-[10px] uppercase tracking-wide text-slate-400 w-20 flex-shrink-0">Cadeira</span>
+        <span class="text-xs text-slate-700">{{ activePopover.chair?.name || 'Sem cadeira' }}</span>
       </div>
-      <div v-if="activePopover.patient?.telefone" class="flex items-center gap-2">
-        <span class="text-[10px] uppercase tracking-wide text-slate-400 w-20 flex-shrink-0">Telefone</span>
-        <span class="text-xs text-slate-700 tabular-nums">{{ activePopover.patient.telefone }}</span>
+      <!-- Observações: truncada a 2 linhas, sem scrollbar própria — texto
+           completo aparece num tooltip discreto ao passar o mouse (mesma
+           observação já limitada a 200 caracteres no campo). -->
+      <div v-if="activePopover.notes" class="flex items-start gap-2 relative group/notes">
+        <span class="text-[10px] uppercase tracking-wide text-slate-400 w-20 flex-shrink-0 pt-px">Observações</span>
+        <span class="text-xs text-slate-600 leading-snug line-clamp-2">{{ activePopover.notes }}</span>
+        <div class="pointer-events-none absolute left-0 top-full mt-1 w-64 max-w-[85vw] opacity-0 group-hover/notes:opacity-100 transition-opacity duration-150 bg-slate-800 text-white text-[11px] leading-snug rounded-lg px-3 py-2 whitespace-pre-line shadow-lg z-20">
+          {{ activePopover.notes }}
+        </div>
       </div>
-      <div v-if="activePopover.notes" class="flex items-start gap-2">
-        <span class="text-[10px] uppercase tracking-wide text-slate-400 w-20 flex-shrink-0 pt-px">Obs.</span>
-        <span class="text-xs text-slate-500 leading-snug">{{ activePopover.notes }}</span>
+      <div v-if="activePopover.tags?.length" class="flex items-center gap-2">
+        <span class="text-[10px] uppercase tracking-wide text-slate-400 w-20 flex-shrink-0">Etiquetas</span>
+        <span class="flex flex-wrap gap-1.5">
+          <span v-for="tag in activePopover.tags" :key="tag.id"
+                class="inline-flex items-center gap-1 text-[10px] text-slate-600">
+            <span class="h-1.5 w-1.5 rounded-full shrink-0" :style="{ backgroundColor: tag.color }" />{{ tag.name }}
+          </span>
+        </span>
+      </div>
+      <div v-if="activePopover.appointment_return" class="flex items-start gap-2">
+        <span class="text-[10px] uppercase tracking-wide text-slate-400 w-20 flex-shrink-0 pt-px">Retorno</span>
+        <span class="text-xs text-slate-700 leading-snug">
+          {{ new Date(activePopover.appointment_return.due_date).toLocaleDateString('pt-BR') }}
+          <span v-if="activePopover.appointment_return.reason"> — {{ activePopover.appointment_return.reason }}</span>
+        </span>
       </div>
     </div>
 
@@ -1083,14 +1895,24 @@ onUnmounted(() => {
             class="text-center text-xs font-medium px-3 py-2 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 transition-colors border border-violet-200">
         Prontuário
       </Link>
-      <Link :href="route('appointments.edit', activePopover.id)"
-            class="text-center text-xs font-medium px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors border border-slate-200">
+      <button type="button" @click="openEditApptModal(activePopover)"
+              class="text-center text-xs font-medium px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors border border-slate-200">
         Editar
-      </Link>
+      </button>
       <Link :href="route('patients.show', activePopover.patient_id)"
             class="text-center text-xs font-medium px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors border border-slate-200">
         Ver paciente
       </Link>
+      <button v-if="!['cancelled', 'no_show', 'completed'].includes(activePopover.status)"
+              @click="quickNoShow(activePopover)"
+              class="text-xs font-medium px-3 py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 transition-colors border border-red-200">
+        Faltou
+      </button>
+      <button v-if="!['cancelled', 'no_show', 'completed'].includes(activePopover.status)"
+              @click="quickCancel(activePopover)"
+              class="text-xs font-medium px-3 py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 transition-colors border border-red-200">
+        Cancelar
+      </button>
     </div>
   </div>
 </Teleport>
@@ -1116,14 +1938,41 @@ onUnmounted(() => {
         <span class="font-medium text-slate-800 w-40 flex-shrink-0">
           {{ appt.patient?.nome }} {{ appt.patient?.sobrenome }}
         </span>
-        <span class="text-slate-500 w-36 flex-shrink-0 truncate">{{ appt.treatment?.nome }}</span>
+        <span class="text-slate-500 w-36 flex-shrink-0 truncate">{{ appt.chair?.name }}</span>
         <span class="text-slate-400 flex-shrink-0">{{ appt.professional?.name }}</span>
-        <span class="text-slate-400 ml-auto flex-shrink-0">{{ s(appt.status).label }}</span>
+        <span class="text-slate-400 ml-auto flex-shrink-0">{{ STATUS_CONFIG[resolveStatus(appt, nowRef)]?.label }}</span>
       </div>
     </div>
     <p v-else class="text-slate-400 text-sm italic">Nenhum agendamento</p>
   </div>
 </div>
+
+<ChairFormModal :show="showChairModal" :chair="editingChair"
+                @close="showChairModal = false"
+                @saved="onChairSaved"
+                @deleted="onChairDeleted" />
+
+<HolidayNoticeModal :show="showHolidayModal" :holiday-name="holidayModalInfo.name" :date-label="holidayModalInfo.dateLabel"
+                     @close="showHolidayModal = false" />
+
+<ScheduleBlockedModal :show="showScheduleBlockedModal" :title="scheduleBlockedInfo.title" :message="scheduleBlockedInfo.message"
+                       @close="showScheduleBlockedModal = false" />
+
+<AppointmentFormModal :show="showApptModal"
+                       :professionals="professionals"
+                       :chairs="chairsList"
+                       :available-markers="availableMarkers"
+                       :marker-limit="markerLimit"
+                       :consider-national-holidays="considerNationalHolidays"
+                       :holidays="holidays"
+                       :business-hours="businessHours"
+                       :business-hours-enforced="businessHoursEnforced"
+                       :prefill="apptModalPrefill"
+                       :appointment="editingAppointment"
+                       :redirect-week="weekStart"
+                       :redirect-professional-id="profFilter !== 'all' ? profFilter : null"
+                       :redirect-chair-id="chairFilter !== 'all' ? chairFilter : null"
+                       @close="showApptModal = false" />
 </AppLayout>
 </template>
 
@@ -1137,7 +1986,7 @@ onUnmounted(() => {
 .agenda-sidebar-enter-from,
 .agenda-sidebar-leave-to  { max-width: 0 !important; opacity: 0; }
 .agenda-sidebar-enter-to,
-.agenda-sidebar-leave-from { max-width: 13rem; opacity: 1; }
+.agenda-sidebar-leave-from { max-width: 20rem; opacity: 1; }
 
 /* ── Mini calendário collapse ─────────────────────────────────────────── */
 .agenda-collapse-enter-active,
