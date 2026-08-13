@@ -7,6 +7,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SubscriptionHistory extends Model
 {
+    // A migration original criou a tabela no singular ("subscription_history"),
+    // divergindo da convenção plural do Eloquent para este model — sem isso,
+    // toda gravação aqui falha (tabela "subscription_histories" não existe).
+    protected $table = 'subscription_history';
+
     public $timestamps = false;
 
     protected $fillable = [
