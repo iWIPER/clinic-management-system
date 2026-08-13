@@ -24,7 +24,7 @@ function isActive(match) {
         <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <div class="flex items-center gap-2">
-                    <h1 class="text-2xl font-semibold text-slate-900">Backoffice ClinicFlow</h1>
+                    <h1 class="text-2xl font-semibold text-slate-900">Backoffice Wildental</h1>
                     <span class="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700">
                         Super Admin
                     </span>

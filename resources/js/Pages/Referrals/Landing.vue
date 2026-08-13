@@ -22,8 +22,8 @@ function formatMoney(value) {
 }
 
 const invitedByLabel = props.referrer.owner_name
-    ? `${props.referrer.owner_name} convidou você para conhecer o CliniFlow`
-    : 'Você recebeu um convite para conhecer o CliniFlow'
+    ? `${props.referrer.owner_name} convidou você para conhecer o Wildental`
+    : 'Você recebeu um convite para conhecer o Wildental'
 
 const faqs = ref([
     {
@@ -73,7 +73,7 @@ const faqs = ref([
     },
     {
         q: 'Quem pode participar?',
-        a: 'Qualquer clínica ou profissional com uma conta ativa no CliniFlow participa automaticamente do programa de indicação.',
+        a: 'Qualquer clínica ou profissional com uma conta ativa no Wildental participa automaticamente do programa de indicação.',
         open: false,
     },
 ])
@@ -95,8 +95,8 @@ const steps = [
 
 <template>
     <Head>
-        <title>{{ invitedByLabel }} — CliniFlow</title>
-        <meta name="description" :content="`Ganhe ${benefits.trial_days} dias grátis e desconto na primeira mensalidade ao criar sua conta no CliniFlow através deste convite.`" />
+        <title>{{ invitedByLabel }} — Wildental</title>
+        <meta name="description" :content="`Ganhe ${benefits.trial_days} dias grátis e desconto na primeira mensalidade ao criar sua conta no Wildental através deste convite.`" />
         <meta property="og:title" :content="invitedByLabel" />
         <meta property="og:description" :content="`Ganhe ${benefits.trial_days} dias grátis e desconto na primeira mensalidade.`" />
         <meta property="og:type" content="website" />
@@ -208,7 +208,7 @@ const steps = [
         <!-- ─── Social proof ─────────────────────────────────────────────── -->
         <section class="max-w-3xl mx-auto px-6 py-6 text-center">
             <p class="inline-block bg-slate-100 text-slate-600 text-sm font-medium px-4 py-2 rounded-full">
-                ⭐ Centenas de clínicas já utilizam o CliniFlow
+                ⭐ Centenas de clínicas já utilizam o Wildental
             </p>
         </section>
 
@@ -258,7 +258,7 @@ const steps = [
         <!-- ─── CTA final ─────────────────────────────────────────────────── -->
         <section class="max-w-3xl mx-auto px-6 py-16 text-center">
             <h2 class="text-2xl sm:text-3xl font-bold text-slate-900">Pronto para começar?</h2>
-            <p class="mt-3 text-slate-600">Crie sua conta gratuita e comece a usar o CliniFlow hoje mesmo.</p>
+            <p class="mt-3 text-slate-600">Crie sua conta gratuita e comece a usar o Wildental hoje mesmo.</p>
             <Link
                 :href="registerUrl"
                 class="mt-8 inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-indigo-600 text-white text-base font-semibold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition"

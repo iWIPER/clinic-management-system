@@ -260,7 +260,7 @@ class GoogleDriveHealthCheckService
         if (!$this->driveService->structureWasPreviouslyEstablished($patient, $doctor)) {
             $items[] = [
                 'key'     => 'root',
-                'label'   => 'CliniFlow',
+                'label'   => 'Wildental',
                 'status'  => 'not_setup',
                 'message' => 'Estrutura ainda não criada — será gerada no primeiro upload.',
             ];
@@ -275,13 +275,13 @@ class GoogleDriveHealthCheckService
             ];
         }
 
-        // Level 1 — ClinicFlow
+        // Level 1 — Wildental
         $rootId = $connection->drive_root_folder_id;
         if ($rootId && $this->driveService->folderExists($rootId, $drive)) {
-            $items[] = ['key' => 'root', 'label' => 'CliniFlow', 'status' => 'ok', 'message' => null];
+            $items[] = ['key' => 'root', 'label' => 'Wildental', 'status' => 'ok', 'message' => null];
         } else {
             $hasIssues = true;
-            $items[] = ['key' => 'root', 'label' => 'CliniFlow', 'status' => 'missing', 'message' => 'Pasta raiz não encontrada.'];
+            $items[] = ['key' => 'root', 'label' => 'Wildental', 'status' => 'missing', 'message' => 'Pasta raiz não encontrada.'];
         }
 
         // Level 2 — Professional
@@ -446,7 +446,7 @@ class GoogleDriveHealthCheckService
 
             $orphans = collect($driveFiles)
                 ->filter(fn ($f) => !isset($systemIds[$f['id']]))
-                ->filter(fn ($f) => !str_starts_with($f['name'], '.cliniflow-'))
+                ->filter(fn ($f) => !str_starts_with($f['name'], '.wildental-'))
                 ->values()
                 ->map(fn ($f) => [
                     'drive_file_id' => $f['id'],

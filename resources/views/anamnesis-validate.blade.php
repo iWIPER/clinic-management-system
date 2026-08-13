@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Validação de Documento — ClinicFlow</title>
+    <title>Validação de Documento — Wildental</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -148,7 +148,7 @@
             <p class="invalid-msg">O link de validação é inválido, expirou ou o documento foi removido do sistema.</p>
         @endif
 
-        <p class="footer">Verificado por <strong>ClinicFlow</strong> — Sistema de Gestão para Clínicas Odontológicas</p>
+        <p class="footer">Verificado por <strong>Wildental</strong> — Sistema de Gestão para Clínicas Odontológicas</p>
     </div>
 </body>
 </html>

@@ -151,7 +151,7 @@ module "ecs_cluster" {
 
 locals {
   app_environment_variables = {
-    APP_NAME                    = "WiLDental"
+    APP_NAME                    = "Wildental"
     APP_ENV                     = "production"
     APP_DEBUG                   = "false"
     APP_URL                     = "https://${var.www_domain}"

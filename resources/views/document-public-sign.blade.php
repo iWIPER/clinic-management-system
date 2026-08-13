@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Assinatura de Documento — ClinicFlow</title>
+    <title>Assinatura de Documento — Wildental</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -109,7 +109,7 @@
     </div>
 @endif
 
-<p class="footer-note">Assinatura processada por <strong>ClinicFlow</strong> — Sistema de Gestão para Clínicas Odontológicas</p>
+<p class="footer-note">Assinatura processada por <strong>Wildental</strong> — Sistema de Gestão para Clínicas Odontológicas</p>
 </div>
 
 @if($valid && !empty($pendingRoles))

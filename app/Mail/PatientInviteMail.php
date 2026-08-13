@@ -17,7 +17,7 @@ class PatientInviteMail extends Mailable
 
     public function envelope(): Envelope
     {
-        $clinicName = $this->invite->clinic?->trade_name ?? $this->invite->clinic?->name ?? 'ClinicFlow';
+        $clinicName = $this->invite->clinic?->trade_name ?? $this->invite->clinic?->name ?? 'Wildental';
 
         return new Envelope(
             subject: $this->invite->kind === 'atualizacao'
@@ -30,7 +30,7 @@ class PatientInviteMail extends Mailable
     {
         $clinic     = $this->invite->clinic;
         $patient    = $this->invite->patient;
-        $clinicName = $clinic?->trade_name ?? $clinic?->name ?? 'ClinicFlow';
+        $clinicName = $clinic?->trade_name ?? $clinic?->name ?? 'Wildental';
 
         $clinicLogo = null;
         if ($clinic) {

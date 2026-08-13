@@ -1,6 +1,6 @@
 import { reactive, watch } from 'vue'
 
-const KEY = 'clinicflow:odontogram:zoom'
+const KEY = 'wildental:odontogram:zoom'
 
 export const ODONTOGRAM_ZOOM_MIN  = 0.7
 export const ODONTOGRAM_ZOOM_MAX  = 1.5

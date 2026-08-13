@@ -18,7 +18,7 @@ class DocumentSignatureRequestMail extends Mailable
 
     public function envelope(): Envelope
     {
-        $clinicName = $this->document->clinic?->displayName() ?? 'ClinicFlow';
+        $clinicName = $this->document->clinic?->displayName() ?? 'Wildental';
 
         return new Envelope(
             subject: "Assinatura pendente — {$this->document->template_name} ({$clinicName})",
@@ -43,7 +43,7 @@ class DocumentSignatureRequestMail extends Mailable
             with: [
                 'document'    => $this->document,
                 'signUrl'     => $this->signUrl,
-                'clinicName'  => $clinic?->displayName() ?? 'ClinicFlow',
+                'clinicName'  => $clinic?->displayName() ?? 'Wildental',
                 'clinicLogo'  => $clinicLogo,
                 'patientName' => $this->document->patient?->nome_completo,
                 'expiresAt'   => $this->document->signature_token_expires_at?->format('d/m/Y \à\s H:i'),

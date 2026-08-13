@@ -2,7 +2,7 @@
     <div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
         <div class="max-w-md w-full space-y-8">
             <div class="text-center">
-                <h2 class="text-3xl font-bold text-gray-900">Gestão Clínicas</h2>
+                <h2 class="text-3xl font-bold text-gray-900">Wildental</h2>
                 <p class="mt-2 text-sm text-gray-600">Crie sua conta</p>
             </div>
 

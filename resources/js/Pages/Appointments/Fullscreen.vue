@@ -687,7 +687,7 @@ function apptScheduleNotice(appt) {
 <!-- Mesma superfície única de Index.vue (toolbar + sidebar + grade dentro
      de UMA borda/sombra/canto arredondado) — "tela cheia" aqui significa
      aproveitar melhor o espaço abaixo da navbar principal (que continua
-     visível, ver AppLayout), não esconder o menu do ClinicFlow. Mesmo
+     visível, ver AppLayout), não esconder o menu do Wildental. Mesmo
      -mt-3.5/34px de Index.vue pro respiro até a navbar. content-width="screen"
      é EXCLUSIVO desta tela — Index.vue (Agenda normal) usa o "full" padrão
      do sistema (max-w-7xl/1280px, igual Pacientes/Consultas), sem prop

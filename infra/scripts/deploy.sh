@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy do WiLDental para producao (ECS Fargate).
+# Deploy do Wildental para producao (ECS Fargate).
 #
 # O que faz, em ordem:
 #   1. build da imagem Docker e push pro ECR (tag = git sha curto + timestamp)

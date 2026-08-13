@@ -62,7 +62,7 @@
     </div>
 
     <div class="disclaimer">
-        Este comprovante não possui valor fiscal. Emitido pelo CliniFlow em {{ now()->format('d/m/Y H:i') }}.
+        Este comprovante não possui valor fiscal. Emitido pelo Wildental em {{ now()->format('d/m/Y H:i') }}.
     </div>
 </body>
 </html>

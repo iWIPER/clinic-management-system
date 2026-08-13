@@ -16,11 +16,11 @@ class AnamnesisTemplatesSeeder extends Seeder
 {
     public function run(): void
     {
-        $clinicFlowPath = database_path('seeders/data/anamnese_padronizada_clinicflow.txt');
+        $wildentalPath = database_path('seeders/data/anamnese_padronizada_wildental.txt');
         $legacyPath = database_path('seeders/data/anamnese.txt');
 
-        if (file_exists($clinicFlowPath)) {
-            $catalog = (new AnamnesisImportParser())->buildCatalog(file_get_contents($clinicFlowPath));
+        if (file_exists($wildentalPath)) {
+            $catalog = (new AnamnesisImportParser())->buildCatalog(file_get_contents($wildentalPath));
         } elseif (file_exists($legacyPath)) {
             $catalog = (new LegacyAnamneseTxtParser())->buildCatalog(file_get_contents($legacyPath));
         } else {

@@ -1,8 +1,8 @@
 <?php
 
 /**
- * Gera database/seeders/data/anamnese_clinicflow_export.md a partir de anamnese.txt
- * Uso: php database/seeders/ExportAnamnesisClinicFlow.php
+ * Gera database/seeders/data/anamnese_wildental_export.md a partir de anamnese.txt
+ * Uso: php database/seeders/ExportAnamnesisWildental.php
  */
 
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
@@ -53,15 +53,15 @@ foreach ($catalog['templates'] as $template) {
 }
 
 $header = <<<'MD'
-# Exportação ClinicFlow (gerada automaticamente)
+# Exportação Wildental (gerada automaticamente)
 
 Revise categorias, remova duplicatas entre modelos e reorganize antes de importar.
-Consulte `Padrao_Importacao_Anamnese_ClinicFlow.md` para o formato oficial.
+Consulte `Padrao_Importacao_Anamnese_Wildental.md` para o formato oficial.
 
 MD;
 
 $content = $header . "\n" . implode("\n\n------------------------------------------------------------------------\n\n", $blocks) . "\n";
-$out = database_path('seeders/data/anamnese_clinicflow_export.md');
+$out = database_path('seeders/data/anamnese_wildental_export.md');
 file_put_contents($out, $content);
 
 echo count($blocks) . " blocos exportados para {$out}\n";

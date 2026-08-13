@@ -1191,7 +1191,7 @@ function tlExport() {
                 <p class="text-xs text-slate-600 leading-relaxed">
                     Esta área exibe documentos que existiam anteriormente no prontuário, mas foram removidos diretamente da conta Google Drive da clínica.
                     Esses registros permanecem apenas para fins de auditoria e rastreabilidade.
-                    Os arquivos não poderão ser visualizados pelo ClinicFlow enquanto permanecerem excluídos do Google Drive.
+                    Os arquivos não poderão ser visualizados pelo Wildental enquanto permanecerem excluídos do Google Drive.
                 </p>
             </div>
 
@@ -1333,7 +1333,7 @@ function tlExport() {
                 <div v-show="showLegalNote"
                      class="rounded-b-lg border border-t-0 border-amber-200 bg-white px-4 py-4 text-xs text-slate-600 space-y-2 leading-relaxed">
                     <p>Os arquivos clínicos são armazenados diretamente no <strong>Google Drive conectado pela clínica</strong>.</p>
-                    <p>O CliniFlow não realiza armazenamento permanente desses arquivos e não possui controle sobre exclusões realizadas pelo proprietário da conta Google.</p>
+                    <p>O Wildental não realiza armazenamento permanente desses arquivos e não possui controle sobre exclusões realizadas pelo proprietário da conta Google.</p>
                     <p>A clínica é responsável pela guarda, preservação, backup e integridade dos documentos clínicos armazenados.</p>
                     <p>A exclusão de arquivos ou da conta Google Drive pode resultar na <strong>perda permanente dos registros</strong>.</p>
                     <p>Recomendamos políticas internas de backup e retenção documental conforme as exigências legais e regulatórias aplicáveis.</p>
@@ -1646,7 +1646,7 @@ function tlExport() {
                         <ul class="space-y-2">
                             <li class="flex items-start gap-2"><span class="text-emerald-600 mt-0.5 shrink-0">✓</span>Os arquivos serão armazenados no <strong>Google Drive da sua clínica</strong>.</li>
                             <li class="flex items-start gap-2"><span class="text-emerald-600 mt-0.5 shrink-0">✓</span>Você é responsável pela guarda e preservação desses arquivos.</li>
-                            <li class="flex items-start gap-2"><span class="text-emerald-600 mt-0.5 shrink-0">✓</span>O CliniFlow não controla exclusões realizadas pelo proprietário da conta Google.</li>
+                            <li class="flex items-start gap-2"><span class="text-emerald-600 mt-0.5 shrink-0">✓</span>O Wildental não controla exclusões realizadas pelo proprietário da conta Google.</li>
                             <li class="flex items-start gap-2"><span class="text-emerald-600 mt-0.5 shrink-0">✓</span>A exclusão pode resultar na <strong>perda permanente dos registros</strong>.</li>
                         </ul>
                     </div>
@@ -1709,11 +1709,11 @@ function tlExport() {
                         <ul class="space-y-1.5 text-slate-600">
                             <li class="flex items-start gap-2"><span class="text-slate-400 mt-0.5 shrink-0">•</span>Novos uploads serão bloqueados.</li>
                             <li class="flex items-start gap-2"><span class="text-slate-400 mt-0.5 shrink-0">•</span>As imagens continuarão existindo na sua conta Google.</li>
-                            <li class="flex items-start gap-2"><span class="text-slate-400 mt-0.5 shrink-0">•</span>O CliniFlow deixará de acessar os arquivos até uma nova conexão.</li>
+                            <li class="flex items-start gap-2"><span class="text-slate-400 mt-0.5 shrink-0">•</span>O Wildental deixará de acessar os arquivos até uma nova conexão.</li>
                         </ul>
                         <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 space-y-1.5">
                             <p class="font-semibold">Custódia dos documentos</p>
-                            <p>Os documentos e imagens pertencem à clínica e permanecem no Google Drive conectado. O CliniFlow não realiza cópia permanente desses arquivos e não se responsabiliza por exclusões realizadas pelo proprietário da conta Google.</p>
+                            <p>Os documentos e imagens pertencem à clínica e permanecem no Google Drive conectado. O Wildental não realiza cópia permanente desses arquivos e não se responsabiliza por exclusões realizadas pelo proprietário da conta Google.</p>
                         </div>
                     </div>
                     <div class="border-t px-6 py-4 bg-slate-50 flex justify-end gap-3">
@@ -1866,7 +1866,7 @@ function tlExport() {
                             </div>
                         </div>
                         <p class="text-sm text-slate-600 leading-relaxed">
-                            Este arquivo será removido permanentemente do Google Drive e do ClinicFlow.
+                            Este arquivo será removido permanentemente do Google Drive e do Wildental.
                             <strong class="text-slate-800">Esta ação não poderá ser desfeita.</strong>
                         </p>
                     </div>

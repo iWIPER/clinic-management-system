@@ -1,4 +1,4 @@
-# Infraestrutura de Produção — WiLDental
+# Infraestrutura de Produção — Wildental
 
 Infraestrutura AWS (Terraform + ECS Fargate) para colocar `https://www.wildental.com.br` no ar. Este documento é o guia operacional — para o raciocínio por trás de cada decisão, ver o histórico do projeto.
 

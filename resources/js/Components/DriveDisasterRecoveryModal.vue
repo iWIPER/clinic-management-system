@@ -15,7 +15,7 @@ const STRUCTURE_CATEGORIES = [
 ]
 
 const RECOVERY_STEP_LABELS = [
-    'Pasta ClinicFlow',
+    'Pasta Wildental',
     'Pasta da Clínica',
     'Pasta do Profissional',
     'Pasta Pacientes',
@@ -177,7 +177,7 @@ defineExpose({ finish, cancel })
                     <div class="bg-amber-500 px-6 py-5">
                         <h2 class="text-lg font-bold text-white">⚠ Estrutura de armazenamento removida</h2>
                         <p class="text-sm text-amber-100 mt-1">
-                            Foi detectado que a estrutura anteriormente utilizada pelo ClinicFlow para armazenar os arquivos desta clínica não está mais disponível no Google Drive.
+                            Foi detectado que a estrutura anteriormente utilizada pelo Wildental para armazenar os arquivos desta clínica não está mais disponível no Google Drive.
                         </p>
                     </div>
 
@@ -185,20 +185,20 @@ defineExpose({ finish, cancel })
                         <section>
                             <h3 class="font-semibold text-slate-900 mb-2">O que aconteceu?</h3>
                             <p class="leading-relaxed">
-                                Detectamos que a estrutura criada anteriormente pelo ClinicFlow foi removida da conta Google Drive vinculada à clínica.
+                                Detectamos que a estrutura criada anteriormente pelo Wildental foi removida da conta Google Drive vinculada à clínica.
                             </p>
                             <p class="leading-relaxed mt-2">
                                 Como consequência, os arquivos armazenados nessa estrutura poderão não estar mais disponíveis.
                             </p>
                             <p class="leading-relaxed mt-2">
-                                Caso tenham sido excluídos permanentemente da conta Google Drive, eles não poderão ser recuperados automaticamente pelo ClinicFlow.
+                                Caso tenham sido excluídos permanentemente da conta Google Drive, eles não poderão ser recuperados automaticamente pelo Wildental.
                             </p>
                         </section>
 
                         <section>
                             <h3 class="font-semibold text-slate-900 mb-2">O que acontecerá agora?</h3>
                             <p class="leading-relaxed">
-                                Ao continuar, o ClinicFlow irá recriar automaticamente toda a estrutura de armazenamento utilizando o mesmo padrão anterior.
+                                Ao continuar, o Wildental irá recriar automaticamente toda a estrutura de armazenamento utilizando o mesmo padrão anterior.
                             </p>
                             <p class="leading-relaxed mt-2">
                                 Após a recriação, o upload que originou esta operação será retomado automaticamente.
@@ -211,7 +211,7 @@ defineExpose({ finish, cancel })
                         <section>
                             <h3 class="font-semibold text-slate-900 mb-3">Estrutura que será criada</h3>
                             <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 font-mono text-xs text-slate-700 leading-relaxed">
-                                <p>ClinicFlow</p>
+                                <p>Wildental</p>
                                 <p class="pl-4">└── {{ clinicName || 'Clínica' }}</p>
                                 <p class="pl-8">└── Dr(a). {{ doctorName || '—' }}</p>
                                 <p class="pl-12">└── Pacientes</p>
@@ -222,7 +222,7 @@ defineExpose({ finish, cancel })
 
                         <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 space-y-2">
                             <p class="font-semibold text-sm">Importante</p>
-                            <p>O ClinicFlow não armazena cópias dos arquivos enviados.</p>
+                            <p>O Wildental não armazena cópias dos arquivos enviados.</p>
                             <p>Todo o armazenamento ocorre exclusivamente na conta Google Drive da clínica.</p>
                             <p>Ao excluir arquivos ou pastas diretamente no Google Drive:</p>
                             <ul class="list-none space-y-1 pl-1">
@@ -245,7 +245,7 @@ defineExpose({ finish, cancel })
                         <label class="flex items-start gap-3 cursor-pointer select-none text-sm text-slate-700 mb-4">
                             <input type="checkbox" v-model="disasterRecoveryChecked"
                                    class="mt-0.5 h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500" />
-                            <span>Li e compreendi que a estrutura anterior foi removida e autorizo o ClinicFlow a recriar automaticamente uma nova estrutura de armazenamento.</span>
+                            <span>Li e compreendi que a estrutura anterior foi removida e autorizo o Wildental a recriar automaticamente uma nova estrutura de armazenamento.</span>
                         </label>
                         <div class="flex justify-end gap-3">
                             <button @click="cancel"

@@ -121,10 +121,10 @@ async function copyLink() {
     }
 }
 
-const shareText = computed(() => `Ganhe dias grátis e desconto no CliniFlow usando meu link: ${props.referral.link}`)
+const shareText = computed(() => `Ganhe dias grátis e desconto no Wildental usando meu link: ${props.referral.link}`)
 const whatsappUrl  = computed(() => `https://wa.me/?text=${encodeURIComponent(shareText.value)}`)
-const telegramUrl  = computed(() => `https://t.me/share/url?url=${encodeURIComponent(props.referral.link)}&text=${encodeURIComponent('Ganhe dias grátis e desconto no CliniFlow')}`)
-const emailUrl     = computed(() => `mailto:?subject=${encodeURIComponent('Conheça o CliniFlow')}&body=${encodeURIComponent(shareText.value)}`)
+const telegramUrl  = computed(() => `https://t.me/share/url?url=${encodeURIComponent(props.referral.link)}&text=${encodeURIComponent('Ganhe dias grátis e desconto no Wildental')}`)
+const emailUrl     = computed(() => `mailto:?subject=${encodeURIComponent('Conheça o Wildental')}&body=${encodeURIComponent(shareText.value)}`)
 
 onMounted(async () => {
     try {
@@ -346,7 +346,7 @@ const chartOptions = {
                     </p>
                     <p>Caso ela assine um plano pago e permaneça ativa após o período de teste, você recebe</p>
                     <p class="text-2xl font-bold text-emerald-600">{{ formatMoney(settings.reward_amount) }}</p>
-                    <p class="text-slate-500">na sua carteira CliniFlow.</p>
+                    <p class="text-slate-500">na sua carteira Wildental.</p>
                     <p class="pt-2 border-t text-slate-500">Você pode indicar quantas clínicas desejar. Não existe limite.</p>
                 </div>
             </div>

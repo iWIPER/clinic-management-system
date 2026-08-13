@@ -174,6 +174,6 @@
     </div>
     @endif
 
-    <div class="footer">Emitido por CliniFlow — {{ now()->format('d/m/Y H:i') }}</div>
+    <div class="footer">Emitido por Wildental — {{ now()->format('d/m/Y H:i') }}</div>
 </body>
 </html>

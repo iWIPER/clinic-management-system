@@ -121,7 +121,7 @@ const removeLogo = () => {
                  :src="previewUrl"
                  alt="Logo"
                  class="max-w-full max-h-full object-contain"
-                 @error="previewUrl = '/images/brand/cliniflow-default.png'" />
+                 @error="previewUrl = '/images/brand/wildental-default.png'" />
             <ClinicLogo v-else img-class="max-w-full max-h-full object-contain p-1" />
           </div>
 
@@ -205,7 +205,7 @@ const removeLogo = () => {
           <div class="flex items-center justify-between border-b px-6 py-4">
             <div>
               <h2 class="text-base font-semibold text-slate-800">Escolher logo padrão</h2>
-              <p class="text-xs text-slate-500 mt-0.5">Selecione um dos logotipos do ClinicFlow</p>
+              <p class="text-xs text-slate-500 mt-0.5">Selecione um dos logotipos do Wildental</p>
             </div>
             <button @click="closeModal" type="button"
                     class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">

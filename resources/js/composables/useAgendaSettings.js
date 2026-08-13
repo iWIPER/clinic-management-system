@@ -1,6 +1,6 @@
 import { reactive, watch } from 'vue'
 
-const KEY = 'clinicflow:agenda:settings'
+const KEY = 'wildental:agenda:settings'
 
 const DEFAULTS = {
     // Visualização

@@ -561,7 +561,7 @@ const currentCode = computed(() => (createdInvite.value ?? actionInvite.value)?.
                                     </div>
 
                                     <p v-if="scenarioData?.system_user" class="text-xs text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2">
-                                        ℹ️ Este e-mail já tem uma conta no ClinicFlow ({{ scenarioData.system_user.name }}). Ao aceitar, ele será associado a esta clínica sem criar nova conta.
+                                        ℹ️ Este e-mail já tem uma conta no Wildental ({{ scenarioData.system_user.name }}). Ao aceitar, ele será associado a esta clínica sem criar nova conta.
                                     </p>
 
                                     <!-- Botões de ação -->
@@ -600,7 +600,7 @@ const currentCode = computed(() => (createdInvite.value ?? actionInvite.value)?.
                                     </div>
 
                                     <p v-if="scenarioData?.system_user" class="text-xs text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2">
-                                        ℹ️ Este e-mail já tem uma conta no ClinicFlow ({{ scenarioData.system_user.name }}). Um novo convite apenas associará esse usuário a esta clínica.
+                                        ℹ️ Este e-mail já tem uma conta no Wildental ({{ scenarioData.system_user.name }}). Um novo convite apenas associará esse usuário a esta clínica.
                                     </p>
 
                                     <div class="space-y-2 pt-1">
@@ -635,7 +635,7 @@ const currentCode = computed(() => (createdInvite.value ?? actionInvite.value)?.
 
                                     <!-- Info: usuário já existe no sistema -->
                                     <div v-if="scenarioData?.system_user" class="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 text-xs text-indigo-700 space-y-1">
-                                        <p class="font-semibold">ℹ️ Usuário já cadastrado no ClinicFlow</p>
+                                        <p class="font-semibold">ℹ️ Usuário já cadastrado no Wildental</p>
                                         <p>Este e-mail pertence a <strong>{{ scenarioData.system_user.name }}</strong>, que já possui conta no sistema. Ao aceitar o convite, ele será associado a esta clínica sem criar uma nova conta. Senha e dados pessoais serão mantidos.</p>
                                     </div>
 

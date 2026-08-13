@@ -398,7 +398,7 @@ body {
         @endif
       </td>
       <td style="text-align:center; font-size:6px; color:#a0aec0; vertical-align:middle;">
-        <span class="foot-brand">ClinicFlow</span>
+        <span class="foot-brand">Wildental</span>
       </td>
       <td style="text-align:right; font-size:6.5px; color:#a0aec0; vertical-align:middle;">
         P&aacute;gina 1 de 1

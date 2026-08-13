@@ -5,7 +5,7 @@ import { Link } from '@inertiajs/vue3';
 <template>
     <div class="min-h-screen flex flex-col items-center justify-center bg-slate-100 p-6 text-center">
         <div class="max-w-md">
-            <h1 class="text-5xl font-bold tracking-tight text-slate-900">Gestão Clínicas</h1>
+            <h1 class="text-5xl font-bold tracking-tight text-slate-900">Wildental</h1>
             <p class="mt-4 text-xl text-slate-600">
                 Do agendamento ao recebimento, a clínica inteira numa plataforma só.
             </p>

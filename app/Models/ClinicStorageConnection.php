@@ -17,7 +17,7 @@ class ClinicStorageConnection extends Model
         'access_token',         // criptografado (JSON do token completo)
         'expires_at',
         'status',               // connected, revoked, error
-        'drive_root_folder_id', // ID da pasta CliniFlow no Drive
+        'drive_root_folder_id', // ID da pasta Wildental no Drive
     ];
 
     protected $hidden = [

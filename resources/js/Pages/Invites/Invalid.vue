@@ -20,7 +20,7 @@ defineProps({
                 href="/"
                 class="inline-block bg-blue-600 text-white text-sm font-semibold px-6 py-2.5 rounded-lg hover:bg-blue-700 transition-colors"
             >
-                Ir para o ClinicFlow
+                Ir para o Wildental
             </a>
         </div>
     </div>

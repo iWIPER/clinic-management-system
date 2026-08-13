@@ -17,10 +17,10 @@ class TeamInviteMail extends Mailable
 
     public function envelope(): Envelope
     {
-        $clinicName = $this->invite->clinic?->trade_name ?? $this->invite->clinic?->name ?? 'ClinicFlow';
+        $clinicName = $this->invite->clinic?->trade_name ?? $this->invite->clinic?->name ?? 'Wildental';
 
         return new Envelope(
-            subject: "Você foi convidado para {$clinicName} no ClinicFlow",
+            subject: "Você foi convidado para {$clinicName} no Wildental",
         );
     }
 
@@ -28,7 +28,7 @@ class TeamInviteMail extends Mailable
     {
         $clinic     = $this->invite->clinic;
         $acceptUrl  = config('app.url') . '/convites/' . $this->invite->short_token;
-        $clinicName = $clinic?->trade_name ?? $clinic?->name ?? 'ClinicFlow';
+        $clinicName = $clinic?->trade_name ?? $clinic?->name ?? 'Wildental';
         $daysLeft   = max(0, (int) now()->diffInDays($this->invite->expires_at, false));
 
         $clinicLogo = null;

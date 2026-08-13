@@ -1,6 +1,6 @@
 # Staging (ainda não provisionado)
 
-Não existe ambiente de staging hoje — o WiLDental ainda é um piloto sem clientes reais, e o usuário optou por concentrar o esforço em produção primeiro (ver `infra/README.md` e o plano de infraestrutura original).
+Não existe ambiente de staging hoje — o Wildental ainda é um piloto sem clientes reais, e o usuário optou por concentrar o esforço em produção primeiro (ver `infra/README.md` e o plano de infraestrutura original).
 
 Quando fizer sentido criar staging, os módulos em `infra/terraform/modules/` já são reutilizáveis — basta:
 

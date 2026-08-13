@@ -83,6 +83,6 @@
     </div>
     @endif
 
-    <div class="footer">Emitido pelo CliniFlow</div>
+    <div class="footer">Emitido pelo Wildental</div>
 </body>
 </html>

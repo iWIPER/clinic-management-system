@@ -86,7 +86,7 @@
         <p class="greeting">
             Olá, <strong>{{ $invite->name ?? $invite->email }}</strong>!<br/><br/>
             <strong>{{ $invitedBy }}</strong> convidou você para fazer parte da equipe de
-            <strong>{{ $clinicName }}</strong> no ClinicFlow.
+            <strong>{{ $clinicName }}</strong> no Wildental.
         </p>
 
         <!-- Detalhes do convite -->
@@ -151,7 +151,7 @@
         </div>
         <div class="step-row">
             <div class="step-num"><div class="step-num-badge">2</div></div>
-            <div class="step-text">Se já possui conta no ClinicFlow, confirme com sua senha. Se é novo usuário, defina uma senha para criar sua conta.</div>
+            <div class="step-text">Se já possui conta no Wildental, confirme com sua senha. Se é novo usuário, defina uma senha para criar sua conta.</div>
         </div>
         <div class="step-row">
             <div class="step-num"><div class="step-num-badge">3</div></div>

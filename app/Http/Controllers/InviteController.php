@@ -275,13 +275,13 @@ class InviteController extends Controller
 
         if ($invite->isAffiliateInvite()) {
             return redirect()->route('affiliate.dashboard')
-                ->with('success', 'Bem-vindo(a) ao programa de afiliados CliniFlow!');
+                ->with('success', 'Bem-vindo(a) ao programa de afiliados Wildental!');
         }
 
         $clinicName = $invite->clinic?->trade_name ?? $invite->clinic?->name ?? 'a clínica';
 
         return redirect()->route('dashboard')
-            ->with('success', "Bem-vindo(a) ao ClinicFlow! Você agora faz parte da equipe de {$clinicName}.");
+            ->with('success', "Bem-vindo(a) ao Wildental! Você agora faz parte da equipe de {$clinicName}.");
     }
 
     // ── Autorização ────────────────────────────────────────────────────────

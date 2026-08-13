@@ -10,21 +10,21 @@ const props = defineProps({
 const page = usePage()
 
 const activeClinic = computed(() => props.clinic ?? page.props.currentClinic)
-const src          = computed(() => activeClinic.value?.logo_url ?? '/images/brand/cliniflow-default.png')
+const src          = computed(() => activeClinic.value?.logo_url ?? '/images/brand/wildental-default.png')
 const errored      = ref(false)
 
 // Reseta o erro quando o logo muda (ex: após upload bem-sucedido)
 watch(src, () => { errored.value = false })
 
 const effectiveSrc = computed(() =>
-    errored.value ? '/images/brand/cliniflow-default.png' : src.value
+    errored.value ? '/images/brand/wildental-default.png' : src.value
 )
 </script>
 
 <template>
     <img
         :src="effectiveSrc"
-        :alt="activeClinic?.name || 'ClinicFlow'"
+        :alt="activeClinic?.name || 'Wildental'"
         :class="imgClass"
         @error="errored = true"
     />

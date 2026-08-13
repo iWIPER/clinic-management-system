@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Lista de procedimentos e valores da WilDental (fonte: "Procedimentos
+ * Lista de procedimentos e valores da Wildental (fonte: "Procedimentos
  * WiLDental.txt" fornecido pelo usuário). Cada item vira uma linha ativa em
  * `treatments` (catálogo), substituindo o catálogo antigo hardcoded.
  *

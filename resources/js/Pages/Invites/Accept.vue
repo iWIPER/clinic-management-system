@@ -54,7 +54,7 @@ const mode = computed(() => {
 
         <div class="relative w-full max-w-md">
 
-            <!-- Branding ClinicFlow -->
+            <!-- Branding Wildental -->
             <div class="text-center mb-8">
                 <div class="inline-flex items-center gap-2">
                     <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -62,7 +62,7 @@ const mode = computed(() => {
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
                         </svg>
                     </div>
-                    <span class="text-2xl font-bold text-white">Clinic<span class="text-blue-400">Flow</span></span>
+                    <span class="text-2xl font-bold text-white">Wild<span class="text-blue-400">ental</span></span>
                 </div>
             </div>
 
@@ -78,7 +78,7 @@ const mode = computed(() => {
                     <div class="text-3xl mb-2">🎉</div>
                     <h1 class="text-xl font-bold text-white">Você foi convidado!</h1>
                     <p v-if="invite.type === 'affiliate'" class="text-blue-200 text-sm mt-1">
-                        para se tornar um <strong class="text-white">Afiliado CliniFlow</strong>
+                        para se tornar um <strong class="text-white">Afiliado Wildental</strong>
                     </p>
                     <p v-else class="text-blue-200 text-sm mt-1">para fazer parte de <strong class="text-white">{{ clinic.name }}</strong></p>
                 </div>
@@ -184,7 +184,7 @@ const mode = computed(() => {
 
                         <!-- Campo de senha -->
                         <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1.5">Sua senha do ClinicFlow</label>
+                            <label class="block text-sm font-medium text-slate-700 mb-1.5">Sua senha do Wildental</label>
                             <div class="relative">
                                 <input
                                     v-model="form.password"
@@ -222,7 +222,7 @@ const mode = computed(() => {
                          ═══════════════════════════════════════════════ -->
                     <template v-else>
                         <div class="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm text-slate-600">
-                            Você está sendo convidado como <strong class="text-slate-800">{{ invite.email }}</strong>. Defina uma senha para criar sua conta no ClinicFlow.
+                            Você está sendo convidado como <strong class="text-slate-800">{{ invite.email }}</strong>. Defina uma senha para criar sua conta no Wildental.
                         </div>
 
                         <!-- Senha -->
@@ -282,7 +282,7 @@ const mode = computed(() => {
             </div>
 
             <p class="text-center text-xs text-slate-500 mt-6">
-                &copy; {{ new Date().getFullYear() }} ClinicFlow &middot; Sua privacidade é nossa prioridade
+                &copy; {{ new Date().getFullYear() }} Wildental &middot; Sua privacidade é nossa prioridade
             </p>
         </div>
     </div>

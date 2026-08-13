@@ -9,7 +9,7 @@ apex_domain = "wildental.com.br"
 www_domain  = "www.wildental.com.br"
 
 mail_from_address = "naoresponda@wildental.com.br"
-mail_from_name    = "WiLDental"
+mail_from_name    = "Wildental"
 
 # Atualizado pelo infra/scripts/deploy.sh a cada deploy - nao editar manualmente
 # no dia a dia.

@@ -140,7 +140,7 @@ body {
         @endif
       </td>
       <td style="text-align:center; font-size:6px; color:#a0aec0; vertical-align:middle;">
-        <span class="foot-brand">ClinicFlow</span>
+        <span class="foot-brand">Wildental</span>
       </td>
     </tr>
   </table>

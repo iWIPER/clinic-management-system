@@ -23,7 +23,7 @@ const displayName = computed(() => props.clinic?.name || '')
         </div>
 
         <div class="flex min-w-0 flex-col leading-none">
-            <span class="text-[15px] font-semibold tracking-tight text-slate-800">ClinicFlow</span>
+            <span class="text-[15px] font-semibold tracking-tight text-slate-800">Wildental</span>
             <span
                 v-if="displayName"
                 class="mt-0.5 truncate text-[10px] font-medium tracking-wide text-slate-400"

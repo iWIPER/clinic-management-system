@@ -30,7 +30,7 @@ variable "mail_from_address" {
 
 variable "mail_from_name" {
   type    = string
-  default = "WiLDental"
+  default = "Wildental"
 }
 
 variable "image_tag" {

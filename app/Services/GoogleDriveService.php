@@ -375,7 +375,7 @@ class GoogleDriveService
     {
         $results = [];
         $testFileId = null;
-        $testName   = '.cliniflow-healthcheck-' . now()->timestamp;
+        $testName   = '.wildental-healthcheck-' . now()->timestamp;
 
         $check = function (string $key, string $label, callable $fn) use (&$results): void {
             try {
@@ -398,7 +398,7 @@ class GoogleDriveService
                     'parents'  => [$parentFolderId],
                     'mimeType' => 'text/plain',
                 ]),
-                ['data' => 'cliniflow', 'uploadType' => 'multipart', 'fields' => 'id']
+                ['data' => 'wildental', 'uploadType' => 'multipart', 'fields' => 'id']
             ));
             $testFileId = $created->getId();
         } catch (\Throwable) {
@@ -606,7 +606,7 @@ class GoogleDriveService
         $recreated   = [];
         $rebuildFrom = null;
 
-        // Level 1 — ClinicFlow root
+        // Level 1 — Wildental root
         $rootId = $connection->drive_root_folder_id;
         if (!$rootId || !$this->checkFolderExists($rootId, $drive)) {
             $rebuildFrom = 'root';
@@ -632,7 +632,7 @@ class GoogleDriveService
         if ($rebuildFrom !== null) {
             // Root — recreate if it was the missing level
             if ($rebuildFrom === 'root') {
-                $rootId = $this->findOrCreateFolder('CliniFlow', null, $drive);
+                $rootId = $this->findOrCreateFolder('Wildental', null, $drive);
                 $connection->update(['drive_root_folder_id' => $rootId]);
                 $recreated[] = 'root';
             } else {
@@ -687,7 +687,7 @@ class GoogleDriveService
         $connection  = $clinic->storageConnection;
         $patientName = trim("{$patient->nome} {$patient->sobrenome}");
 
-        $rootId = $this->findOrCreateFolder('CliniFlow', null, $drive);
+        $rootId = $this->findOrCreateFolder('Wildental', null, $drive);
         $connection->update(['drive_root_folder_id' => $rootId]);
 
         $doctorFolder = $this->findOrCreateFolder($doctor->name, $rootId, $drive);

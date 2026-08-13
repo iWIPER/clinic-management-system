@@ -20,7 +20,7 @@ const toastColors = {
     <nav class="border-b bg-white">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16 items-center">
-                <span class="text-lg font-semibold text-slate-900">CliniFlow <span class="text-emerald-600 font-medium">Afiliados</span></span>
+                <span class="text-lg font-semibold text-slate-900">Wildental <span class="text-emerald-600 font-medium">Afiliados</span></span>
 
                 <div class="flex items-center gap-4 text-sm">
                     <span class="text-slate-600">{{ $page.props.auth.user.name }}</span>

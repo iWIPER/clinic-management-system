@@ -7,8 +7,13 @@ use Illuminate\Support\Facades\Storage;
 
 class ClinicLogoService
 {
+    // 'toothflow.png' removido do catálogo selecionável: o ícone traz o texto
+    // "ClinicFlow" desenhado dentro do dente (marca d'água na própria imagem,
+    // não substituível por texto). O arquivo continua em public/images/brand/
+    // para não quebrar clínicas que já haviam escolhido esse logo — elas
+    // passam a cair no FALLBACK_FILE (ver resolveDefaultFile). Repor este
+    // preset exige gerar uma nova arte sem o texto antigo.
     public const DEFAULT_LOGOS = [
-        ['filename' => 'toothflow.png',      'label' => 'Flow'],
         ['filename' => 'toothgeometric.png', 'label' => 'Geometric'],
         ['filename' => 'toothleaf.png',      'label' => 'Leaf'],
         ['filename' => 'toothminimal.png',   'label' => 'Minimal'],
@@ -16,7 +21,7 @@ class ClinicLogoService
         ['filename' => 'toothshield.png',    'label' => 'Shield'],
     ];
 
-    private const FALLBACK_FILE = 'cliniflow-default.png';
+    private const FALLBACK_FILE = 'wildental-default.png';
 
     /**
      * Lista de logos padrão com URL pública — para o modal de seleção.

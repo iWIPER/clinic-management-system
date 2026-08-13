@@ -45,7 +45,7 @@ const checklist = computed(() => ([
 
         <Link :href="route('dashboard')"
               class="mt-8 inline-flex w-full items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3.5 rounded-lg font-medium transition-colors">
-            Começar a usar o ClinicFlow
+            Começar a usar o Wildental
         </Link>
 
         <Link :href="route('onboarding.invite-team')" class="mt-4 inline-block text-sm text-slate-500 hover:text-slate-700 transition-colors">
