@@ -80,6 +80,7 @@ return new class extends Migration
     {
         $concat = match (DB::connection()->getDriverName()) {
             'sqlite' => "(patient_id || ':' || kind)",
+            'pgsql'  => '(patient_id::text || \':\' || kind)',
             default  => 'CONCAT(patient_id, \':\', kind)',
         };
 
