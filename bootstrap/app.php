@@ -17,6 +17,14 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Atrás do ALB, todo tráfego chega via proxy reverso interno na VPC
+        // (rede já isolada por security group), então confiar em todos os
+        // proxies aqui é seguro e necessário para HTTPS/cookies funcionarem.
+        $middleware->trustProxies(
+            at: '*',
+            headers: \Illuminate\Http\Request::HEADER_X_FORWARDED_AWS_ELB,
+        );
+
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
         ]);

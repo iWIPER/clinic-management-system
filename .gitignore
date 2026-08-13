@@ -28,3 +28,18 @@ _ide_helper_models.php
 !/storage/app/public/.gitignore
 /storage/app/private/*
 !/storage/app/private/.gitignore
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars.json
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
