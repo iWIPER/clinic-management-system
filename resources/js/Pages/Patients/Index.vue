@@ -6,6 +6,7 @@ import { Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { digitsOnly } from '@/composables/useInputMasks.js';
 import SendInviteModal from '@/Components/Patient/SendInviteModal.vue';
+import PageHeader from '@/Components/Navigation/PageHeader.vue';
 import { ArrowDownTrayIcon, ChevronDownIcon, TableCellsIcon, DocumentTextIcon } from '@heroicons/vue/24/outline';
 
 // Lista de formatos do menu "Exportar" — adicionar PDF/XML/Impressão no
@@ -77,22 +78,29 @@ const deletePatient = (patient) => {
         router.delete(route('patients.destroy', patient.id));
     }
 };
+
+const statusBadgeClass = (status) => ({
+    'bg-green-100 text-green-700': status === 'ativo',
+    'bg-slate-100 text-slate-600': status === 'inativo',
+    'bg-red-100 text-red-700': status === 'falecido',
+});
+
+const formatDate = (iso) => iso ? new Date(iso).toLocaleDateString('pt-BR') : '—';
 </script>
 
 <template>
     <AppLayout>
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-semibold">Pacientes</h1>
-            <div class="flex items-center gap-2">
+        <template #pageHeader>
+            <PageHeader title="Pacientes" description="Gerencie os pacientes da clínica.">
                 <button type="button" @click="showInviteModal = true"
-                        class="border border-emerald-600 text-emerald-700 hover:bg-emerald-50 px-5 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2">
+                        class="border border-emerald-600 text-emerald-700 hover:bg-emerald-50 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
                     Enviar cadastro ao paciente
                 </button>
-                <Link :href="route('patients.create')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2">
+                <Link :href="route('patients.create')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
                     + Novo Paciente
                 </Link>
-            </div>
-        </div>
+            </PageHeader>
+        </template>
 
         <SendInviteModal :show="showInviteModal" :anamnesis-templates="anamnesisTemplates" @close="showInviteModal = false" />
 
@@ -123,7 +131,8 @@ const deletePatient = (patient) => {
             </select>
         </div>
 
-        <div class="bg-white rounded-2xl border overflow-hidden shadow-sm">
+        <!-- Desktop/tablet: tabela completa (mesmo breakpoint em que a Sidebar deixa de ser drawer) -->
+        <div class="hidden lg:block bg-white rounded-2xl border overflow-hidden shadow-sm">
             <table class="min-w-full text-sm">
                 <thead>
                     <tr class="bg-slate-50 border-b">
@@ -157,13 +166,9 @@ const deletePatient = (patient) => {
                         <td class="p-4 text-slate-600">{{ patient.cpf ? digitsOnly(patient.cpf) : '—' }}</td>
                         <td class="p-4 text-slate-600">{{ patient.telefone || '—' }}</td>
                         <td class="p-4 text-slate-600">{{ patient.idade != null ? `${patient.idade} anos` : '—' }}</td>
-                        <td class="p-4 text-slate-600">{{ patient.created_at ? new Date(patient.created_at).toLocaleDateString('pt-BR') : '—' }}</td>
+                        <td class="p-4 text-slate-600">{{ formatDate(patient.created_at) }}</td>
                         <td class="p-4">
-                            <span class="px-2.5 py-0.5 text-xs rounded-full" :class="{
-                                'bg-green-100 text-green-700': patient.status === 'ativo',
-                                'bg-slate-100 text-slate-600': patient.status === 'inativo',
-                                'bg-red-100 text-red-700': patient.status === 'falecido',
-                            }">
+                            <span class="px-2.5 py-0.5 text-xs rounded-full" :class="statusBadgeClass(patient.status)">
                                 {{ patient.status || 'ativo' }}
                             </span>
                         </td>
@@ -180,6 +185,52 @@ const deletePatient = (patient) => {
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Mobile/tablet estreito: cards -->
+        <div class="lg:hidden space-y-3">
+            <div v-for="patient in patients.data" :key="patient.id"
+                 class="bg-white rounded-2xl border shadow-sm p-4">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <Link :href="route('patients.show', patient.id)" class="font-semibold text-emerald-700 hover:underline block truncate">
+                            {{ patient.nome }} {{ patient.sobrenome }}
+                        </Link>
+                        <p v-if="patient.responsible_professional" class="text-xs text-slate-400 mt-0.5 truncate">
+                            {{ patient.responsible_professional.name }}
+                        </p>
+                    </div>
+                    <span class="shrink-0 px-2.5 py-0.5 text-xs rounded-full" :class="statusBadgeClass(patient.status)">
+                        {{ patient.status || 'ativo' }}
+                    </span>
+                </div>
+                <dl class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                    <div>
+                        <dt class="text-slate-400">Telefone</dt>
+                        <dd class="text-slate-700 mt-0.5">{{ patient.telefone || '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-slate-400">Idade</dt>
+                        <dd class="text-slate-700 mt-0.5">{{ patient.idade != null ? `${patient.idade} anos` : '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-slate-400">CPF</dt>
+                        <dd class="text-slate-700 mt-0.5">{{ patient.cpf ? digitsOnly(patient.cpf) : '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-slate-400">Paciente desde</dt>
+                        <dd class="text-slate-700 mt-0.5">{{ formatDate(patient.created_at) }}</dd>
+                    </div>
+                </dl>
+                <div class="mt-3 flex items-center gap-4 border-t border-slate-100 pt-3">
+                    <Link :href="route('patients.edit', patient.id)" :cache-for="0" class="text-sm font-medium text-slate-600 hover:text-slate-900">Editar</Link>
+                    <button @click="deletePatient(patient)" class="text-sm font-medium text-red-600 hover:text-red-700">Excluir</button>
+                </div>
+            </div>
+
+            <div v-if="patients.data.length === 0" class="bg-white rounded-2xl border p-12 text-center text-slate-400">
+                Nenhum paciente encontrado.
+            </div>
         </div>
 
         <div v-if="patients.data.length > 0"

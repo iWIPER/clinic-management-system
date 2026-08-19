@@ -53,11 +53,11 @@ onUnmounted(() => {
   </div>
 
   <!-- Filtros -->
-  <div class="flex gap-3 mb-4">
+  <div class="flex flex-wrap gap-3 mb-4">
     <input v-model="filters.search"
            @keyup.enter="applyFilters"
            placeholder="Buscar paciente..."
-           class="border rounded-lg px-4 py-2 text-sm flex-1" />
+           class="border rounded-lg px-4 py-2 text-sm flex-1 min-w-[180px]" />
     <select v-model="filters.status" @change="applyFilters" class="border rounded-lg px-4 py-2 text-sm">
       <option value="">Todas</option>
       <option value="aguardando">Aguardando</option>
@@ -67,7 +67,8 @@ onUnmounted(() => {
     <button @click="applyFilters" class="bg-slate-800 text-white px-4 rounded-lg text-sm">Filtrar</button>
   </div>
 
-  <div class="bg-white rounded-2xl border overflow-hidden">
+  <!-- Desktop/tablet: tabela completa -->
+  <div class="hidden lg:block bg-white rounded-2xl border overflow-hidden">
     <table class="min-w-full text-sm">
       <thead class="bg-slate-50">
         <tr>
@@ -121,6 +122,36 @@ onUnmounted(() => {
         </tr>
       </tbody>
     </table>
+  </div>
+
+  <!-- Mobile/tablet estreito: cards, com ação sempre visível -->
+  <div class="lg:hidden space-y-3">
+    <div v-for="cons in consultations.data" :key="cons.id"
+         class="bg-white rounded-2xl border shadow-sm p-4">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <Link :href="route('patients.show', cons.patient.id)" class="font-semibold text-slate-900 hover:underline block truncate">
+            {{ cons.patient.nome }} {{ cons.patient.sobrenome }}
+          </Link>
+          <p class="text-xs text-slate-500 mt-0.5">{{ cons.professional?.name || '—' }}</p>
+        </div>
+        <StatusIndicator :status="resolveConsultationStatus(cons)" show-label />
+      </div>
+      <div class="mt-2 text-xs text-slate-400">
+        Check-in: {{ cons.check_in_at
+            ? new Date(cons.check_in_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+            : '—' }}
+      </div>
+      <Link :href="route('consultations.show', cons.id)"
+            class="mt-3 flex items-center justify-center rounded-lg border py-2 text-sm"
+            :class="actionClass(cons.status)">
+        {{ actionLabel(cons.status) }}
+      </Link>
+    </div>
+
+    <div v-if="!consultations.data.length" class="bg-white rounded-2xl border p-8 text-center text-slate-400">
+      Nenhuma consulta encontrada.
+    </div>
   </div>
 </AppLayout>
 </template>

@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import InputError from '@/Components/InputError.vue'
+import PageHeader from '@/Components/Navigation/PageHeader.vue'
 import SettingsTabs from '@/Components/ClinicSettings/SettingsTabs.vue'
 
 const props = defineProps({
@@ -40,6 +41,10 @@ const toggle = (c) => {
 
 <template>
     <AppLayout>
+        <template #pageHeader>
+            <PageHeader title="Configurações da Clínica" description="Gerencie os dados, recursos e áreas da sua clínica." />
+        </template>
+
         <SettingsTabs active="convenios" />
 
         <div class="max-w-3xl">

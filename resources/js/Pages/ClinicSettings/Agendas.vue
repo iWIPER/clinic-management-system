@@ -1,6 +1,7 @@
 <script setup>
 import { reactive } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import PageHeader from '@/Components/Navigation/PageHeader.vue'
 import SettingsTabs from '@/Components/ClinicSettings/SettingsTabs.vue'
 import ClinicRulesPanel from '@/Components/ClinicSettings/ClinicRulesPanel.vue'
 import { LockClosedIcon } from '@heroicons/vue/20/solid'
@@ -79,6 +80,10 @@ function onWorkingHoursChange(prof) {
 
 <template>
 <AppLayout>
+    <template #pageHeader>
+        <PageHeader title="Configurações da Clínica" description="Gerencie os dados, recursos e áreas da sua clínica." />
+    </template>
+
     <SettingsTabs active="agendas" />
 
     <div class="mb-4">

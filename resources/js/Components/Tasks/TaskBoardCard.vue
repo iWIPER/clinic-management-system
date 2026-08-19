@@ -1,7 +1,8 @@
 <script setup>
 import { Link } from '@inertiajs/vue3'
-import { StarIcon as StarOutline } from '@heroicons/vue/24/outline'
+import { StarIcon as StarOutline, UserIcon } from '@heroicons/vue/24/outline'
 import { StarIcon as StarSolid, MapPinIcon as PinSolid } from '@heroicons/vue/24/solid'
+import NavbarDropdown from '@/Components/Navbar/NavbarDropdown.vue'
 import {
     cardPriorityClass, priorityTextClass, isOverdueTask, formatTaskDate, patientDisplayName,
     statusIconClass, statusIconFor,
@@ -16,9 +17,18 @@ const props = defineProps({
     // nunca ao mesmo tempo na prática.
     dragging: { type: Boolean, default: false },
     moving: { type: Boolean, default: false },
+    // Drag and Drop nativo (default true, igual sempre foi) — o Board mobile
+    // (ver TaskBoard.vue) passa false explicitamente, porque a API de D&D do
+    // HTML5 não funciona em touch; lá a troca de coluna é só pelo menu
+    // "Mover para..." abaixo.
+    draggable: { type: Boolean, default: true },
+    // [{key,label}] das OUTRAS colunas — só vem preenchido no Board mobile.
+    // Vazio (padrão) esconde o menu inteiro, mantendo o card do Board
+    // desktop pixel-a-pixel como sempre foi.
+    moveOptions: { type: Array, default: () => [] },
 })
 
-defineEmits(['edit', 'toggle-done', 'toggle-favorite', 'dragstart', 'dragend'])
+defineEmits(['edit', 'toggle-done', 'toggle-favorite', 'dragstart', 'dragend', 'move-to'])
 
 function onDragStart(e) {
     e.dataTransfer.effectAllowed = 'move'
@@ -28,7 +38,7 @@ function onDragStart(e) {
 
 <template>
     <div
-        draggable="true"
+        :draggable="draggable"
         data-testid="board-card"
         :data-task-id="task.id"
         @dragstart="(e) => { onDragStart(e); $emit('dragstart') }"
@@ -106,8 +116,31 @@ function onDragStart(e) {
             <Link :href="route('patients.prontuario', task.patient.id)"
                   class="inline-flex items-center gap-1 font-medium text-slate-500 hover:text-emerald-700 hover:underline"
                   @click.stop>
-                👤 {{ patientDisplayName(task.patient) }}
+                <UserIcon class="h-3 w-3 shrink-0" />
+                {{ patientDisplayName(task.patient) }}
             </Link>
+        </div>
+
+        <!-- Alternativa ao Drag and Drop pra touch (só existe no Board
+             mobile, ver moveOptions acima) — muda de coluna pelo mesmo
+             endpoint que o drop já usava (update-status), sem nenhuma regra
+             nova. -->
+        <div v-if="moveOptions.length" class="border-t border-black/5 pt-2" @click.stop>
+            <NavbarDropdown align="left" width="w-40">
+                <template #trigger>
+                    <button type="button"
+                            class="flex w-full items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-black/5 hover:text-slate-700">
+                        Mover para...
+                    </button>
+                </template>
+                <template #default="{ close }">
+                    <button v-for="opt in moveOptions" :key="opt.key" type="button"
+                            @click="$emit('move-to', opt.key); close()"
+                            class="block w-full px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-50">
+                        {{ opt.label }}
+                    </button>
+                </template>
+            </NavbarDropdown>
         </div>
     </div>
 </template>

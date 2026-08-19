@@ -2,6 +2,7 @@
 import InputError from '@/Components/InputError.vue'
 import { ref, watch } from 'vue'
 import AnamnesisSignaturePad from '@/Components/Anamnesis/AnamnesisSignaturePad.vue'
+import FormGrid from '@/Components/UI/FormGrid.vue'
 
 const props = defineProps({
     show: Boolean,
@@ -105,8 +106,8 @@ const submit = () => {
                     </div>
 
                     <div class="px-6 py-4 space-y-4">
-                        <div v-if="role !== 'professional'" class="grid grid-cols-2 gap-3">
-                            <div class="col-span-2">
+                        <FormGrid v-if="role !== 'professional'" :cols="2">
+                            <div class="sm:col-span-2">
                                 <label class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1 block">Nome completo <span class="text-red-400">*</span></label>
                                 <input v-model="form.signer_name" type="text" placeholder="Nome do signatário" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-[13px] text-slate-800 outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400/20" />
                             </div>
@@ -118,7 +119,7 @@ const submit = () => {
                                 <label class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1 block">E-mail</label>
                                 <input v-model="form.signer_email" type="email" placeholder="email@exemplo.com" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-[13px] text-slate-800 outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400/20" />
                             </div>
-                        </div>
+                        </FormGrid>
 
                         <div class="flex items-center gap-3">
                             <div class="flex-1 border-t border-slate-100" />

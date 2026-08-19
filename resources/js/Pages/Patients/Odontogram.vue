@@ -305,7 +305,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
                         🦷 Odontograma
                     </h2>
                     <p class="text-xs text-slate-400 mt-0.5">
-                        Passe o mouse para consultar · Clique em um dente para editar
+                        Toque ou clique em um dente para consultar e editar
                     </p>
                 </div>
 

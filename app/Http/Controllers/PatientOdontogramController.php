@@ -62,7 +62,7 @@ class PatientOdontogramController extends Controller
                 ->map(fn ($label, $value) => ['value' => $value, 'label' => $label])
                 ->values(),
             'treatmentsByTooth' => PatientTreatment::groupedByTooth($patient->id),
-            'hub'               => $hubService->build($patient),
+            'hub'               => $hubService->buildForOdontogram($patient),
             'photos'            => $activePhotos,
             'isDriveConnected'  => $isDriveConnected,
             'responsibleTeam'   => $responsibleTeam,

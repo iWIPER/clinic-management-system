@@ -1,9 +1,15 @@
 <script setup>
 import { ref } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
-import AppLayout from '@/Layouts/AppLayout.vue'
+import Topbar from '@/Components/Navigation/Topbar.vue'
+import ToastContainer from '@/Components/UI/ToastContainer.vue'
 import SystemAdminAccessNotice from '@/Components/Admin/SystemAdminAccessNotice.vue'
 
+// Shell próprio do Backoffice — não envolve mais o AppLayout de propósito:
+// o AppLayout agora sempre renderiza a sidebar clínica (Pacientes/Agenda/
+// Estoque/...), que não faz sentido num contexto cross-tenant de super
+// admin. O Backoffice continua com navegação em abas horizontais (não uma
+// segunda sidebar), só herdando a Topbar/tokens visuais do novo shell.
 const page = usePage()
 
 const navItems = [
@@ -40,36 +46,33 @@ function acknowledgeAccess() {
 </script>
 
 <template>
-    <AppLayout>
-        <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-                <div class="flex items-center gap-2">
-                    <h1 class="text-2xl font-semibold text-slate-900">Backoffice Wildental</h1>
-                    <span class="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700">
-                        System Admin
-                    </span>
-                </div>
-                <p class="mt-1 text-sm text-slate-500">Painel administrativo exclusivo</p>
-            </div>
-            <Link :href="route('dashboard')"
-                  class="text-sm font-medium text-emerald-600 hover:text-emerald-700">
-                ← Voltar ao sistema
-            </Link>
-        </div>
+<div class="h-screen flex flex-col bg-slate-50 overflow-hidden">
 
-        <nav class="mb-6 flex flex-wrap gap-1 rounded-xl border bg-white p-1">
-            <Link v-for="item in navItems" :key="item.href"
-                  :href="route(item.href)"
-                  class="rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-                  :class="isActive(item.match)
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'">
-                {{ item.label }}
-            </Link>
-        </nav>
+  <Topbar mode="admin" />
 
-        <slot />
+  <div class="flex-1 overflow-y-auto" scroll-region style="scrollbar-gutter: stable">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div class="mb-6">
+        <h1 class="text-2xl font-semibold text-slate-900">Backoffice Wildental</h1>
+        <p class="mt-1 text-sm text-slate-500">Painel administrativo exclusivo</p>
+      </div>
 
-        <SystemAdminAccessNotice :show="showAccessNotice" @acknowledge="acknowledgeAccess" />
-    </AppLayout>
+      <nav class="mb-6 flex flex-wrap gap-1 rounded-xl border bg-white p-1">
+        <Link v-for="item in navItems" :key="item.href"
+              :href="route(item.href)"
+              class="rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+              :class="isActive(item.match)
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'">
+            {{ item.label }}
+        </Link>
+      </nav>
+
+      <slot />
+    </main>
+  </div>
+
+  <ToastContainer />
+  <SystemAdminAccessNotice :show="showAccessNotice" @acknowledge="acknowledgeAccess" />
+</div>
 </template>

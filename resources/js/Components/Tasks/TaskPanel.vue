@@ -24,11 +24,18 @@ const loading = ref(false)
 const loadError = ref(false)
 const tasks = ref([])
 const statuses = ref({})
+const kanbanStatuses = ref({})
 const priorities = ref({})
 const teamMembers = ref([])
 const availableLabels = ref([])
 const lists = ref({}) // { mine: {key,name,color,...}, team: {...}, custom: [{id,name,color,is_owner,...}] }
 const currentUserId = ref(null)
+
+// Drawer mobile da TaskSidebar (ver TaskSidebar.vue) — fechado por padrão;
+// abre pelo botão de menu no cabeçalho da Lista/Board (mobile) e fecha ao
+// escolher uma visão/escopo (mesmo padrão da Sidebar.vue principal) ou pelo
+// backdrop.
+const mobileSidebarOpen = ref(false)
 
 const scope = ref('mine')
 // Padrão "Sempre" (sem corte de dias) — a TaskListingService já protege o
@@ -42,13 +49,15 @@ const activeView = ref('inbox')
 // escopo/filtro (ver TaskBoard.vue).
 const layoutMode = ref('list')
 
-// Board se beneficia de mais espaço horizontal (4 colunas lado a lado) — a
-// Lista mantém exatamente a largura de sempre. `transition-[width]` deixa a
-// troca suave em vez de "pular"; volta ao tamanho da Lista assim que
-// layoutMode muda de novo (nenhum estado próprio, é só uma classe reativa).
-const modalSizeClass = computed(() => layoutMode.value === 'board'
-    ? 'w-[97vw] max-w-[1800px]'
-    : 'w-[92vw] max-w-[1400px]')
+// Mesma largura em Lista e Board — o Board só tinha 3 colunas reais (ver
+// TaskBoard.vue) e cabe confortavelmente no mesmo tamanho compacto da
+// Lista, então não há mais razão pra dois tamanhos de modal (a diferença
+// de 400px existia pra caber as 4 colunas antigas). Reduzido ~3cm (~113px
+// a 96dpi) em relação ao tamanho antigo da Lista (1400px) — max-w-7xl é o
+// valor de design system já usado no projeto pra essa faixa, não um
+// arbitrário novo; confirmado por QA visual que 3 colunas continuam
+// confortáveis nessa largura (ver relatório da rodada).
+const modalSizeClass = 'w-[90vw] max-w-7xl'
 
 // Busca e prioridade são filtros client-side — o painel já carrega tudo do
 // escopo ativo de uma vez, então filtrar em cima disso é instantâneo e não
@@ -67,6 +76,7 @@ async function fetchTasks() {
         })
         tasks.value = data.tasks
         statuses.value = data.statuses
+        kanbanStatuses.value = data.kanbanStatuses
         priorities.value = data.priorities
         teamMembers.value = data.teamMembers
         availableLabels.value = data.availableLabels
@@ -208,6 +218,25 @@ const buckets = computed(() => {
     return b
 })
 
+// ── Board Kanban — 3 colunas de STATUS (A Fazer/Fazendo/Feito), não mais os
+// 4 buckets de data acima (esses continuam servindo só a sidebar da Lista,
+// ver TaskSidebar.vue). 'waiting' é um status legado (ver Task::STATUSES no
+// backend) que não é mais oferecido como opção nova — uma tarefa antiga que
+// ainda tenha esse valor aparece agrupada em "Fazendo" (mais perto
+// semanticamente de "em andamento, pausada" do que de "não iniciada"), sem
+// precisar de uma quarta coluna nem apagar/migrar o dado.
+function kanbanColumnOf(task) {
+    if (task.status === 'todo' || task.status === 'done') return task.status
+    return 'doing'
+}
+
+const kanbanBuckets = computed(() => {
+    const b = { todo: [], doing: [], done: [] }
+    for (const t of filteredTasks.value) b[kanbanColumnOf(t)].push(t)
+    b.done = [...b.done].sort(compareDoneBucket)
+    return b
+})
+
 // Favoritos atravessa os buckets de data (não é "quando vence", é "o que
 // importa agora") — junta favoritas de qualquer bucket, já filtradas e
 // ordenadas (fixadas primeiro) pelo mesmo pipeline de filteredTasks.
@@ -248,35 +277,33 @@ function upsertTask(task) {
     controlRefreshKey.value++
 }
 
-async function toggleDone(task) {
-    const next = task.status === 'done' ? 'todo' : 'done'
-    try {
-        const { data } = await window.axios.patch(route('tasks.update-status', task.id), { status: next })
-        upsertTask(data)
-    } catch {
-        toast.error('Não foi possível atualizar a tarefa.')
-    }
-}
-
-// ── Drag and drop no Board — traduz "soltou na coluna X" pro endpoint
-// dedicado (ver TaskController::move), nunca mexe em due_date/status na mão
-// aqui. Não otimista de propósito: só mutamos `tasks` (e por consequência os
-// buckets/colunas) depois da resposta da API — se falhar, o card já não
+// ── Mudança de status — usada tanto pelo checkbox de concluir/reabrir
+// (Lista e Board) quanto pelo drag-and-drop entre colunas do Kanban (mesmo
+// endpoint dedicado, ver TaskController::updateStatus — nunca mexe em
+// due_date na mão aqui, só status/completed_at). Não otimista de propósito:
+// só mutamos `tasks` depois da resposta da API — se falhar, o card já não
 // tinha saído do lugar (nada pra "restaurar"), só o toast de erro. ────────
 const movingTaskIds = ref(new Set())
 
-async function moveTask(task, column, dueDate) {
+async function updateTaskStatus(task, status) {
     movingTaskIds.value = new Set(movingTaskIds.value).add(task.id)
     try {
-        const { data } = await window.axios.patch(route('tasks.move', task.id), { column, due_date: dueDate })
+        const { data } = await window.axios.patch(route('tasks.update-status', task.id), { status })
         upsertTask(data)
-    } catch (e) {
-        toast.error(e.response?.data?.errors?.due_date?.[0] ?? 'Não foi possível mover a tarefa.')
+    } catch {
+        toast.error('Não foi possível atualizar a tarefa.')
     } finally {
         const next = new Set(movingTaskIds.value)
         next.delete(task.id)
         movingTaskIds.value = next
     }
+}
+
+// Checkbox de concluir/reabrir (Lista e Board) — mesmo endpoint de
+// updateTaskStatus acima, só decide o valor (único lugar que trata "status
+// atual é done" como alternância binária; o Board manda o status explícito).
+function toggleDone(task) {
+    return updateTaskStatus(task, task.status === 'done' ? 'todo' : 'done')
 }
 
 async function togglePin(task) {
@@ -430,30 +457,41 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
             leave-active-class="transition-opacity duration-100 ease-in"
             leave-from-class="opacity-100"
             leave-to-class="opacity-0">
-            <div v-if="show" class="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4">
+            <!-- Centralizado na área "cinza" (fora da sidebar), não na
+                 viewport inteira — sem isso o modal nasce puxado pra
+                 esquerda, colado na sidebar, com um vazio enorme à direita.
+                 `lg:left-60` bate exatamente com a largura fixa da sidebar
+                 (w-60, ver Sidebar.vue) a partir do mesmo breakpoint em que
+                 ela deixa de ser drawer; abaixo de `lg` a sidebar já não
+                 ocupa espaço no layout, então o modal centraliza na
+                 viewport inteira normalmente. -->
+            <div v-if="show" class="fixed inset-y-0 left-0 right-0 lg:left-60 z-40 flex items-center justify-center bg-black/50 p-4">
                 <Transition
                     appear
                     enter-active-class="transition-all duration-200 ease-out"
                     enter-from-class="opacity-0 scale-95"
                     enter-to-class="opacity-100 scale-100">
-                    <div class="relative flex h-[90vh] overflow-hidden rounded-2xl bg-white shadow-2xl transition-[width] duration-200 ease-out"
+                    <div class="relative flex h-[90vh] overflow-hidden rounded-2xl bg-white shadow-2xl"
                          :class="modalSizeClass">
                         <TaskSidebar
                             :active-view="activeView"
                             :scope="scope"
                             :counts="counts"
                             :lists="lists"
-                            @update:active-view="activeView = $event"
-                            @update:scope="scope = $event"
+                            :mobile-open="mobileSidebarOpen"
+                            @update:active-view="activeView = $event; mobileSidebarOpen = false"
+                            @update:scope="scope = $event; mobileSidebarOpen = false"
                             @open-list-settings="openListSettings"
                             @create-list="openCreateList"
-                            @close="close" />
+                            @close="close"
+                            @close-mobile="mobileSidebarOpen = false" />
 
                         <TaskListView
                             :tasks="viewTasks"
                             :view="activeView"
                             :layout-mode="layoutMode"
                             :buckets="buckets"
+                            :kanban-buckets="kanbanBuckets"
                             :moving-task-ids="movingTaskIds"
                             :loading="loading"
                             :load-error="loadError"
@@ -463,6 +501,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
                             :completed-window="completedWindow"
                             :priorities="priorities"
                             :statuses="statuses"
+                            :kanban-statuses="kanbanStatuses"
                             :status-counts="statusCounts"
                             :available-labels="availableLabels"
                             :control-panel-open="showControlPanel"
@@ -478,8 +517,9 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
                             @toggle-favorite="toggleFavorite"
                             @delete="deleteTask"
                             @retry="fetchTasks"
-                            @move="moveTask"
-                            @open-control-panel="showControlPanel = true" />
+                            @update-status="updateTaskStatus"
+                            @open-control-panel="showControlPanel = true"
+                            @open-mobile-sidebar="mobileSidebarOpen = true" />
 
                         <TaskControlPanel :show="showControlPanel" :refresh-key="controlRefreshKey" @close="showControlPanel = false" />
                     </div>
@@ -492,6 +532,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
         :show="showFormModal"
         :task="editingTask"
         :statuses="statuses"
+        :kanban-statuses="kanbanStatuses"
         :priorities="priorities"
         :team-members="teamMembers"
         :available-labels="availableLabels"

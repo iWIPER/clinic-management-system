@@ -208,11 +208,45 @@ test('updating cost with save_as_default updates the catalog treatment', functio
         ])
         ->assertRedirect();
 
+    // save_as_default só grava o Custo como padrão do catálogo — Valor
+    // (preco_base) é o preço sugerido, editável livremente por fora, e nunca
+    // sobrescrito por essa checkbox (ver PatientTreatmentController::updateCost
+    // e o label do checkbox em UpdateCostModal.vue). preco_base deve
+    // permanecer no valor original de cadastro (80), não no value_charged (120)
+    // que acabou de ser cobrado para este paciente específico.
     $treatment->refresh();
-    expect((float) $treatment->preco_base)->toBe(120.0)
+    expect((float) $treatment->preco_base)->toBe(80.0)
         ->and((float) $treatment->custo_padrao)->toBe(60.0);
 
     expect(PatientTreatmentAuditLog::where('patient_treatment_id', $pt->id)->where('action', 'cost_changed')->exists())->toBeTrue();
+});
+
+test('updating cost with save_as_default never overwrites the catalog price (preco_base)', function () {
+    ['user' => $user, 'patient' => $patient, 'treatment' => $treatment] = setupPatientTreatmentContext();
+
+    $pt = PatientTreatment::create([
+        'clinic_id' => $patient->clinic_id,
+        'patient_id' => $patient->id,
+        'treatment_id' => $treatment->id,
+        'procedure_name' => $treatment->nome,
+        'budget_code' => PatientTreatment::nextBudgetCode($patient->clinic_id, now()),
+        'value_charged' => 80,
+        'cost' => 80,
+        'status' => 'futuro',
+        'treatment_date' => now()->toDateString(),
+    ]);
+
+    $originalPrecoBase = (float) $treatment->preco_base;
+
+    $this->actingAs($user)
+        ->post(route('patients.treatments.cost', [$patient, $pt]), [
+            'value_charged' => 999,
+            'cost' => 500,
+            'save_as_default' => true,
+        ])
+        ->assertRedirect();
+
+    expect((float) $treatment->refresh()->preco_base)->toBe($originalPrecoBase);
 });
 
 test('duplicating a finalized treatment creates a new futuro entry', function () {

@@ -2,7 +2,9 @@
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { router, useForm } from '@inertiajs/vue3'
 import InputError from '@/Components/InputError.vue'
+import PageHeader from '@/Components/Navigation/PageHeader.vue'
 import SettingsTabs from '@/Components/ClinicSettings/SettingsTabs.vue'
+import FormGrid from '@/Components/UI/FormGrid.vue'
 
 const props = defineProps({
     clinic: Object,
@@ -38,6 +40,10 @@ const setDefault = (template) => {
 
 <template>
     <AppLayout>
+        <template #pageHeader>
+            <PageHeader title="Configurações da Clínica" description="Gerencie os dados, recursos e áreas da sua clínica." />
+        </template>
+
         <SettingsTabs active="documents-config" />
 
         <div class="max-w-3xl">
@@ -49,7 +55,7 @@ const setDefault = (template) => {
             <form @submit.prevent="submit" class="space-y-5">
                 <div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
                     <h2 class="text-sm font-bold text-slate-900 mb-4">Dados de contato (rodapé do PDF)</h2>
-                    <div class="grid md:grid-cols-2 gap-4">
+                    <FormGrid :cols="2">
                         <div>
                             <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Telefone</label>
                             <input v-model="form.phone" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-400" />
@@ -60,18 +66,18 @@ const setDefault = (template) => {
                             <input v-model="form.email" type="email" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-400" />
                             <InputError :message="form.errors.email" />
                         </div>
-                        <div class="md:col-span-2">
+                        <div class="sm:col-span-2">
                             <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Site</label>
                             <input v-model="form.website" type="text" placeholder="https://" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-400" />
                             <InputError :message="form.errors.website" />
                         </div>
-                    </div>
+                    </FormGrid>
                 </div>
 
                 <div class="rounded-2xl border border-slate-200 bg-white p-5">
                     <h2 class="text-sm font-bold text-slate-900 mb-4">Endereço</h2>
-                    <div class="grid md:grid-cols-3 gap-4">
-                        <div class="md:col-span-2">
+                    <FormGrid :cols="3">
+                        <div class="sm:col-span-2">
                             <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Logradouro</label>
                             <input v-model="form.address_street" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-400" />
                             <InputError :message="form.errors.address_street" />
@@ -106,18 +112,18 @@ const setDefault = (template) => {
                             <input v-model="form.address_zipcode" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-400" />
                             <InputError :message="form.errors.address_zipcode" />
                         </div>
-                    </div>
+                    </FormGrid>
                 </div>
 
                 <div class="rounded-2xl border border-slate-200 bg-white p-5">
                     <h2 class="text-sm font-bold text-slate-900 mb-4">Comportamento padrão</h2>
-                    <div class="grid md:grid-cols-2 gap-4 mb-4">
+                    <FormGrid :cols="2" class="mb-4">
                         <div>
                             <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Expiração padrão do link de assinatura (horas)</label>
                             <input v-model.number="form.default_signature_expiration_hours" type="number" min="1" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-400" />
                             <InputError :message="form.errors.default_signature_expiration_hours" />
                         </div>
-                    </div>
+                    </FormGrid>
                     <div class="flex flex-wrap gap-4 mb-4">
                         <label class="flex items-center gap-2 text-[13px] text-slate-700">
                             <input v-model="form.footer_show_qrcode" type="checkbox" class="rounded border-slate-300 text-teal-600 focus:ring-teal-400" /> Mostrar QR Code no rodapé

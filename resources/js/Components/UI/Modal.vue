@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
     show:        { type: Boolean, default: false },
@@ -13,12 +13,37 @@ const props = defineProps({
     keepMounted: { type: Boolean, default: false },
 })
 
-defineEmits(['close'])
+const emit = defineEmits(['close'])
 
 const hasOpenedOnce = ref(false)
 watch(() => props.show, (visible) => {
     if (visible) hasOpenedOnce.value = true
 }, { immediate: true })
+
+// Fechar com Escape — nenhum dos 33 modais do sistema implementava isso
+// (confirmado por auditoria: só existiam handlers LOCAIS de Escape em
+// campos internos — cancelar a criação de etiqueta em TaskFormModal.vue,
+// cancelar edição inline em PatientMarkerAdminModal.vue — nunca no modal
+// em si). Centralizado aqui, os 19 callers que já usam este componente
+// ganham o comportamento de graça.
+//
+// Ouve `keyup`, não `keydown`: os dois handlers locais acima usam
+// `@keyup.esc` pra só cancelar o estado interno deles (não fechar o
+// modal inteiro) — como `keydown` do MESMO toque de Escape sempre
+// dispara ANTES do `keyup` correspondente, um listener em `keydown`
+// fecharia o modal inteiro antes desses handlers locais rodarem, não
+// dando chance de só cancelar o campo. Usando `keyup` nos dois lados, o
+// eventos nasce no campo interno primeiro (mais próximo na árvore) e
+// contamos com `.stop` neles pra nunca chegar em `document` — sem isso o
+// modal fecharia inteiro *e* o campo interno seria cancelado ao mesmo
+// tempo, comportamento pior que o atual. Ver TaskFormModal.vue e
+// PatientMarkerAdminModal.vue.
+function onKeyup(event) {
+    if (event.key === 'Escape' && props.show) emit('close')
+}
+
+onMounted(() => document.addEventListener('keyup', onKeyup))
+onUnmounted(() => document.removeEventListener('keyup', onKeyup))
 </script>
 
 <template>
@@ -42,7 +67,7 @@ watch(() => props.show, (visible) => {
                         <slot name="header">
                             <h3 class="font-semibold text-slate-900">{{ title }}</h3>
                         </slot>
-                        <button type="button" @click="$emit('close')"
+                        <button type="button" @click="$emit('close')" aria-label="Fechar"
                                 class="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-100">
                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>

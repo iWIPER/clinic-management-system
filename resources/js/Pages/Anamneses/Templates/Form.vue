@@ -25,6 +25,16 @@ const form = useForm({
     question_order: (props.editor?.questions || []).map(q => q.id),
 })
 
+const createForm = useForm({
+    name: '',
+    description: '',
+    is_active: true,
+})
+
+const createTemplate = () => {
+    createForm.post(route('anamnesis-templates.store'), { preserveScroll: true })
+}
+
 if (props.editor?.category_groups) {
     props.editor.category_groups.forEach((g, i) => {
         expanded.value[g.name] = i === 0
@@ -172,7 +182,28 @@ const title = (name) => name.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()
                 />
             </template>
 
-            <p v-else class="mt-6 text-sm text-slate-500">Salve o modelo para abrir o construtor.</p>
+            <div v-else class="rounded-2xl border border-[#E8EDF4] bg-white shadow-sm p-5 mt-4">
+                <p class="text-sm text-slate-500 mb-4">Preencha o nome do modelo para criar e abrir o construtor.</p>
+                <div class="grid sm:grid-cols-2 gap-3">
+                    <div>
+                        <input v-model="createForm.name" type="text" placeholder="Nome do modelo"
+                               class="w-full rounded-xl border border-[#E8EDF4] px-3 py-2 text-sm font-semibold focus:border-teal-500 outline-none" />
+                        <InputError :message="createForm.errors.name" />
+                    </div>
+                    <div class="flex items-center gap-4 text-sm">
+                        <label class="flex items-center gap-2"><input v-model="createForm.is_active" type="checkbox" /> Ativo</label>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <textarea v-model="createForm.description" rows="2" placeholder="Descrição"
+                                  class="w-full rounded-xl border border-[#E8EDF4] px-3 py-2 text-sm focus:border-teal-500 outline-none" />
+                        <InputError :message="createForm.errors.description" />
+                    </div>
+                </div>
+                <button type="button" @click="createTemplate" :disabled="createForm.processing"
+                        class="mt-4 rounded-xl bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
+                    Criar modelo
+                </button>
+            </div>
         </div>
     </AppLayout>
 </template>

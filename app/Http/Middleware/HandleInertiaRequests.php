@@ -5,7 +5,6 @@ namespace App\Http\Middleware;
 use App\Models\Clinic;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
-use Tighten\Ziggy\Ziggy;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -30,10 +29,6 @@ class HandleInertiaRequests extends Middleware
                 // causa de navegação/refresh dentro do mesmo login.
                 'hasAcknowledgedAdminAccess' => fn () => (bool) $request->session()->get('admin_access_acknowledged'),
             ],
-            'ziggy' => fn () => [
-                ...(new Ziggy)->toArray(),
-                'location' => $request->url(),
-            ],
             'flash' => [
                 'success'                    => fn () => $request->session()->get('success'),
                 'error'                      => fn () => $request->session()->get('error'),
@@ -50,6 +45,11 @@ class HandleInertiaRequests extends Middleware
 
                 return $clinic?->toSessionPayload();
             },
+            // Chaves das até 2 ações personalizadas da TopIsland (ver
+            // UserProfileService::ALLOWED_QUICK_ACTIONS). Compartilhado
+            // globalmente porque a TopIsland aparece em toda página do
+            // modo clínica, não só na tela de perfil.
+            'quickActions' => fn () => $request->user()?->preferences['quick_actions'] ?? [],
         ];
     }
 }

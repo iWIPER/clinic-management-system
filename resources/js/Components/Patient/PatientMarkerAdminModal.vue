@@ -135,7 +135,7 @@ const deleteMarker = (marker) => {
 
                         <input v-if="editingId === marker.id" v-model="editingName" type="text" autofocus
                                class="flex-1 min-w-0 rounded border border-slate-200 px-2 py-1 text-sm"
-                               @keyup.esc="cancelEdit" />
+                               @keyup.esc.stop="cancelEdit" />
                         <span v-else class="flex-1 min-w-0 truncate text-sm text-slate-700">{{ marker.name }}</span>
 
                         <span class="shrink-0 w-16 text-right text-[10px] text-slate-400">{{ pluralPatients(marker.patients_count) }}</span>

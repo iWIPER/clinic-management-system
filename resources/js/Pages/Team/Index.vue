@@ -4,6 +4,8 @@ import { ref, computed, nextTick, onMounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import { useToast } from '@/composables/useToast'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import PageHeader from '@/Components/Navigation/PageHeader.vue'
+import ScrollFadeX from '@/Components/UI/ScrollFadeX.vue'
 
 const props = defineProps({
     members:         { type: Array,  default: () => [] },
@@ -336,8 +338,8 @@ function daysUntil(date) {
 
 const currentLink = computed(() => {
     const inv = createdInvite.value ?? actionInvite.value
-    if (! inv?.short_token) return ''
-    return window.location.origin + '/convites/' + inv.short_token
+    if (! inv?.token) return ''
+    return window.location.origin + '/convites/' + inv.token
 })
 
 const currentCode = computed(() => (createdInvite.value ?? actionInvite.value)?.short_token ?? '')
@@ -345,16 +347,11 @@ const currentCode = computed(() => (createdInvite.value ?? actionInvite.value)?.
 
 <template>
     <AppLayout title="Gestão de Equipe">
-        <div class="max-w-6xl mx-auto px-4 py-8 space-y-8">
-
-            <!-- Cabeçalho -->
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-2xl font-bold text-slate-900">Gestão de Equipe</h1>
-                    <p class="text-sm text-slate-500 mt-0.5">
-                        {{ members.length }} membro{{ members.length !== 1 ? 's' : '' }} na clínica
-                    </p>
-                </div>
+        <template #pageHeader>
+            <PageHeader
+                title="Gestão de Equipe"
+                :description="`${members.length} membro${members.length !== 1 ? 's' : ''} na clínica`"
+            >
                 <button
                     v-if="isAdmin"
                     @click="openModal"
@@ -365,7 +362,10 @@ const currentCode = computed(() => (createdInvite.value ?? actionInvite.value)?.
                     </svg>
                     Convidar membro
                 </button>
-            </div>
+            </PageHeader>
+        </template>
+
+        <div class="max-w-6xl mx-auto px-4 py-8 space-y-8">
 
             <!-- Grid de membros -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -428,38 +428,40 @@ const currentCode = computed(() => (createdInvite.value ?? actionInvite.value)?.
                     Convites pendentes ({{ pendingInvites.length }})
                 </h2>
                 <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="border-b border-slate-100 bg-slate-50">
-                                <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Nome / E-mail</th>
-                                <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden sm:table-cell">Cargo</th>
-                                <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Código</th>
-                                <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Expira</th>
-                                <th class="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            <tr v-for="invite in pendingInvites" :key="invite.id" class="hover:bg-slate-50 transition-colors">
-                                <td class="px-4 py-3">
-                                    <p class="font-medium text-slate-800">{{ invite.name || invite.email }}</p>
-                                    <p class="text-xs text-slate-500">{{ invite.email }}</p>
-                                </td>
-                                <td class="px-4 py-3 hidden sm:table-cell">
-                                    <span class="text-xs bg-blue-100 text-blue-700 font-medium px-2 py-0.5 rounded-full">{{ invite.job_title || '—' }}</span>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <code class="font-mono text-sm font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded">{{ invite.short_token }}</code>
-                                </td>
-                                <td class="px-4 py-3 text-xs text-slate-500 hidden md:table-cell">{{ daysUntil(invite.expires_at) }}d</td>
-                                <td class="px-4 py-3 text-right">
-                                    <div class="flex items-center justify-end gap-3">
-                                        <button @click="resendPendingInvite(invite)" class="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline">Reenviar</button>
-                                        <button @click="cancelPendingInvite(invite)" class="text-xs text-red-500 hover:text-red-700 font-medium hover:underline">Cancelar</button>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <ScrollFadeX>
+                        <table class="w-full min-w-[640px] text-sm">
+                            <thead>
+                                <tr class="border-b border-slate-100 bg-slate-50">
+                                    <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Nome / E-mail</th>
+                                    <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Cargo</th>
+                                    <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Código</th>
+                                    <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Expira</th>
+                                    <th class="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <tr v-for="invite in pendingInvites" :key="invite.id" class="hover:bg-slate-50 transition-colors">
+                                    <td class="px-4 py-3">
+                                        <p class="font-medium text-slate-800">{{ invite.name || invite.email }}</p>
+                                        <p class="text-xs text-slate-500">{{ invite.email }}</p>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <span class="text-xs bg-blue-100 text-blue-700 font-medium px-2 py-0.5 rounded-full">{{ invite.job_title || '—' }}</span>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <code class="font-mono text-sm font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded">{{ invite.short_token }}</code>
+                                    </td>
+                                    <td class="px-4 py-3 text-xs text-slate-500">{{ daysUntil(invite.expires_at) }}d</td>
+                                    <td class="px-4 py-3 text-right">
+                                        <div class="flex items-center justify-end gap-3">
+                                            <button @click="resendPendingInvite(invite)" class="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline">Reenviar</button>
+                                            <button @click="cancelPendingInvite(invite)" class="text-xs text-red-500 hover:text-red-700 font-medium hover:underline">Cancelar</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </ScrollFadeX>
                 </div>
             </div>
 

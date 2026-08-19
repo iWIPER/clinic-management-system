@@ -199,6 +199,7 @@ class PatientController extends Controller
         PatientMarkerService $markerService,
         \App\Services\PatientInviteService $inviteService,
         \App\Services\PatientPaymentService $paymentService,
+        \App\Services\TreatmentCatalogService $treatmentCatalogService,
     ) {
         $this->authorize('view', $patient);
 
@@ -210,6 +211,21 @@ class PatientController extends Controller
         $paymentsPage    = max(1, (int) $request->get('payments_page', 1));
         $paymentsStatus  = $request->get('payments_status');
         $paymentsPeriod  = $request->get('payments_period');
+        $activeTab       = $request->input('tab', 'overview');
+
+        // Fase B1: props exclusivas de uma aba secundária (Anamneses/
+        // Documentos/Tratamentos/Pagamentos/Observações — nunca lidas fora da
+        // própria aba, confirmado varrendo Patients/Show.vue e
+        // PatientHubTabs.vue) só precisam ser computadas de verdade quando
+        // essa aba é a que está sendo exibida no load inicial. Nas demais,
+        // viram Inertia::lazy() — ficam de fora do payload do load inicial e
+        // só são buscadas quando o usuário efetivamente clica na aba (ver
+        // PatientHubTabs.vue, watch(tab, ...) → router.reload({ only: [...] })).
+        // 'hub' e 'evolutionsHub' ficam de fora dessa lista de propósito: são
+        // usados também na sidebar sempre visível (PatientEvolutionCard,
+        // PatientProfessionalsCard, card "Próximas Ações"), não só dentro de
+        // uma aba — tornar eles lazy quebraria a sidebar ao trocar de aba.
+        $eagerOrLazy = fn (string $tab, \Closure $callback) => $activeTab === $tab ? $callback : Inertia::lazy($callback);
 
         // Contexto barato (sem I/O de rede, sem query pesada) — usado por
         // várias props abaixo. Todo o resto do payload é construído como
@@ -286,19 +302,27 @@ class PatientController extends Controller
                 ->values(),
             'treatmentsByTooth' => fn () => \App\Models\PatientTreatment::groupedByTooth($patient->id),
             'fdiTeeth'          => PatientOdontogram::FDI_TEETH,
-            'activeTab'         => $request->input('tab', 'overview'),
-            'anamnesisHub'      => function () use ($anamnesisService, $patient, $anamnesesPage, $clinic) {
+            'activeTab'         => $activeTab,
+            // Separado de anamnesisHub (que agora só carrega na aba
+            // Anamneses) porque PatientAlertChips, no cabeçalho, é sempre
+            // visível — precisa dos alertas em toda aba, não só na de
+            // Anamneses. É um cálculo bem mais barato que o resto do hub
+            // (listagem paginada de instâncias), então mantê-lo eager tem
+            // custo desprezível.
+            'anamnesisAlerts' => fn () => $anamnesisService->patientCardAlerts($patient),
+            'anamnesisHub'    => $eagerOrLazy('anamneses', function () use ($anamnesisService, $patient, $anamnesesPage, $clinic) {
                 $anamnesisResult = $anamnesisService->listForPatient($patient, 3, $anamnesesPage);
 
                 return [
                     'instances'  => $anamnesisResult['data'],
                     'pagination' => $anamnesisResult['pagination'],
                     'templates'  => $anamnesisService->availableTemplates($clinic?->id),
-                    'alerts'     => $anamnesisService->patientCardAlerts($patient),
                 ];
-            },
-            'patientNotes'    => fn () => $getNotesResult()['data'],
-            'notesPagination' => fn () => $getNotesResult()['pagination'],
+            }),
+            'patientNotes'    => $eagerOrLazy('notes', fn () => $getNotesResult()['data']),
+            'notesPagination' => $eagerOrLazy('notes', fn () => $getNotesResult()['pagination']),
+            // noteAlerts fica eager — mesmo motivo de anamnesisAlerts acima
+            // (PatientAlertChips no cabeçalho é sempre visível).
             'noteAlerts'      => fn () => $noteService->alertNotes($patient),
             'patientMarkers'   => fn () => $patient->markers()->get(['patient_tags.id', 'name', 'slug', 'color']),
             'availableMarkers' => fn () => $markerService->availableMarkers($clinic?->id),
@@ -351,7 +375,7 @@ class PatientController extends Controller
             // Paginado no backend (não só cortado no frontend) — mesmo padrão de
             // AnamnesisService::listForPatient() (data + pagination), reaproveitado
             // pelo componente genérico Pagination.vue no frontend.
-            'patientTreatments' => function () use ($patient, $treatmentsPage) {
+            'patientTreatments' => $eagerOrLazy('treatments', function () use ($patient, $treatmentsPage) {
                 $paginator = \App\Models\PatientTreatment::where('patient_id', $patient->id)
                     ->with(['treatment:id,nome', 'professional:id,name', 'convenio:id,nome', 'auditLogs.user:id,name'])
                     ->orderByDesc('treatment_date')
@@ -367,7 +391,7 @@ class PatientController extends Controller
                         'per_page'     => $paginator->perPage(),
                     ],
                 ];
-            },
+            }),
             // Card "Evoluções" (sidebar da Visão Geral) — sempre mostra 1 evolução
             // por vez, a mais recente primeiro; paginação de verdade no backend
             // (per_page=1), mesmo padrão de patientTreatments/anamnesisHub acima.
@@ -388,7 +412,7 @@ class PatientController extends Controller
                     ],
                 ];
             },
-            'catalogTreatments' => fn () => \App\Models\Treatment::active()->orderBy('nome')->get(['id', 'nome', 'preco_base', 'custo_padrao']),
+            'catalogTreatments' => fn () => $treatmentCatalogService->activeCatalog($patient->clinic_id),
             'convenios'         => fn () => Convenio::active()->orderBy('ordem')->orderBy('nome')->get(['id', 'nome']),
             'treatmentStatuses' => collect(\App\Models\PatientTreatment::STATUSES)
                 ->map(fn ($label, $value) => ['value' => $value, 'label' => $label])
@@ -396,7 +420,7 @@ class PatientController extends Controller
             // Aba "Pagamentos" — mesmo padrão de paginação/filtro de patientTreatments.
             // paymentSummary é sempre o agregado completo do paciente (não filtrado por
             // status), então recarrega junto com a lista para os cards nunca desatualizar.
-            'patientPayments' => function () use ($patient, $paymentsPage, $paymentsStatus, $paymentsPeriod) {
+            'patientPayments' => $eagerOrLazy('payments', function () use ($patient, $paymentsPage, $paymentsStatus, $paymentsPeriod) {
                 $query = \App\Models\PatientPayment::where('patient_id', $patient->id)
                     ->with(['treatment:id,procedure_name,budget_code,professional_id,value_charged', 'treatment.professional:id,name']);
 
@@ -431,15 +455,15 @@ class PatientController extends Controller
                         'per_page'     => $paginator->perPage(),
                     ],
                 ];
-            },
-            'paymentSummary'  => fn () => $paymentService->summary($patient),
+            }),
+            'paymentSummary'  => $eagerOrLazy('payments', fn () => $paymentService->summary($patient)),
             'paymentMethods'  => collect(\App\Models\PatientPayment::METHODS)
                 ->map(fn ($label, $value) => ['value' => $value, 'label' => $label])
                 ->values(),
             'paymentStatuses' => collect(\App\Models\PatientPayment::STATUSES)
                 ->map(fn ($label, $value) => ['value' => $value, 'label' => $label])
                 ->values(),
-            'documentHub' => function () use ($documentHubService, $patient, $documentsPage, $clinic) {
+            'documentHub' => $eagerOrLazy('documents', function () use ($documentHubService, $patient, $documentsPage, $clinic) {
                 $documentResult = $documentHubService->listForPatient($patient, 6, $documentsPage);
 
                 return [
@@ -448,16 +472,13 @@ class PatientController extends Controller
                     'templates'  => $documentHubService->availableTemplates($clinic?->id),
                     'treatments' => $documentHubService->availableTreatments($clinic?->id),
                 ];
-            },
+            }),
         ]);
     }
 
     public function edit(Patient $patient)
     {
         $this->authorize('update', $patient);
-
-        // DUMP 1: dados brutos do banco (via route model binding)
-        Log::debug('[PatientController@edit] DUMP 1 — patient.toArray()', $patient->toArray());
 
         $payload = $patient->only([
             'id', 'clinic_id',
@@ -474,9 +495,6 @@ class PatientController extends Controller
             'tipo_atendimento_outro_descricao',
             'updated_at',
         ]);
-
-        // DUMP 2: payload que será enviado ao Inertia
-        Log::debug('[PatientController@edit] DUMP 2 — Inertia payload', $payload);
 
         return Inertia::render('Patients/Edit', [
             'patient' => $payload,

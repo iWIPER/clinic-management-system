@@ -1,6 +1,5 @@
 <script setup>
-import { Link, useForm } from '@inertiajs/vue3';
-import AppLayout from '@/Layouts/AppLayout.vue'; // ou um layout simplificado
+import { useForm } from '@inertiajs/vue3';
 
 const form = useForm({
     role_type: '',
@@ -13,7 +12,7 @@ const select = (type) => {
 </script>
 
 <template>
-    <div class="max-w-lg mx-auto mt-12">
+    <div class="max-w-lg mx-auto mt-12 px-4">
         <h1 class="text-3xl font-semibold mb-2">Bem-vindo!</h1>
         <p class="text-slate-600 mb-8">Como você quer começar?</p>
 

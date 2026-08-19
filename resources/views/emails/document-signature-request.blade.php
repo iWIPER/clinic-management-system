@@ -45,7 +45,7 @@
         @if($clinicLogo)
         <div class="header-logo"><img src="{{ $clinicLogo }}" alt="{{ $clinicName }}" /></div>
         @else
-        <div class="brand-name">Clinic<span>Flow</span></div>
+        <div class="brand-name">Wil<span>Dental</span></div>
         @endif
         <div class="header-badge">Assinatura eletrônica</div>
         <div class="header-title">Um documento aguarda sua assinatura</div>
@@ -99,7 +99,7 @@
     </div>
 
     <div class="footer">
-        <div class="footer-brand">Clinic<span>Flow</span></div>
+        <div class="footer-brand">Wil<span>Dental</span></div>
         <div class="footer-text">
             Plataforma de gestão de clínicas<br/>
             <a href="{{ config('app.url') }}">{{ config('app.url') }}</a><br/><br/>

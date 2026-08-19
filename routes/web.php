@@ -401,7 +401,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/', [\App\Http\Controllers\TaskController::class, 'store'])->name('store');
             Route::put('/{task}', [\App\Http\Controllers\TaskController::class, 'update'])->name('update');
             Route::patch('/{task}/status', [\App\Http\Controllers\TaskController::class, 'updateStatus'])->name('update-status');
-            Route::patch('/{task}/move', [\App\Http\Controllers\TaskController::class, 'move'])->name('move');
             Route::patch('/{task}/pin', [\App\Http\Controllers\TaskController::class, 'togglePin'])->name('toggle-pin');
             Route::patch('/{task}/favorite', [\App\Http\Controllers\TaskController::class, 'toggleFavorite'])->name('toggle-favorite');
             Route::delete('/{task}', [\App\Http\Controllers\TaskController::class, 'destroy'])->name('destroy');
@@ -417,6 +416,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
         Route::patch('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+        Route::patch('/profile/quick-actions', [ProfileController::class, 'updateQuickActions'])->name('profile.quick-actions.update');
         Route::delete('/profile/photo', [ProfileController::class, 'removePhoto'])->name('profile.photo.remove');
         Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 

@@ -58,6 +58,16 @@ class PatientHubService
         ];
     }
 
+    /**
+     * Fase B4: 'appointments.consultation.procedureExecutions.treatment' e
+     * 'consultations.professional/.appointment.treatment/.procedureExecutions.treatment'
+     * eram carregadas mas nunca acessadas em nenhum método desta classe —
+     * formatAppointment() (o único lugar que formata um Appointment) só lê
+     * ->treatment e ->professional; os demais usos de $patient->consultations
+     * são só count()/where()/contains() sobre a coleção base, sem tocar em
+     * relações aninhadas. 'consultations' (sem dot) continua carregada para
+     * esses agregados. Medido: 8 das 9 queries desse bloco eram descartadas.
+     */
     private function ensureRelations(Patient $patient): void
     {
         $patient->loadMissing([
@@ -66,10 +76,7 @@ class PatientHubService
             'odontogram.updatedBy:id,name',
             'appointments.treatment',
             'appointments.professional:id,name',
-            'appointments.consultation.procedureExecutions.treatment',
-            'consultations.professional:id,name',
-            'consultations.appointment.treatment',
-            'consultations.procedureExecutions.treatment',
+            'consultations',
             'clinicalRecords.professional:id,name',
             'evolutions.professional:id,name',
             'photos',
@@ -78,6 +85,39 @@ class PatientHubService
             'treatments.professional:id,name',
             'treatments.convenio',
             'convenio',
+        ]);
+    }
+
+    /**
+     * Fase B3: a página do Odontograma (PatientOdontogramController) só
+     * consome hub.timeline e hub.treatments — nunca os outros 12 campos que
+     * build() calcula (badges, clinicalAlerts, summary, professionals, tags,
+     * consultations, financialHistory, documents, aiInsights, toothHistory,
+     * birthday). Medido: build() completo custa 24 queries no cenário de
+     * teste; timeline()+treatments() precisam de só 7 relações (11 queries).
+     * Não remover daqui sem antes conferir timeline()/treatments() — cada
+     * relação abaixo corresponde a um acesso real dentro desses dois métodos.
+     */
+    public function buildForOdontogram(Patient $patient): array
+    {
+        $this->ensureOdontogramRelations($patient);
+
+        return [
+            'timeline' => $this->timeline($patient),
+            'treatments' => $this->treatments($patient),
+        ];
+    }
+
+    private function ensureOdontogramRelations(Patient $patient): void
+    {
+        $patient->loadMissing([
+            'anamnesisInstances.professional:id,name',
+            'odontogram.updatedBy:id,name',
+            'clinicalRecords.professional:id,name',
+            'photos',
+            'budgets.items.treatment',
+            'treatments.professional:id,name',
+            'treatments.convenio',
         ]);
     }
 

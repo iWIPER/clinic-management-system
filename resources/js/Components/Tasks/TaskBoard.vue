@@ -1,25 +1,28 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import TaskBoardCard from './TaskBoardCard.vue'
 
 const props = defineProps({
-    // { inbox: [...], today: [...], upcoming: [...], done: [...] } — o mesmo
-    // computed já usado pela Lista (TaskPanel.vue), incluindo busca/
-    // prioridade/etiqueta/pin/ordenação de Concluídas por completed_at DESC.
-    // O Board não reclassifica nada por conta própria.
+    // { todo: [...], doing: [...], done: [...] } — kanbanBuckets computado
+    // em TaskPanel.vue a partir do MESMO filteredTasks da Lista (busca/
+    // prioridade/etiqueta/pin/ordenação de Feito por completed_at DESC). O
+    // Board não reclassifica nada por conta própria, só desenha as 3 colunas.
     buckets: { type: Object, required: true },
     priorities: { type: Object, required: true },
     statuses: { type: Object, required: true },
     movingTaskIds: { type: Object, default: () => new Set() },
 })
 
-const emit = defineEmits(['edit', 'toggle-done', 'toggle-favorite', 'move'])
+const emit = defineEmits(['edit', 'toggle-done', 'toggle-favorite', 'update-status'])
 
+// As 3 únicas colunas do Kanban — chave = status real (ver Task::KANBAN_STATUSES
+// no backend, única fonte dos labels). Nada de Entrada/Hoje/Próximas/
+// Concluídas aqui: esses continuam existindo só como filtros/visões da
+// Lista (ver TaskSidebar.vue), não como estrutura do Board.
 const COLUMNS = [
-    { key: 'inbox', label: 'Entrada' },
-    { key: 'today', label: 'Hoje' },
-    { key: 'upcoming', label: 'Próximas' },
-    { key: 'done', label: 'Concluídas' },
+    { key: 'todo', label: 'A Fazer' },
+    { key: 'doing', label: 'Fazendo' },
+    { key: 'done', label: 'Feito' },
 ]
 
 // ── Drag and drop nativo (sem lib) — o estado de "quem está sendo
@@ -48,36 +51,11 @@ function onCardDragEnd() {
     dragOverColumn.value = null
 }
 
-// ── "Próximas" exige uma data futura — nunca aplicamos "amanhã" em
-// silêncio; um pequeno popover pede confirmação, já com "amanhã" só como
-// valor inicial editável. ───────────────────────────────────────────────
-const pendingUpcoming = ref(null)
-const pendingUpcomingDate = ref('')
-const pendingUpcomingError = ref('')
-
-function tomorrowStr() {
-    const d = new Date()
-    d.setDate(d.getDate() + 1)
-    return d.toISOString().slice(0, 10)
-}
-const todayStr = () => new Date().toISOString().slice(0, 10)
-const minUpcomingDate = computed(() => tomorrowStr())
-
-function cancelPendingUpcoming() {
-    pendingUpcoming.value = null
-    pendingUpcomingDate.value = ''
-    pendingUpcomingError.value = ''
-}
-
-function confirmPendingUpcoming() {
-    if (!pendingUpcomingDate.value || pendingUpcomingDate.value <= todayStr()) {
-        pendingUpcomingError.value = 'Escolha uma data futura.'
-        return
-    }
-    emit('move', pendingUpcoming.value, 'upcoming', pendingUpcomingDate.value)
-    cancelPendingUpcoming()
-}
-
+// Soltar num status já é uma mudança direta — a coluna EXISTE que nem o
+// status real (todo/doing/done), sem tradução nenhuma no meio (diferente
+// do antigo /move, que traduzia "coluna" pra due_date). Reabrir (Feito →
+// Fazendo/A Fazer) já é suportado pelo mesmo endpoint (ver
+// TaskController::updateStatus), sem regra extra aqui.
 function onDrop(columnKey) {
     dragOverColumn.value = null
     const task = draggingTask.value
@@ -86,24 +64,32 @@ function onDrop(columnKey) {
     draggingFromColumn.value = null
     if (!task || columnKey === fromColumn) return
 
-    if (columnKey === 'upcoming') {
-        pendingUpcoming.value = task
-        pendingUpcomingDate.value = tomorrowStr()
-        pendingUpcomingError.value = ''
-        return
-    }
+    emit('update-status', task, columnKey)
+}
 
-    emit('move', task, columnKey, null)
+// ── Mobile: 1 coluna por vez + tabs, sem depender do Drag and Drop nativo
+// (não funciona em touch) — troca de coluna por tabs, mover uma tarefa por
+// uma ação explícita "Mover para..." em cada card (ver TaskBoardCard.vue).
+// Desktop (`lg:` acima) continua 100% inalterado: mesmas 3 colunas lado a
+// lado com drag-and-drop nativo, ver bloco `hidden lg:flex` abaixo. ────────
+const mobileActiveColumn = ref('todo')
+
+// Opções pra "Mover para..." de um card no mobile — as OUTRAS colunas, não a
+// que ele já está (mesma regra que já existia no onDrop: mover pra própria
+// coluna não é uma ação real).
+function moveOptionsFor(columnKey) {
+    return COLUMNS.filter((c) => c.key !== columnKey)
 }
 </script>
 
 <template>
-    <div class="flex h-full gap-4 overflow-x-auto px-6 py-4">
-        <!-- `flex-1` com piso (`min-w`) — em telas largas as 4 colunas
-             esticam pra preencher o espaço extra do modal (ver TaskPanel.vue,
-             modo Board é mais largo); abaixo do piso, a rolagem horizontal do
-             container pai assume (comportamento já validado em telas
-             menores). -->
+    <!-- Desktop (≥lg): 3 colunas lado a lado, drag-and-drop nativo — comportamento
+         inalterado da R2/versões anteriores. -->
+    <div class="hidden h-full gap-4 overflow-x-auto px-6 py-4 lg:flex">
+        <!-- `flex-1` com piso (`min-w`) — as 3 colunas (1fr 1fr 1fr) dividem
+             igualmente a largura disponível do modal (mesma largura de
+             Lista e Board agora, ver TaskPanel.vue); abaixo do piso, a
+             rolagem horizontal do container pai assume (telas menores). -->
         <div v-for="col in COLUMNS" :key="col.key"
              :data-column="col.key"
              class="flex h-full min-w-[272px] flex-1 flex-col rounded-xl transition-colors"
@@ -135,27 +121,40 @@ function onDrop(columnKey) {
                     @toggle-favorite="$emit('toggle-favorite', task)" />
             </div>
         </div>
+    </div>
 
-        <!-- Popover de data pra "Próximas" — pequeno, centralizado, some ao
-             clicar fora ou cancelar; nada é movido até confirmar. -->
-        <div v-if="pendingUpcoming" data-testid="upcoming-date-popover" class="fixed inset-0 z-30 flex items-center justify-center bg-black/20" @click.self="cancelPendingUpcoming">
-            <div class="w-72 rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
-                <p class="text-sm font-semibold text-slate-800">Mover para "Próximas"</p>
-                <p class="mt-1 text-xs text-slate-500">Escolha a nova data de vencimento — precisa ser uma data futura.</p>
-                <input v-model="pendingUpcomingDate" type="date" :min="minUpcomingDate" data-testid="upcoming-date-input"
-                       class="mt-3 w-full rounded-lg border-slate-300 text-sm focus:border-emerald-500 focus:ring-emerald-500" />
-                <p v-if="pendingUpcomingError" class="mt-1 text-xs text-red-500">{{ pendingUpcomingError }}</p>
-                <div class="mt-3 flex justify-end gap-2">
-                    <button type="button" @click="cancelPendingUpcoming" data-testid="upcoming-date-cancel"
-                            class="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100">
-                        Cancelar
-                    </button>
-                    <button type="button" @click="confirmPendingUpcoming" data-testid="upcoming-date-confirm"
-                            class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700">
-                        Confirmar
-                    </button>
-                </div>
-            </div>
+    <!-- Mobile (<lg): 1 coluna por vez + tabs — Drag and Drop nativo não
+         funciona em touch, então a troca de coluna é por tab e mover uma
+         tarefa é uma ação explícita "Mover para..." em cada card. -->
+    <div class="flex h-full flex-col lg:hidden">
+        <div class="flex shrink-0 gap-1 border-b px-3 py-2">
+            <button v-for="col in COLUMNS" :key="col.key" type="button"
+                    @click="mobileActiveColumn = col.key"
+                    class="flex-1 rounded-lg py-2 text-xs font-semibold uppercase tracking-wide transition-colors"
+                    :class="mobileActiveColumn === col.key ? 'bg-emerald-100 text-emerald-800' : 'text-slate-500 hover:bg-slate-100'">
+                {{ col.label }}
+                <span class="ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+                      :class="mobileActiveColumn === col.key ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-500'">
+                    {{ (buckets[col.key] || []).length }}
+                </span>
+            </button>
+        </div>
+
+        <div class="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3">
+            <p v-if="!(buckets[mobileActiveColumn] || []).length" class="pt-6 text-center text-xs text-slate-400">
+                Nenhuma tarefa aqui.
+            </p>
+
+            <TaskBoardCard
+                v-for="task in buckets[mobileActiveColumn]" :key="task.id"
+                :task="task" :priorities="priorities" :statuses="statuses"
+                :draggable="false"
+                :moving="movingTaskIds.has(task.id)"
+                :move-options="moveOptionsFor(mobileActiveColumn)"
+                @edit="$emit('edit', task)"
+                @toggle-done="$emit('toggle-done', task)"
+                @toggle-favorite="$emit('toggle-favorite', task)"
+                @move-to="(status) => $emit('update-status', task, status)" />
         </div>
     </div>
 </template>

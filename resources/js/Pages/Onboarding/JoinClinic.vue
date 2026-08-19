@@ -12,7 +12,7 @@ const submit = () => {
 </script>
 
 <template>
-    <div class="max-w-md mx-auto mt-12">
+    <div class="max-w-md mx-auto mt-12 px-4">
         <h1 class="text-3xl font-semibold mb-2">Entrar em uma clínica</h1>
         <p class="text-slate-600 mb-6">Cole o token do convite ou verifique seu email.</p>
 

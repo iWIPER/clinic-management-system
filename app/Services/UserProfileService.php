@@ -13,6 +13,19 @@ use Spatie\Permission\PermissionRegistrar;
 
 class UserProfileService
 {
+    // Chaves de rota permitidas como "ação personalizada" na TopIsland — só
+    // fluxos de criação autônomos e navegáveis por link direto (sem exigir
+    // estado/contexto de outra página, ex.: convite de equipe é um modal
+    // interno de Team/Index.vue, não entra aqui). O rótulo/ícone de cada
+    // uma vive no frontend (resources/js/Navigation/quickActions.js); aqui
+    // só validamos que o valor persistido é uma chave real do sistema.
+    public const ALLOWED_QUICK_ACTIONS = [
+        'treatments.create',
+        'inventory.create',
+        'document-templates.create',
+        'anamnesis-templates.create',
+    ];
+
     private const ROLE_LABELS = [
         'owner'        => 'Administrador',
         'admin'        => 'Administrador',
@@ -37,6 +50,7 @@ class UserProfileService
             'notifications_email'     => true,
             'notifications_system'    => true,
             'notifications_whatsapp'  => false,
+            'quick_actions'           => [],
         ];
     }
 

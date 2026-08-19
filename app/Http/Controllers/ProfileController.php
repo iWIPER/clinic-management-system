@@ -116,6 +116,24 @@ class ProfileController extends Controller
         return back()->with('status', 'Perfil atualizado com sucesso.');
     }
 
+    public function updateQuickActions(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'quick_actions'   => ['present', 'array', 'max:2'],
+            'quick_actions.*' => ['string', Rule::in(UserProfileService::ALLOWED_QUICK_ACTIONS)],
+        ]);
+
+        $user = $request->user();
+        $user->preferences = array_merge(
+            $this->profileService->defaultPreferences(),
+            $user->preferences ?? [],
+            ['quick_actions' => array_values(array_unique($validated['quick_actions']))],
+        );
+        $user->save();
+
+        return back()->with('status', 'Ações rápidas atualizadas.');
+    }
+
     public function updatePassword(Request $request): RedirectResponse
     {
         $validated = $request->validate([

@@ -24,7 +24,7 @@ const submit = () => {
 </script>
 
 <template>
-    <div class="max-w-2xl mx-auto">
+    <div class="max-w-2xl mx-auto px-4">
         <h1 class="text-3xl font-semibold">Convide sua equipe</h1>
         <p class="text-slate-600 mb-6">Clínica: <strong>{{ clinic?.name }}</strong></p>
 

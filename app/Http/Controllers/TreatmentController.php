@@ -6,6 +6,7 @@ use App\Data\DentalTreatmentCatalog;
 use App\Models\Treatment;
 use App\Models\TreatmentAuditLog;
 use App\Services\PatientStatusService;
+use App\Services\TreatmentCatalogService;
 use App\Services\TreatmentStatsService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -112,7 +113,7 @@ class TreatmentController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, TreatmentCatalogService $treatmentCatalogService)
     {
         $validated = $request->validate([
             'nome'              => 'required|string|max:255',
@@ -140,6 +141,7 @@ class TreatmentController extends Controller
         ]));
 
         $this->logAudit($treatment, 'created', ['nome' => $treatment->nome]);
+        $treatmentCatalogService->forgetClinic($treatment->clinic_id);
 
         return redirect()
             ->route('treatments.show', $treatment)
@@ -157,7 +159,7 @@ class TreatmentController extends Controller
         ]);
     }
 
-    public function update(Request $request, Treatment $treatment)
+    public function update(Request $request, Treatment $treatment, TreatmentCatalogService $treatmentCatalogService)
     {
         $validated = $request->validate([
             'nome'              => 'required|string|max:255',
@@ -183,6 +185,7 @@ class TreatmentController extends Controller
         }
 
         $treatment->update($validated);
+        $treatmentCatalogService->forgetClinic($treatment->clinic_id);
 
         if (! empty($changes)) {
             $this->logAudit($treatment, 'updated', ['changes' => $changes]);
@@ -202,7 +205,7 @@ class TreatmentController extends Controller
     // PatientTreatment salvo pra usar o endpoint de custo por tratamento (ver
     // patients.treatments.cost). Nunca mexe em preco_base (Valor é campo
     // separado, não afetado por essa ação — ver TreatmentFormModal.vue).
-    public function updateDefaultCost(Request $request, Treatment $treatment)
+    public function updateDefaultCost(Request $request, Treatment $treatment, TreatmentCatalogService $treatmentCatalogService)
     {
         $validated = $request->validate([
             'custo_padrao' => 'required|numeric|min:0',
@@ -210,6 +213,7 @@ class TreatmentController extends Controller
 
         $from = $treatment->custo_padrao;
         $treatment->update(['custo_padrao' => $validated['custo_padrao']]);
+        $treatmentCatalogService->forgetClinic($treatment->clinic_id);
 
         if ((string) $from !== (string) $validated['custo_padrao']) {
             $this->logAudit($treatment, 'updated', [
@@ -220,7 +224,7 @@ class TreatmentController extends Controller
         return back()->with('success', 'Custo padrão do procedimento atualizado.');
     }
 
-    public function deactivate(Treatment $treatment)
+    public function deactivate(Treatment $treatment, TreatmentCatalogService $treatmentCatalogService)
     {
         if (! $treatment->ativo) {
             return back()->with('error', 'Procedimento já está desativado.');
@@ -231,13 +235,14 @@ class TreatmentController extends Controller
             'deactivated_at' => now(),
             'deactivated_by_id' => auth()->id(),
         ]);
+        $treatmentCatalogService->forgetClinic($treatment->clinic_id);
 
         $this->logAudit($treatment, 'deactivated');
 
         return back()->with('success', 'Procedimento desativado. Histórico preservado.');
     }
 
-    public function reactivate(Treatment $treatment)
+    public function reactivate(Treatment $treatment, TreatmentCatalogService $treatmentCatalogService)
     {
         if ($treatment->ativo) {
             return back()->with('error', 'Procedimento já está ativo.');
@@ -248,21 +253,24 @@ class TreatmentController extends Controller
             'deactivated_at' => null,
             'deactivated_by_id' => null,
         ]);
+        $treatmentCatalogService->forgetClinic($treatment->clinic_id);
 
         $this->logAudit($treatment, 'reactivated');
 
         return back()->with('success', 'Procedimento reativado.');
     }
 
-    public function destroy(Treatment $treatment, TreatmentStatsService $statsService)
+    public function destroy(Treatment $treatment, TreatmentStatsService $statsService, TreatmentCatalogService $treatmentCatalogService)
     {
         if ($statsService->hasLinkedAttendances($treatment)) {
             return back()->with('error', 'linked_attendances');
         }
 
         $nome = $treatment->nome;
+        $clinicId = $treatment->clinic_id;
         $this->logAudit($treatment, 'deleted', ['nome' => $nome]);
         $treatment->delete();
+        $treatmentCatalogService->forgetClinic($clinicId);
 
         return redirect()
             ->route('treatments.index')

@@ -952,176 +952,19 @@ test('control panel orders tasks within each section by completed_at DESC', func
     expect($mineTasks[1]['id'])->toBe($older->id);
 });
 
-// ── Board — endpoint de movimentação (PATCH /tasks/{task}/move) ────────────
+// ── Board Kanban — status via endpoint existente (PATCH /tasks/{task}/status)
+// O Board deixou de ter colunas de data (Entrada/Hoje/Próximas/Concluídas,
+// endpoint /move) — agora são 3 colunas de status (A Fazer/Fazendo/Feito),
+// movidas pelo mesmo endpoint que a Lista já usa pra concluir/reabrir tarefas
+// (ver 'updating task status to done...' acima). Sem endpoint novo, sem
+// teste novo pra esse fluxo — já está coberto.
 
-test('moving a task to "today" sets due_date to today', function () {
-    ['user' => $user, 'clinic' => $clinic] = setupTaskContext();
-
-    $task = Task::create(['clinic_id' => $clinic->id, 'title' => 'Sem data', 'description' => 'x', 'status' => 'todo', 'priority' => 'media', 'created_by' => $user->id]);
-
-    $this->actingAs($user)
-        ->patchJson(route('tasks.move', $task), ['column' => 'today'])
-        ->assertOk()
-        ->assertJsonPath('due_date', fn ($v) => str_starts_with($v, now()->toDateString()));
-
-    $task->refresh();
-    expect($task->due_date->toDateString())->toBe(now()->toDateString());
-});
-
-test('moving a done task to "today" reopens it and sets due_date to today', function () {
-    ['user' => $user, 'clinic' => $clinic] = setupTaskContext();
-
-    $task = Task::create(['clinic_id' => $clinic->id, 'title' => 'Concluída', 'description' => 'x', 'status' => 'done', 'priority' => 'media', 'created_by' => $user->id, 'completed_at' => now()->subDay(), 'due_date' => now()->subDays(3)]);
-
-    $this->actingAs($user)
-        ->patchJson(route('tasks.move', $task), ['column' => 'today'])
-        ->assertOk()
-        ->assertJsonPath('status', 'todo')
-        ->assertJsonPath('completed_at', null);
-
-    $task->refresh();
-    expect($task->status)->toBe('todo');
-    expect($task->completed_at)->toBeNull();
-    expect($task->due_date->toDateString())->toBe(now()->toDateString());
-});
-
-test('moving a task to "inbox" clears due_date without touching priority', function () {
-    ['user' => $user, 'clinic' => $clinic] = setupTaskContext();
-
-    $task = Task::create(['clinic_id' => $clinic->id, 'title' => 'Com data', 'description' => 'x', 'status' => 'todo', 'priority' => 'alta', 'created_by' => $user->id, 'due_date' => now()->toDateString()]);
-
-    $this->actingAs($user)
-        ->patchJson(route('tasks.move', $task), ['column' => 'inbox'])
-        ->assertOk()
-        ->assertJsonPath('due_date', null)
-        ->assertJsonPath('priority', 'alta');
-
-    $task->refresh();
-    expect($task->due_date)->toBeNull();
-    expect($task->priority)->toBe('alta');
-});
-
-test('moving an urgent task to "inbox" is allowed (clears due_date, no future date involved)', function () {
-    ['user' => $user, 'clinic' => $clinic] = setupTaskContext();
-
-    $task = Task::create(['clinic_id' => $clinic->id, 'title' => 'Urgente hoje', 'description' => 'x', 'status' => 'todo', 'priority' => 'urgente', 'created_by' => $user->id, 'due_date' => now()->toDateString()]);
-
-    $this->actingAs($user)
-        ->patchJson(route('tasks.move', $task), ['column' => 'inbox'])
-        ->assertOk()
-        ->assertJsonPath('due_date', null)
-        ->assertJsonPath('priority', 'urgente');
-});
-
-test('moving a task to "upcoming" without a future date is rejected', function () {
-    ['user' => $user, 'clinic' => $clinic] = setupTaskContext();
-
-    $task = Task::create(['clinic_id' => $clinic->id, 'title' => 'Sem data', 'description' => 'x', 'status' => 'todo', 'priority' => 'media', 'created_by' => $user->id]);
-
-    $this->actingAs($user)
-        ->patchJson(route('tasks.move', $task), ['column' => 'upcoming'])
-        ->assertStatus(422)
-        ->assertJsonValidationErrors(['due_date']);
-
-    $this->actingAs($user)
-        ->patchJson(route('tasks.move', $task), ['column' => 'upcoming', 'due_date' => now()->toDateString()])
-        ->assertStatus(422)
-        ->assertJsonValidationErrors(['due_date']);
-
-    // Falhou — o estado no banco não deve ter mudado (nada pra "restaurar" no frontend).
-    $task->refresh();
-    expect($task->due_date)->toBeNull();
-});
-
-test('moving a task to "upcoming" with a valid future date succeeds', function () {
-    ['user' => $user, 'clinic' => $clinic] = setupTaskContext();
-
-    $task = Task::create(['clinic_id' => $clinic->id, 'title' => 'Vai pra próximas', 'description' => 'x', 'status' => 'todo', 'priority' => 'media', 'created_by' => $user->id]);
-    $future = now()->addDays(5)->toDateString();
-
-    $this->actingAs($user)
-        ->patchJson(route('tasks.move', $task), ['column' => 'upcoming', 'due_date' => $future])
-        ->assertOk()
-        ->assertJsonPath('due_date', fn ($v) => str_starts_with($v, $future));
-
-    $task->refresh();
-    expect($task->due_date->toDateString())->toBe($future);
-});
-
-test('moving an urgent task to "upcoming" is rejected even with a valid future date', function () {
-    ['user' => $user, 'clinic' => $clinic] = setupTaskContext();
-
-    $task = Task::create(['clinic_id' => $clinic->id, 'title' => 'Urgente', 'description' => 'x', 'status' => 'todo', 'priority' => 'urgente', 'created_by' => $user->id, 'due_date' => now()->toDateString()]);
-
-    $this->actingAs($user)
-        ->patchJson(route('tasks.move', $task), ['column' => 'upcoming', 'due_date' => now()->addDays(3)->toDateString()])
-        ->assertStatus(422)
-        ->assertJsonValidationErrors(['due_date']);
-
-    $task->refresh();
-    expect($task->due_date->toDateString())->toBe(now()->toDateString());
-});
-
-test('moving a task to "done" marks it done, stamps completed_at, and keeps due_date', function () {
-    ['user' => $user, 'clinic' => $clinic] = setupTaskContext();
-
-    $dueDate = now()->addDays(2)->toDateString();
-    $task = Task::create(['clinic_id' => $clinic->id, 'title' => 'A concluir', 'description' => 'x', 'status' => 'todo', 'priority' => 'media', 'created_by' => $user->id, 'due_date' => $dueDate]);
-
-    $this->actingAs($user)
-        ->patchJson(route('tasks.move', $task), ['column' => 'done'])
-        ->assertOk()
-        ->assertJsonPath('status', 'done')
-        ->assertJsonPath('due_date', fn ($v) => str_starts_with($v, $dueDate));
-
-    $task->refresh();
-    expect($task->status)->toBe('done');
-    expect($task->completed_at)->not->toBeNull();
-    expect($task->due_date->toDateString())->toBe($dueDate);
-});
-
-test('moving a task out of "done" reopens it and applies the destination column due_date', function () {
-    ['user' => $user, 'clinic' => $clinic] = setupTaskContext();
-
-    $task = Task::create(['clinic_id' => $clinic->id, 'title' => 'Concluída', 'description' => 'x', 'status' => 'done', 'priority' => 'media', 'created_by' => $user->id, 'completed_at' => now()->subHour(), 'due_date' => now()->subDays(2)]);
-
-    $this->actingAs($user)
-        ->patchJson(route('tasks.move', $task), ['column' => 'inbox'])
-        ->assertOk()
-        ->assertJsonPath('status', 'todo')
-        ->assertJsonPath('completed_at', null)
-        ->assertJsonPath('due_date', null);
-
-    $task->refresh();
-    expect($task->status)->toBe('todo');
-    expect($task->completed_at)->toBeNull();
-    expect($task->due_date)->toBeNull();
-});
-
-test('tasks moved to "done" at different times keep the completed_at DESC ordering', function () {
-    ['user' => $user, 'clinic' => $clinic] = setupTaskContext();
-
-    $urgent = Task::create(['clinic_id' => $clinic->id, 'title' => 'Urgente movida primeiro', 'description' => 'x', 'status' => 'todo', 'priority' => 'urgente', 'created_by' => $user->id]);
-    $low = Task::create(['clinic_id' => $clinic->id, 'title' => 'Baixa movida depois', 'description' => 'x', 'status' => 'todo', 'priority' => 'baixa', 'created_by' => $user->id]);
-
-    $this->actingAs($user)->patchJson(route('tasks.move', $urgent), ['column' => 'done'])->assertOk();
-    $this->actingAs($user)->patchJson(route('tasks.move', $low), ['column' => 'done'])->assertOk();
-
-    $response = $this->actingAs($user)
-        ->getJson(route('tasks.index', ['scope' => 'mine', 'days' => 'all']))
-        ->assertOk();
-
-    // A movida por último (baixa) aparece primeiro, mesmo com prioridade menor.
-    expect($response->json('tasks.0.id'))->toBe($low->id);
-    expect($response->json('tasks.1.id'))->toBe($urgent->id);
-});
-
-test('a task moved to "done" via the board appears in the control panel today', function () {
+test('a task moved to "done" via the board (update-status) appears in the control panel today', function () {
     ['user' => $user, 'clinic' => $clinic] = setupTaskContext();
 
     $task = Task::create(['clinic_id' => $clinic->id, 'title' => 'Movida pro board', 'description' => 'x', 'status' => 'todo', 'priority' => 'media', 'created_by' => $user->id, 'assigned_to' => $user->id]);
 
-    $this->actingAs($user)->patchJson(route('tasks.move', $task), ['column' => 'done'])->assertOk();
+    $this->actingAs($user)->patchJson(route('tasks.update-status', $task), ['status' => 'done'])->assertOk();
 
     $response = $this->actingAs($user)->getJson(route('tasks.controle'))->assertOk();
     $mine = collect($response->json('sections'))->firstWhere('key', 'mine');
@@ -1130,15 +973,16 @@ test('a task moved to "done" via the board appears in the control panel today', 
     expect($mine['tasks'][0]['id'])->toBe($task->id);
 });
 
-test('moving a task inside a custom scope keeps it in that scope', function () {
+test('moving a task between kanban statuses keeps it in its custom scope', function () {
     ['user' => $user, 'clinic' => $clinic] = setupTaskContext();
 
     $list = TaskList::create(['clinic_id' => $clinic->id, 'user_id' => $user->id, 'key' => null, 'name' => 'Financeiro', 'color' => '#0d9488', 'sharing_type' => 'private']);
     $task = Task::create(['clinic_id' => $clinic->id, 'title' => 'Tarefa do escopo', 'description' => 'x', 'status' => 'todo', 'priority' => 'media', 'created_by' => $user->id, 'task_list_id' => $list->id]);
 
-    $this->actingAs($user)->patchJson(route('tasks.move', $task), ['column' => 'today'])->assertOk();
+    $this->actingAs($user)->patchJson(route('tasks.update-status', $task), ['status' => 'doing'])->assertOk();
 
     $task->refresh();
+    expect($task->status)->toBe('doing');
     expect($task->task_list_id)->toBe($list->id);
 
     $this->actingAs($user)

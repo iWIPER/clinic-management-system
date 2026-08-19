@@ -12,12 +12,30 @@ class Task extends Model
 {
     use BelongsToClinic;
 
-    // Também representa a futura coluna do board Kanban.
+    // Labels apresentados ao usuário em toda a UI de Tarefas (Lista, Board,
+    // tooltips, formulário) — única fonte, pra Lista e Board nunca divergirem
+    // no texto. 'waiting' é um estado legado (não é mais oferecido como
+    // opção nova, ver KANBAN_STATUSES) mantido aqui só pra tarefas antigas
+    // que já têm esse valor continuarem exibindo um label correto em vez de
+    // caírem no fallback (a própria chave crua) — ver Task::statusLabel().
     public const STATUSES = [
-        'todo'    => 'A fazer',
-        'doing'   => 'Em andamento',
+        'todo'    => 'A Fazer',
+        'doing'   => 'Fazendo',
         'waiting' => 'Aguardando',
-        'done'    => 'Concluída',
+        'done'    => 'Feito',
+    ];
+
+    // As 3 colunas REAIS do board Kanban — e as únicas 3 opções oferecidas
+    // no formulário de criação/edição (ver TaskController::index() e
+    // TaskFormModal.vue). Não inclui 'waiting': tarefas antigas com esse
+    // status continuam válidas e visíveis (Lista, tooltip, contagem), mas
+    // não é mais um estado que o usuário escolhe ou vê como coluna — no
+    // Kanban elas aparecem agrupadas em "Fazendo" (ver kanbanColumnOf() no
+    // frontend, TaskPanel.vue).
+    public const KANBAN_STATUSES = [
+        'todo'  => 'A Fazer',
+        'doing' => 'Fazendo',
+        'done'  => 'Feito',
     ];
 
     public const PRIORITIES = [

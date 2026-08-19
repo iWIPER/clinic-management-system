@@ -32,11 +32,23 @@ const props = defineProps({
     businessHoursEnforced: { type: Boolean, default: false },
 })
 
+// ── Tela cheia é Desktop/Tablet only (decisão deliberada, não um limite
+// técnico) — não existe adaptação mobile dela, então smartphone (<640px)
+// nunca deve conseguir ficar nesta página: o botão que leva aqui já some
+// no Index.vue abaixo dessa largura, e isto cobre quem chegar por link
+// direto, aba salva ou "voltar" do navegador. Redireciona pra Agenda
+// normal (já adaptada pra mobile: Dia por padrão, painel recolhido). ────
+onMounted(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 640) {
+        router.visit(route('appointments.index', { week: props.weekStart }), { replace: true })
+    }
+})
+
 // ── Constantes ──────────────────────────────────────────────────────────────
-// END_HOUR é o teto ABSOLUTO da grade (nunca ultrapassado) — gridStartHour é
-// dinâmico (ver bloco "Regras administrativas" mais abaixo, depois que
-// visibleDays/selectedProfessional existem). Mesma composable de Index.vue,
-// única fonte da regra no frontend.
+// END_HOUR é o teto ABSOLUTO da grade, gridStartHour (ver
+// useEffectiveSchedule.js) é o piso ABSOLUTO — sempre 07:00→21:00,
+// independente do horário configurado. Mesma composable de Index.vue, única
+// fonte da regra no frontend.
 const END_HOUR = GRID_CEIL_HOUR
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -74,7 +86,16 @@ const chairFilter    = ref(props.filters?.chair_id || 'all')
 const chairsList     = ref([...(props.chairs || [])])
 const showChairModal = ref(false)
 const editingChair   = ref(null)
-const showSidebar        = ref(true)
+// Painel lateral começa recolhido abaixo de 1280px — medido na R5: como
+// esta página já usa a largura inteira da tela (sem a sidebar do app), o
+// painel aberto ainda cabe confortavelmente em 1280/1440/1920 (limiar
+// diferente do Index.vue, que compete com a sidebar do app e só ficou
+// confortável a partir de 1440); abaixo de 1280 o painel aberto derruba a
+// área da grade demais. Fullscreen não tem modo Dia (só semana), então
+// abaixo de ~1024px a semana completa continua exigindo rolagem horizontal
+// mesmo com o painel recolhido — aceito como Desktop/Tablet-oriented (ver
+// relatório da R5); o Index.vue já cobre a experiência ideal de celular.
+const showSidebar        = ref(typeof window === 'undefined' || window.innerWidth >= 1280)
 const showMiniCal        = ref(true)
 // Dia destacado na grade e no mini-calendário (fullscreen é sempre
 // "semana" — não existe visão Dia aqui) — clicar num cabeçalho ou num dia
@@ -151,7 +172,6 @@ const visibleDays = computed(() => {
 // useEffectiveSchedule.js). Só decide a APARÊNCIA da grade; o bloqueio real
 // continua no backend (AppointmentController::assertProfessionalAvailable).
 const scheduleRules = useAgendaScheduleRules({
-    visibleDays,
     getProfessionalScopeForDay: () => selectedProfessional.value
         ? { working_days: selectedProfessional.value.working_days, working_hours: selectedProfessional.value.working_hours }
         : null,
@@ -464,19 +484,30 @@ onUnmounted(() => {
 // Único ponto que chama appointments.update-status — botões e o dropdown de
 // status do popover (ver STATUS_DROPDOWN_OPTIONS) reutilizam esta mesma
 // função, nunca duas implementações da mesma mudança de status.
+// Trava simples pra evitar duplo-clique nos botões de ação rápida do
+// popover (Confirmar/Check-in/Faltou/Cancelar/dropdown de status) — mesmo
+// critério de Index.vue.
+const quickActionBusy = ref(false)
+
 function changeStatus(appt, status) {
+    if (quickActionBusy.value) return
+    quickActionBusy.value = true
     router.patch(route('appointments.update-status', appt.id), { status },
         { preserveState: true, preserveScroll: true,
-          onSuccess: () => { closePopover(); router.reload({ only: ['appointments'], preserveState: true, preserveScroll: true }) } })
+          onSuccess: () => { closePopover(); router.reload({ only: ['appointments'], preserveState: true, preserveScroll: true }) },
+          onFinish: () => { quickActionBusy.value = false } })
 }
 
 const quickConfirm = (appt) => changeStatus(appt, 'confirmed')
 
 // Check-in continua com fluxo próprio (cria/atualiza Consultation, não é só
 // um status) — endpoint e comportamento inalterados.
-const quickCheckin = (appt) =>
+const quickCheckin = (appt) => {
+    if (quickActionBusy.value) return
+    quickActionBusy.value = true
     router.post(route('appointments.check-in', appt.id), {},
-        { preserveScroll: true, onSuccess: closePopover })
+        { preserveScroll: true, onSuccess: closePopover, onFinish: () => { quickActionBusy.value = false } })
+}
 
 // Cancelar/Faltou nunca apagam o agendamento (ver AppointmentController::
 // updateStatus), só mudam o status; cancelado/faltou já não bloqueiam mais
@@ -683,23 +714,32 @@ function apptScheduleNotice(appt) {
 </script>
 
 <template>
-<AppLayout content-width="screen">
+<AppLayout content-width="screen" hide-sidebar>
 <!-- Mesma superfície única de Index.vue (toolbar + sidebar + grade dentro
      de UMA borda/sombra/canto arredondado) — "tela cheia" aqui significa
-     aproveitar melhor o espaço abaixo da navbar principal (que continua
-     visível, ver AppLayout), não esconder o menu do Wildental. Mesmo
-     -mt-3.5/34px de Index.vue pro respiro até a navbar. content-width="screen"
-     é EXCLUSIVO desta tela — Index.vue (Agenda normal) usa o "full" padrão
-     do sistema (max-w-7xl/1280px, igual Pacientes/Consultas), sem prop
-     nenhuma. É essa diferença de largura entre os dois modos que faz
-     "entrar"/"sair" da tela cheia parecer uma mudança de verdade. Além do
-     token, aqui a gente também cancela o padding horizontal padrão do
-     <main> do AppLayout (-mx-4 sm:-mx-6 lg:-mx-8) e devolve uma margem bem
-     menor (px-2 sm:px-3 lg:px-4 = 8/12/16px), pra aproveitar o máximo
-     possível do monitor. Sem nenhuma dessas diferenças, tela cheia e
-     normal ocupavam exatamente a mesma largura e pareciam o mesmo modo (era a
-     causa real do "fullscreen parece sempre ligado"). -->
-<div class="-mt-3.5 -mx-4 sm:-mx-6 lg:-mx-8 px-2 sm:px-3 lg:px-4 flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm" style="min-height: calc(100vh - var(--app-navbar-h) - 34px)">
+     esconder TUDO que é global (sidebar E TopIsland, via `hide-sidebar` —
+     ver AppLayout) pra devolver o máximo de espaço, horizontal e
+     vertical, à grade de horários. Sem TopIsland, não existe zona sticky
+     acima do card pra descontar: a altura mínima é só 100vh menos o
+     respiro inferior fixo que `main` sempre aplica (pb-6 = 1.5rem,
+     independente do tier) — por isso não tem `-mt-3.5` nem `--shell-top-h`
+     aqui, diferente de Index.vue. Usa 1.5rem hardcoded (não
+     --shell-gutter): esse token agora é responsivo por causa do respiro
+     G da TopIsland, mas o pb-6 do <main> nunca muda por breakpoint —
+     reusar o token aqui encolheria a área útil do fullscreen em telas
+     <1024px por engano. `min-height`, não `height` — mesmo motivo de
+     Index.vue: quando a grade de 07:00→21:00 é mais alta que o espaço
+     disponível, quem rola é a PÁGINA (barra de rolagem geral), não um
+     contêiner interno da grade. content-width="screen" é EXCLUSIVO desta
+     tela — Index.vue (Agenda normal) usa o "full" padrão do sistema
+     (100% da área após a sidebar menos 2×G, igual Pacientes/Consultas),
+     sem prop nenhuma. É essa diferença de largura entre os dois modos que
+     faz "entrar"/"sair" da tela cheia parecer uma mudança de verdade.
+     Além do token, aqui a gente também cancela o padding horizontal
+     padrão do <main> do AppLayout pro tier "screen" (-mx-4 sm:-mx-6
+     lg:-mx-8) e devolve uma margem bem menor (px-2 sm:px-3 lg:px-4 =
+     8/12/16px), pra aproveitar o máximo possível do monitor. -->
+<div class="-mx-4 sm:-mx-6 lg:-mx-8 px-2 sm:px-3 lg:px-4 flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm" style="min-height: calc(100vh - 1.5rem)">
 
   <!-- ── Barra superior ─────────────────────────────────────────────────── -->
   <div class="flex items-center gap-2 px-4 py-2 border-b bg-white rounded-t-2xl flex-shrink-0 flex-wrap">
@@ -951,8 +991,12 @@ function apptScheduleNotice(appt) {
     </div>
     </transition>
 
-  <!-- ── Grade do calendário ────────────────────────────────────────────── -->
-  <div ref="gridScrollRef" class="flex-1 overflow-auto bg-slate-50/40 rounded-br-2xl">
+  <!-- ── Grade do calendário — mesmo motivo de Index.vue: overflow-x-auto
+       (rolagem horizontal própria, se necessária) + overflow-y-hidden
+       (nunca scrollbar vertical própria aqui — a rolagem vertical é da
+       página; hidden só absorve sobra de subpixel do cálculo de
+       gridHeight, não esconde conteúdo real). ── -->
+  <div ref="gridScrollRef" class="flex-1 overflow-x-auto overflow-y-hidden bg-slate-50/40 rounded-br-2xl">
 
     <!-- Cabeçalho dos dias (sticky) -->
     <div class="flex bg-white border-b sticky top-0 z-20" style="min-width: max-content">
@@ -1303,13 +1347,15 @@ function apptScheduleNotice(appt) {
 
     <div class="p-3 grid grid-cols-2 gap-2">
       <button v-if="activePopover.status === 'scheduled'"
+              :disabled="quickActionBusy"
               @click="quickConfirm(activePopover)"
-              class="text-xs font-medium px-3 py-2 rounded-lg bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 transition-colors">
+              class="text-xs font-medium px-3 py-2 rounded-lg bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
         Confirmar
       </button>
       <button v-if="['scheduled', 'confirmed'].includes(activePopover.status)"
+              :disabled="quickActionBusy"
               @click="quickCheckin(activePopover)"
-              class="text-xs font-medium px-3 py-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-colors">
+              class="text-xs font-medium px-3 py-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
         Check-in
       </button>
       <Link v-if="activePopover.consultation"
@@ -1326,13 +1372,15 @@ function apptScheduleNotice(appt) {
         Ver paciente
       </Link>
       <button v-if="!['cancelled', 'no_show', 'completed'].includes(activePopover.status)"
+              :disabled="quickActionBusy"
               @click="quickNoShow(activePopover)"
-              class="text-xs font-medium px-3 py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 transition-colors">
+              class="text-xs font-medium px-3 py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
         Faltou
       </button>
       <button v-if="!['cancelled', 'no_show', 'completed'].includes(activePopover.status)"
+              :disabled="quickActionBusy"
               @click="quickCancel(activePopover)"
-              class="text-xs font-medium px-3 py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 transition-colors">
+              class="text-xs font-medium px-3 py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
         Cancelar
       </button>
     </div>

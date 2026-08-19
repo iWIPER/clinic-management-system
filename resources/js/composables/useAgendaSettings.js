@@ -36,7 +36,14 @@ function loadFromStorage() {
         const raw = localStorage.getItem(KEY)
         if (raw) return { ...DEFAULTS, ...JSON.parse(raw) }
     } catch {}
-    return { ...DEFAULTS }
+    // Primeira visita (nada salvo ainda) — medido na R5: abaixo de 640px a
+    // Semana não cabe com qualidade mesmo com o painel lateral recolhido
+    // (só ~3 de 7 colunas visíveis), enquanto Dia cabe perfeitamente sem
+    // rolagem horizontal nenhuma. Só define o PADRÃO inicial — o usuário
+    // pode trocar pra Semana a qualquer momento (o toggle continua
+    // acessível em qualquer largura) e a escolha fica salva a partir daí.
+    const initialViewMode = (typeof window !== 'undefined' && window.innerWidth < 640) ? 'day' : 'week'
+    return { ...DEFAULTS, viewMode: initialViewMode }
 }
 
 const settings = reactive(loadFromStorage())

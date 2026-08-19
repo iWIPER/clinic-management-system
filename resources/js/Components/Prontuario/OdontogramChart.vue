@@ -6,6 +6,7 @@ import PermanentTeeth     from './Odontogram/PermanentTeeth.vue'
 import DeciduousTeeth    from './Odontogram/DeciduousTeeth.vue'
 import OdontogramLegend   from './Odontogram/OdontogramLegend.vue'
 import OdontogramTooltip  from './Odontogram/OdontogramTooltip.vue'
+import ScrollFadeX        from '@/Components/UI/ScrollFadeX.vue'
 import { STATUS_VISUAL }  from './Odontogram/permanentTeethPaths.js'
 import { statusFromTreatments } from './Odontogram/toothStatusPriority.js'
 import { useOdontogramZoom, ODONTOGRAM_ZOOM_MIN, ODONTOGRAM_ZOOM_MAX, ODONTOGRAM_ZOOM_STEP } from '@/composables/useOdontogramZoom.js'
@@ -161,8 +162,41 @@ const ttVs    = computed(() => ttTooth.value ? vs(ttTooth.value) : STATUS_VISUAL
     <!-- ── Chart + Side panel ──────────────────────────────────────────────── -->
     <div class="flex flex-col md:flex-row gap-4 items-start">
 
-        <!-- SVG area -->
-        <div class="flex-1 min-w-0" :class="compact ? '' : 'overflow-x-auto'">
+        <!-- SVG area — modo compact (miniatura) nunca precisa de scroll/fade,
+             fica exatamente como sempre foi. -->
+        <div v-if="compact" class="flex-1 min-w-0">
+            <template v-if="activeTab === 'permanent'">
+                <PermanentTeeth
+                    :teeth-data="teethData"
+                    :treatments-by-tooth="treatmentsByTooth"
+                    :selected-tooth="selectedTooth"
+                    :hovered-tooth="hoveredTooth"
+                    :readonly="readonly"
+                    @tooth:click="onToothClick"
+                    @tooth:hover="onToothHover"
+                    @tooth:leave="onToothLeave" />
+            </template>
+            <template v-else>
+                <DeciduousTeeth
+                    :teeth-data="teethData"
+                    :treatments-by-tooth="treatmentsByTooth"
+                    :selected-tooth="selectedTooth"
+                    :hovered-tooth="hoveredTooth"
+                    :readonly="readonly"
+                    @tooth:click="onToothClick"
+                    @tooth:hover="onToothHover"
+                    @tooth:leave="onToothLeave" />
+            </template>
+        </div>
+
+        <!-- Modo completo: fade nas bordas quando há mais do desenho fora da
+             tela (achado real medido em 375-430px: só ~62% da arcada cabe de
+             uma vez, sem nenhuma pista visual de que dá pra rolar) — mesmo
+             componente reaproveitado da R2 (Procedimentos). Não altera a
+             lógica de zoom/scroll existente, só adiciona a pista visual: o
+             próprio ScrollFadeX usa `overflow-x-auto` internamente no lugar
+             do que já estava aqui. -->
+        <ScrollFadeX v-else class="flex-1 min-w-0" fade-from="from-white">
             <!-- Zoom: escala a LARGURA deste bloco (não a do dente em si — o
                  SVG já é width:100%/height:auto, então redimensionar este
                  wrapper reflui o desenho inteiro proporcionalmente, sem
@@ -180,7 +214,7 @@ const ttVs    = computed(() => ttTooth.value ? vs(ttTooth.value) : STATUS_VISUAL
                  num bloco comum centraliza quando cabe (encolher) e degrada
                  pra alinhado à esquerda + scroll de verdade quando não cabe
                  (aumentar) — nunca esconde nada. -->
-            <div :style="compact ? '' : `width: ${odontogramZoom.zoom * 100}%; margin: 0 auto`">
+            <div :style="`width: ${odontogramZoom.zoom * 100}%; margin: 0 auto`">
             <template v-if="activeTab === 'permanent'">
                 <PermanentTeeth
                     :teeth-data="teethData"
@@ -191,7 +225,7 @@ const ttVs    = computed(() => ttTooth.value ? vs(ttTooth.value) : STATUS_VISUAL
                     @tooth:click="onToothClick"
                     @tooth:hover="onToothHover"
                     @tooth:leave="onToothLeave"
-                    :class="compact ? '' : 'min-w-[600px]'" />
+                    class="min-w-[600px]" />
             </template>
 
             <template v-else>
@@ -204,10 +238,10 @@ const ttVs    = computed(() => ttTooth.value ? vs(ttTooth.value) : STATUS_VISUAL
                     @tooth:click="onToothClick"
                     @tooth:hover="onToothHover"
                     @tooth:leave="onToothLeave"
-                    :class="compact ? '' : 'min-w-[600px]'" />
+                    class="min-w-[600px]" />
             </template>
             </div>
-        </div>
+        </ScrollFadeX>
 
         <!-- Side panel (tooth editor) -->
         <Transition

@@ -19,6 +19,11 @@ const props = defineProps({
     // `buckets` (os 4 de uma vez), já filtrados/ordenados do mesmo jeito.
     layoutMode: { type: String, default: 'list' },
     buckets: { type: Object, default: () => ({ inbox: [], today: [], upcoming: [], done: [] }) },
+    // { todo: [...], doing: [...], done: [...] } — as 3 colunas do Board
+    // Kanban (ver TaskPanel.vue). `buckets` acima continua existindo só pra
+    // sidebar da Lista (Entrada/Hoje/Próximas/Concluídas), não é mais usado
+    // pelo Board.
+    kanbanBuckets: { type: Object, default: () => ({ todo: [], doing: [], done: [] }) },
     movingTaskIds: { type: Object, default: () => new Set() },
     loading: { type: Boolean, default: false },
     loadError: { type: Boolean, default: false },
@@ -28,6 +33,7 @@ const props = defineProps({
     completedWindow: { type: String, default: 'all' },
     priorities: { type: Object, required: true },
     statuses: { type: Object, required: true },
+    kanbanStatuses: { type: Object, default: () => ({ todo: 'A Fazer', doing: 'Fazendo', done: 'Feito' }) },
     statusCounts: { type: Object, default: () => ({ todo: 0, doing: 0, waiting: 0, done: 0 }) },
     availableLabels: { type: Array, default: () => [] },
     // Só pra destacar o ícone quando o drawer já está aberto (mesmo padrão
@@ -38,7 +44,8 @@ const props = defineProps({
 
 const emit = defineEmits([
     'update:search', 'update:priority-filter', 'update:label-filter', 'update:completed-window', 'update:layout-mode',
-    'create', 'edit', 'toggle-done', 'delete', 'retry', 'toggle-pin', 'toggle-favorite', 'move', 'open-control-panel',
+    'create', 'edit', 'toggle-done', 'delete', 'retry', 'toggle-pin', 'toggle-favorite', 'update-status', 'open-control-panel',
+    'open-mobile-sidebar',
 ])
 
 // Meta por visão — texto e dica mudam conforme a visão ativa (ou "Board",
@@ -106,21 +113,31 @@ function clearFilters() {
 
 <template>
     <section class="flex min-w-0 flex-1 flex-col">
-        <header class="flex items-center justify-between gap-4 border-b px-6 py-4">
-            <div>
-                <h3 class="text-base font-semibold text-slate-800">{{ meta.title }}</h3>
-                <p v-if="!showPeriodSelect" class="text-xs text-slate-400">{{ meta.hint }}</p>
-                <!-- `p-0` do padrão "hint" removia o espaço reservado pra seta
-                     nativa (vinda do @tailwindcss/forms), fazendo ela cair em
-                     cima do texto — `pr-6` devolve um respiro pequeno,
-                     suficiente pra nunca sobrepor, sem afastar demais. -->
-                <select v-else :value="completedWindow" @change="$emit('update:completed-window', $event.target.value)"
-                        class="-ml-1 border-0 bg-transparent py-0 pl-1 pr-6 text-xs text-slate-400 focus:ring-0">
-                    <option v-for="opt in COMPLETED_WINDOW_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                </select>
+        <header class="flex flex-wrap items-center justify-between gap-3 border-b px-6 py-4">
+            <div class="flex items-center gap-3">
+                <!-- Abre o drawer da TaskSidebar (ver TaskSidebar.vue) — só
+                     existe abaixo de `lg`, onde a sidebar sai do fluxo. -->
+                <button type="button" @click="$emit('open-mobile-sidebar')" aria-label="Abrir menu de tarefas"
+                        class="-ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 lg:hidden">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+                    </svg>
+                </button>
+                <div>
+                    <h3 class="text-base font-semibold text-slate-800">{{ meta.title }}</h3>
+                    <p v-if="!showPeriodSelect" class="text-xs text-slate-400">{{ meta.hint }}</p>
+                    <!-- `p-0` do padrão "hint" removia o espaço reservado pra seta
+                         nativa (vinda do @tailwindcss/forms), fazendo ela cair em
+                         cima do texto — `pr-6` devolve um respiro pequeno,
+                         suficiente pra nunca sobrepor, sem afastar demais. -->
+                    <select v-else :value="completedWindow" @change="$emit('update:completed-window', $event.target.value)"
+                            class="-ml-1 border-0 bg-transparent py-0 pl-1 pr-6 text-xs text-slate-400 focus:ring-0">
+                        <option v-for="opt in COMPLETED_WINDOW_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                    </select>
+                </div>
             </div>
 
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
                 <div class="relative">
                     <input
                         :value="search"
@@ -233,8 +250,11 @@ function clearFilters() {
 
         <!-- Coluna de leitura colada à sidebar — teto de largura só pra
              linhas não voltarem a esticar de ponta a ponta do workspace.
-             Board usa rolagem horizontal (colunas) em vez de vertical. -->
-        <div class="flex-1" :class="layoutMode === 'board' ? 'overflow-x-auto overflow-y-hidden' : 'overflow-y-auto'">
+             Board usa rolagem horizontal (colunas) em vez de vertical — mas
+             só a partir de `lg`; abaixo disso o Board mobile é 1 coluna por
+             vez com rolagem vertical do próprio card list (ver
+             TaskBoard.vue), então o wrapper aqui precisa ceder overflow-y. -->
+        <div class="flex-1 overflow-y-auto" :class="layoutMode === 'board' ? 'lg:overflow-x-auto lg:overflow-y-hidden' : ''">
             <!-- Carregando/vazio centralizam no espaço todo — não são uma
                  "lista", então não faz sentido prendê-los na coluna estreita. -->
             <div v-if="loading" class="flex h-[50vh] items-center justify-center text-sm text-slate-400">
@@ -253,11 +273,11 @@ function clearFilters() {
             </div>
 
             <TaskBoard v-else-if="layoutMode === 'board'"
-                       :buckets="buckets" :priorities="priorities" :statuses="statuses" :moving-task-ids="movingTaskIds"
+                       :buckets="kanbanBuckets" :priorities="priorities" :statuses="kanbanStatuses" :moving-task-ids="movingTaskIds"
                        @edit="$emit('edit', $event)"
                        @toggle-done="$emit('toggle-done', $event)"
                        @toggle-favorite="$emit('toggle-favorite', $event)"
-                       @move="(task, column, dueDate) => $emit('move', task, column, dueDate)" />
+                       @update-status="(task, status) => $emit('update-status', task, status)" />
 
             <div v-else-if="tasks.length === 0" class="flex h-[50vh] flex-col items-center justify-center gap-2 text-center">
                 <svg class="h-8 w-8 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">

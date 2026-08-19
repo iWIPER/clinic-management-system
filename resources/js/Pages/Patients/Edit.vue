@@ -13,6 +13,7 @@ import {
     TIPO_ATENDIMENTO_OPTIONS,
 } from '@/lib/patientFormOptions.js';
 import { useCanalLembrete, useConvenioTitular } from '@/composables/usePatientFormBehaviors.js';
+import { maskCpf } from '@/composables/useInputMasks';
 
 const props = defineProps({
     patient: Object,
@@ -94,6 +95,10 @@ watch(
 const { naoEnviarLembretes, canalLembreteSelecionado } = useCanalLembrete(form);
 const { convenioTitularEhPaciente } = useConvenioTitular(form);
 
+const onCpfInput = (e) => { form.cpf = maskCpf(e.target.value); };
+const onResponsavelLegalCpfInput = (e) => { form.responsavel_legal_cpf = maskCpf(e.target.value); };
+const onConvenioTitularCpfInput = (e) => { form.convenio_titular_cpf = maskCpf(e.target.value); };
+
 const submit = () => {
     form.put(route('patients.update', props.patient.id));
 };
@@ -137,7 +142,7 @@ const submit = () => {
                     <template v-if="!form.is_estrangeiro">
                         <div>
                             <label class="block text-sm mb-1">CPF</label>
-                            <input v-model="form.cpf" type="text" class="w-full border rounded-lg p-2.5" />
+                            <input :value="form.cpf" @input="onCpfInput" type="text" placeholder="000.000.000-00" class="w-full border rounded-lg p-2.5" />
                             <InputError :message="form.errors.cpf" />
                         </div>
                         <div>
@@ -255,7 +260,7 @@ const submit = () => {
                         <template v-if="!form.responsavel_legal_estrangeiro">
                             <div>
                                 <label class="block text-sm mb-1">CPF</label>
-                                <input v-model="form.responsavel_legal_cpf" type="text" class="w-full border rounded-lg p-2.5" />
+                                <input :value="form.responsavel_legal_cpf" @input="onResponsavelLegalCpfInput" type="text" placeholder="000.000.000-00" class="w-full border rounded-lg p-2.5" />
                                 <InputError :message="form.errors.responsavel_legal_cpf" />
                             </div>
                             <div>
@@ -358,7 +363,7 @@ const submit = () => {
                         </div>
                         <div>
                             <label class="block text-sm mb-1">CPF do titular</label>
-                            <input v-model="form.convenio_titular_cpf" type="text" class="w-full border rounded-lg p-2.5" />
+                            <input :value="form.convenio_titular_cpf" @input="onConvenioTitularCpfInput" type="text" placeholder="000.000.000-00" class="w-full border rounded-lg p-2.5" />
                             <InputError :message="form.errors.convenio_titular_cpf" />
                         </div>
                         <div>

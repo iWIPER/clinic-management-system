@@ -1,8 +1,36 @@
 <script setup>
+import { ref, onMounted, onUnmounted } from 'vue'
 import { Link } from '@inertiajs/vue3'
 
 defineProps({
     active: { type: String, required: true },
+})
+
+// Indicador de scroll — a barra já rolava horizontalmente em telas
+// estreitas (overflow-x-auto), mas sem nenhuma pista visual de que havia
+// mais abas fora da tela (achado da auditoria: usuário não descobre
+// sozinho). Um fade discreto nas bordas, só quando há de fato mais
+// conteúdo pra rolar naquela direção — em desktop, onde tudo cabe, os
+// dois fades ficam sempre ocultos e a barra continua idêntica a hoje.
+const navRef = ref(null)
+const canScrollLeft = ref(false)
+const canScrollRight = ref(false)
+
+function updateScrollState() {
+    const el = navRef.value
+    if (!el) return
+    canScrollLeft.value = el.scrollLeft > 1
+    canScrollRight.value = el.scrollLeft < el.scrollWidth - el.clientWidth - 1
+}
+
+onMounted(() => {
+    updateScrollState()
+    navRef.value?.addEventListener('scroll', updateScrollState, { passive: true })
+    window.addEventListener('resize', updateScrollState)
+})
+onUnmounted(() => {
+    navRef.value?.removeEventListener('scroll', updateScrollState)
+    window.removeEventListener('resize', updateScrollState)
 })
 
 // Abas "internas" — telas que já vivem sob /clinic-settings e agora
@@ -27,11 +55,8 @@ const externalLinks = [
 
 <template>
 <div class="mb-6">
-    <h1 class="text-2xl font-semibold text-slate-900">Configurações da Clínica</h1>
-    <p class="text-sm text-slate-500 mt-1 mb-5">Gerencie os dados, recursos e áreas da sua clínica.</p>
-
-    <div class="border-b border-slate-200">
-        <nav class="flex items-center gap-5 overflow-x-auto no-scrollbar">
+    <div class="relative border-b border-slate-200">
+        <nav ref="navRef" class="flex items-center gap-5 overflow-x-auto no-scrollbar">
             <Link v-for="tab in tabs" :key="tab.id" :href="route(tab.route)"
                   class="shrink-0 whitespace-nowrap px-0.5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors"
                   :class="active === tab.id
@@ -50,6 +75,14 @@ const externalLinks = [
                 </svg>
             </Link>
         </nav>
+
+        <!-- Fades de "tem mais abas pra esse lado" — só aparecem quando dá
+             pra rolar naquela direção (v-show liga/desliga a opacidade,
+             não o layout, pra não causar reflow ao rolar). Cor do fade
+             casa com o canvas da página (slate-100), não branco — a barra
+             de abas fica direto sobre o canvas, sem card por trás. -->
+        <div v-show="canScrollLeft" class="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-slate-100 to-transparent transition-opacity duration-150" />
+        <div v-show="canScrollRight" class="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-slate-100 to-transparent transition-opacity duration-150" />
     </div>
 </div>
 </template>

@@ -5,7 +5,7 @@ namespace App\Services\Documents;
 use App\Models\Document;
 use App\Models\DocumentTemplate;
 use App\Models\Patient;
-use App\Models\Treatment;
+use App\Services\TreatmentCatalogService;
 
 /**
  * Agrega documentos emitidos e modelos disponíveis para a aba "Documentos" do
@@ -14,6 +14,10 @@ use App\Models\Treatment;
  */
 class DocumentHubService
 {
+    public function __construct(private TreatmentCatalogService $treatmentCatalogService)
+    {
+    }
+
     public function listForPatient(Patient $patient, int $perPage = 6, int $page = 1): array
     {
         $paginator = Document::query()
@@ -67,12 +71,13 @@ class DocumentHubService
 
     public function availableTreatments(?int $clinicId): array
     {
-        return Treatment::query()
-            ->where('clinic_id', $clinicId)
-            ->active()
-            ->orderBy('nome')
-            ->get(['id', 'nome'])
-            ->map(fn (Treatment $t) => ['id' => $t->id, 'nome' => $t->nome])
-            ->all();
+        if ($clinicId === null) {
+            return [];
+        }
+
+        return array_map(
+            fn (array $t) => ['id' => $t['id'], 'nome' => $t['nome']],
+            $this->treatmentCatalogService->activeCatalog($clinicId)
+        );
     }
 }

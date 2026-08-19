@@ -5,6 +5,12 @@ import NavbarDropdown from './NavbarDropdown.vue'
 import GeneralTab from './NotificationTabs/GeneralTab.vue'
 import SignaturesTab from './NotificationTabs/SignaturesTab.vue'
 
+const props = defineProps({
+    // 'right' (padrão) é correto para um trigger perto da borda direita da
+    // tela; a sidebar usa 'left', já que o trigger fica perto da esquerda.
+    align: { type: String, default: 'right' },
+})
+
 // ── Aba "Geral" (lembretes de agenda + indicações) ────────────────────────
 const counts = ref({ total: 0, aguardando_confirmacao: 0, consulta_proxima: 0, referral_notifications: [] })
 
@@ -74,7 +80,7 @@ onUnmounted(() => clearInterval(timer))
 </script>
 
 <template>
-    <NavbarDropdown width="w-96">
+    <NavbarDropdown width="w-96" :align="align">
         <template #trigger="{ open }">
             <button
                 type="button"

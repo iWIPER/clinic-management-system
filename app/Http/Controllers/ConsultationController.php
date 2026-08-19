@@ -17,7 +17,8 @@ class ConsultationController extends Controller
     public function index(Request $request)
     {
         $query = Consultation::query()
-            ->with(['patient', 'professional', 'appointment'])
+            ->where('clinic_id', session('current_clinic_id'))
+            ->with(['patient:id,nome,sobrenome', 'professional:id,name'])
             ->orderBy('check_in_at', 'desc');
 
         if ($status = $request->input('status')) {
@@ -72,14 +73,11 @@ class ConsultationController extends Controller
             ->with('success', 'Check-in realizado. Paciente em aguardando.');
     }
 
-    public function show(Consultation $consultation)
+    public function show(Consultation $consultation, \App\Services\TreatmentCatalogService $treatmentCatalogService)
     {
         $consultation->load(['patient', 'professional', 'appointment']);
 
-        $treatments = \App\Models\Treatment::where('clinic_id', $consultation->clinic_id)
-            ->forScheduling()
-            ->select('id', 'nome', 'duracao_padrao')
-            ->get();
+        $treatments = $treatmentCatalogService->schedulableCatalog($consultation->clinic_id);
 
         return Inertia::render('Consultations/Show', [
             'consultation' => $consultation,

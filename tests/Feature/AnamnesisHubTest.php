@@ -85,17 +85,37 @@ it('seeds system templates with shared question bank', function () {
 });
 
 it('loads patient show with anamnesis hub data', function () {
+    // Fase B1: anamnesisHub só carrega de fato na aba correspondente (as
+    // outras abas passaram a ser Inertia::lazy() no load inicial — ver
+    // PatientController::show()) — por isso a rota agora pede ?tab=anamneses
+    // explicitamente, igual ao padrão já usado por
+    // PatientTreatmentTest::'patient show page with treatments tab...'.
     $this->seed(\Database\Seeders\AnamnesisTemplatesSeeder::class);
 
     $response = $this->actingAs($this->user)
-        ->get(route('patients.show', $this->patient));
+        ->get(route('patients.show', $this->patient) . '?tab=anamneses');
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->component('Patients/Show')
         ->has('anamnesisHub.templates', 7)
         ->has('anamnesisHub.instances')
-        ->has('patientNotes')
+    );
+});
+
+it('loads patient show with the alerts summary always present regardless of the active tab', function () {
+    // anamnesisAlerts (cabeçalho, sempre visível) precisa continuar
+    // presente mesmo fora da aba Anamneses — diferente de anamnesisHub
+    // (instances/pagination/templates), que é só da aba.
+    $this->seed(\Database\Seeders\AnamnesisTemplatesSeeder::class);
+
+    $response = $this->actingAs($this->user)->get(route('patients.show', $this->patient));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->component('Patients/Show')
+        ->has('anamnesisAlerts')
+        ->missing('anamnesisHub')
     );
 });
 

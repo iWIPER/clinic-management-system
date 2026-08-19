@@ -17,10 +17,13 @@ export const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 
 // Limite absoluto da grade — nunca ultrapassado, mesmo com configuração ou
 // agendamento além disso (ver item 3 do pedido: 21:00 é o teto visual).
-export const GRID_FLOOR_HOUR = 7
+// GRID_FLOOR_HOUR não é exportado — só usado internamente neste arquivo
+// (nenhum outro consumidor real; GRID_CEIL_HOUR abaixo é o único dos dois
+// realmente usado fora daqui).
+const GRID_FLOOR_HOUR = 7
 export const GRID_CEIL_HOUR = 21
 
-export function dayKeyForDate(date) {
+function dayKeyForDate(date) {
     const idx = date.getDay() === 0 ? 6 : date.getDay() - 1
     return DAY_KEYS[idx]
 }
@@ -77,16 +80,20 @@ export function effectiveDayWindow({
         }
     }
 
-    return { closed: false, start, end, reason: null, reasonLabel: null }
-}
+    // Nem profissional nem clínica configuraram horário pra este dia — teto
+    // absoluto é o mesmo limite visual da própria grade (GRID_FLOOR_HOUR/
+    // GRID_CEIL_HOUR), nunca "sem restrição" (mesmo fallback do backend,
+    // ver AppointmentSchedulingService::DEFAULT_HOURS).
+    if (start === null || end === null) {
+        start = `${String(GRID_FLOOR_HOUR).padStart(2, '0')}:00`
+        end = `${String(GRID_CEIL_HOUR).padStart(2, '0')}:00`
+    }
 
-function hourOf(hhmm) {
-    return parseInt(hhmm.split(':')[0], 10)
+    return { closed: false, start, end, reason: null, reasonLabel: null }
 }
 
 /**
  * @param {object} opts
- * @param {import('vue').Ref<Date[]>} opts.visibleDays
  * @param {(date: Date) => ({working_days: object|null, working_hours: object|null}|null)} opts.getProfessionalScopeForDay
  *   Retorna a config RAW do profissional relevante pra aquele dia (o
  *   selecionado, se houver) ou null no modo "Todos" (só a clínica decide).
@@ -97,7 +104,6 @@ function hourOf(hhmm) {
  * @param {(date: Date) => string} opts.toDateStr
  */
 export function useAgendaScheduleRules({
-    visibleDays,
     getProfessionalScopeForDay,
     considerNationalHolidays,
     holidays,
@@ -118,24 +124,12 @@ export function useAgendaScheduleRules({
         })
     }
 
-    // Só encolhe o TOPO da grade quando a regra da clínica está ativa e
-    // obrigatória (ver item 1 do pedido: "quando a regra... estiver ativa e
-    // obrigatória"). Sem isso, comportamento idêntico ao hardcoded de
-    // sempre (GRID_FLOOR_HOUR) — nenhuma mudança visual pra quem nunca
-    // configurou regra global.
-    const gridStartHour = computed(() => {
-        if (!businessHoursEnforced.value) return GRID_FLOOR_HOUR
-
-        let min = null
-        for (const day of visibleDays.value) {
-            const w = dayWindow(day)
-            if (w.closed || !w.start) continue
-            const h = hourOf(w.start)
-            if (min === null || h < min) min = h
-        }
-        if (min === null) return GRID_FLOOR_HOUR
-        return Math.max(GRID_FLOOR_HOUR, Math.min(min, GRID_CEIL_HOUR))
-    })
+    // O TOPO da grade é sempre GRID_FLOOR_HOUR — nunca encolhe pra
+    // acompanhar o horário configurado (clínica ou profissional), mesmo
+    // com regra obrigatória ativa. A grade visual é sempre 07:00→21:00; é
+    // outOfHoursBandsFor() (ver Index.vue/Fullscreen.vue), não o tamanho da
+    // grade, quem decora as horas fora do expediente com a banda cinza.
+    const gridStartHour = computed(() => GRID_FLOOR_HOUR)
 
     return { dayWindow, gridStartHour }
 }

@@ -72,7 +72,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
                 </svg>
             </div>
-            <span class="brand-name">Clinic<span>Flow</span></span>
+            <span class="brand-name">Wil<span>Dental</span></span>
         </div>
         @endif
         <div class="header-badge">Convite de equipe</div>
@@ -169,7 +169,7 @@
 
     <!-- FOOTER -->
     <div class="footer">
-        <div class="footer-brand">Clinic<span>Flow</span></div>
+        <div class="footer-brand">Wil<span>Dental</span></div>
         <div class="footer-text">
             Plataforma de gestão de clínicas<br/>
             <a href="{{ config('app.url') }}">{{ config('app.url') }}</a><br/><br/>

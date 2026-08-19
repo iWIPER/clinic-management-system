@@ -2,6 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Link, router } from '@inertiajs/vue3'
 import { ref } from 'vue'
+import ScrollFadeX from '@/Components/UI/ScrollFadeX.vue'
 
 const props = defineProps({
     groupedTreatments: Array,
@@ -79,57 +80,59 @@ const bookableCount = () => props.groupedTreatments?.reduce((sum, g) =>
         <span class="text-[10px] text-slate-400 font-medium">{{ group.items.length }} itens</span>
       </div>
 
-      <table class="min-w-full text-sm">
-        <thead class="bg-slate-50/80">
-          <tr>
-            <th class="px-5 py-2.5 text-left text-[10px] font-bold text-slate-500 uppercase">Procedimento</th>
-            <th class="px-5 py-2.5 text-left text-[10px] font-bold text-slate-500 uppercase">Tipo</th>
-            <th class="px-5 py-2.5 text-left text-[10px] font-bold text-slate-500 uppercase">Duração</th>
-            <th class="px-5 py-2.5 text-left text-[10px] font-bold text-slate-500 uppercase">Preço sugerido</th>
-            <th class="px-5 py-2.5 text-right text-[10px] font-bold text-slate-500 uppercase">Ações</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-          <tr v-for="t in group.items" :key="t.id"
-              class="hover:bg-slate-50/60 transition-colors"
-              :class="t.tipo === 'grupo' ? 'bg-slate-50/40' : ''">
-            <td class="px-5 py-3">
-              <div :class="t.parent_id ? 'pl-4 border-l-2 border-slate-200 ml-2' : ''">
-                <Link :href="route('treatments.show', t.id)"
-                      class="font-semibold hover:underline"
-                      :class="t.tipo === 'grupo' ? 'text-slate-600' : 'text-emerald-700 hover:text-emerald-900'"
-                      :style="t.tipo !== 'grupo' ? { color: group.cor } : {}">
-                  {{ t.nome }}
-                </Link>
-                <p v-if="t.descricao && t.tipo !== 'grupo'" class="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{{ t.descricao }}</p>
-                <p v-if="t.parent" class="text-[10px] text-slate-400 mt-0.5">↳ {{ t.parent.nome }}</p>
-              </div>
-            </td>
-            <td class="px-5 py-3">
-              <span class="text-[10px] font-medium px-2 py-0.5 rounded-full"
-                    :class="t.tipo === 'grupo' ? 'bg-slate-200 text-slate-600' : t.tipo === 'variacao' ? 'bg-violet-100 text-violet-700' : 'bg-emerald-100 text-emerald-700'">
-                {{ tipoLabel(t.tipo) }}
-              </span>
-            </td>
-            <td class="px-5 py-3 text-slate-600">
-              {{ t.tipo === 'grupo' ? '—' : t.duracao_padrao + ' min' }}
-            </td>
-            <td class="px-5 py-3 font-medium text-slate-800">
-              {{ t.tipo === 'grupo' ? '—' : fmtCurrency(t.preco_base) }}
-            </td>
-            <td class="px-5 py-3 text-right space-x-2">
-              <template v-if="t.tipo !== 'grupo'">
-                <Link :href="route('treatments.show', t.id)" class="text-xs text-slate-500 hover:text-slate-700">Detalhes</Link>
-                <Link :href="route('treatments.edit', t.id)" class="text-xs text-emerald-600">Editar</Link>
-                <button @click="deactivate(t)" class="text-xs text-amber-600">Desativar</button>
-              </template>
-              <template v-else>
-                <Link :href="route('treatments.show', t.id)" class="text-xs text-slate-500">Ver grupo</Link>
-              </template>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <ScrollFadeX>
+        <table class="min-w-[720px] w-full text-sm">
+          <thead class="bg-slate-50/80">
+            <tr>
+              <th class="px-5 py-2.5 text-left text-[10px] font-bold text-slate-500 uppercase">Procedimento</th>
+              <th class="px-5 py-2.5 text-left text-[10px] font-bold text-slate-500 uppercase">Tipo</th>
+              <th class="px-5 py-2.5 text-left text-[10px] font-bold text-slate-500 uppercase">Duração</th>
+              <th class="px-5 py-2.5 text-left text-[10px] font-bold text-slate-500 uppercase">Preço sugerido</th>
+              <th class="px-5 py-2.5 text-right text-[10px] font-bold text-slate-500 uppercase">Ações</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr v-for="t in group.items" :key="t.id"
+                class="hover:bg-slate-50/60 transition-colors"
+                :class="t.tipo === 'grupo' ? 'bg-slate-50/40' : ''">
+              <td class="px-5 py-3">
+                <div :class="t.parent_id ? 'pl-4 border-l-2 border-slate-200 ml-2' : ''">
+                  <Link :href="route('treatments.show', t.id)"
+                        class="font-semibold hover:underline"
+                        :class="t.tipo === 'grupo' ? 'text-slate-600' : 'text-emerald-700 hover:text-emerald-900'"
+                        :style="t.tipo !== 'grupo' ? { color: group.cor } : {}">
+                    {{ t.nome }}
+                  </Link>
+                  <p v-if="t.descricao && t.tipo !== 'grupo'" class="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{{ t.descricao }}</p>
+                  <p v-if="t.parent" class="text-[10px] text-slate-400 mt-0.5">↳ {{ t.parent.nome }}</p>
+                </div>
+              </td>
+              <td class="px-5 py-3">
+                <span class="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                      :class="t.tipo === 'grupo' ? 'bg-slate-200 text-slate-600' : t.tipo === 'variacao' ? 'bg-violet-100 text-violet-700' : 'bg-emerald-100 text-emerald-700'">
+                  {{ tipoLabel(t.tipo) }}
+                </span>
+              </td>
+              <td class="px-5 py-3 text-slate-600">
+                {{ t.tipo === 'grupo' ? '—' : t.duracao_padrao + ' min' }}
+              </td>
+              <td class="px-5 py-3 font-medium text-slate-800">
+                {{ t.tipo === 'grupo' ? '—' : fmtCurrency(t.preco_base) }}
+              </td>
+              <td class="px-5 py-3 text-right space-x-2">
+                <template v-if="t.tipo !== 'grupo'">
+                  <Link :href="route('treatments.show', t.id)" class="text-xs text-slate-500 hover:text-slate-700">Detalhes</Link>
+                  <Link :href="route('treatments.edit', t.id)" class="text-xs text-emerald-600">Editar</Link>
+                  <button @click="deactivate(t)" class="text-xs text-amber-600">Desativar</button>
+                </template>
+                <template v-else>
+                  <Link :href="route('treatments.show', t.id)" class="text-xs text-slate-500">Ver grupo</Link>
+                </template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </ScrollFadeX>
     </div>
 
     <div v-if="!groupedTreatments?.length" class="bg-white rounded-2xl border p-12 text-center text-slate-400">
@@ -143,35 +146,37 @@ const bookableCount = () => props.groupedTreatments?.reduce((sum, g) =>
       <h2 class="text-xs font-bold text-slate-600 uppercase tracking-wide">Tratamentos desativados</h2>
       <p class="text-[10px] text-slate-500 mt-0.5">Preservados no histórico · não disponíveis para novos agendamentos</p>
     </div>
-    <table class="min-w-full text-sm text-slate-500">
-      <thead class="bg-slate-200/40">
-        <tr>
-          <th class="px-5 py-2.5 text-left text-[10px] font-bold uppercase">Nome</th>
-          <th class="px-5 py-2.5 text-left text-[10px] font-bold uppercase">Categoria</th>
-          <th class="px-5 py-2.5 text-left text-[10px] font-bold uppercase">Status</th>
-          <th class="px-5 py-2.5 text-left text-[10px] font-bold uppercase">Desativado em</th>
-          <th class="px-5 py-2.5 text-left text-[10px] font-bold uppercase">Responsável</th>
-          <th class="px-5 py-2.5 text-right text-[10px] font-bold uppercase">Ações</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-slate-200/60">
-        <tr v-for="t in inactiveTreatments" :key="t.id" class="hover:bg-slate-200/30">
-          <td class="px-5 py-3">
-            <Link :href="route('treatments.show', t.id)" class="font-medium text-slate-600 hover:underline">{{ t.nome }}</Link>
-          </td>
-          <td class="px-5 py-3">{{ t.categoria || '—' }}</td>
-          <td class="px-5 py-3">
-            <span class="text-[10px] font-semibold px-2 py-1 rounded-full bg-slate-300 text-slate-700">Desativado</span>
-          </td>
-          <td class="px-5 py-3">{{ fmtDateTime(t.deactivated_at) }}</td>
-          <td class="px-5 py-3">{{ t.deactivated_by?.name || '—' }}</td>
-          <td class="px-5 py-3 text-right space-x-2">
-            <Link :href="route('treatments.show', t.id)" class="text-xs text-slate-500">Detalhes</Link>
-            <button @click="reactivate(t)" class="text-xs text-teal-600 font-medium">Reativar</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <ScrollFadeX fade-from="from-slate-100">
+      <table class="min-w-[720px] w-full text-sm text-slate-500">
+        <thead class="bg-slate-200/40">
+          <tr>
+            <th class="px-5 py-2.5 text-left text-[10px] font-bold uppercase">Nome</th>
+            <th class="px-5 py-2.5 text-left text-[10px] font-bold uppercase">Categoria</th>
+            <th class="px-5 py-2.5 text-left text-[10px] font-bold uppercase">Status</th>
+            <th class="px-5 py-2.5 text-left text-[10px] font-bold uppercase">Desativado em</th>
+            <th class="px-5 py-2.5 text-left text-[10px] font-bold uppercase">Responsável</th>
+            <th class="px-5 py-2.5 text-right text-[10px] font-bold uppercase">Ações</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200/60">
+          <tr v-for="t in inactiveTreatments" :key="t.id" class="hover:bg-slate-200/30">
+            <td class="px-5 py-3">
+              <Link :href="route('treatments.show', t.id)" class="font-medium text-slate-600 hover:underline">{{ t.nome }}</Link>
+            </td>
+            <td class="px-5 py-3">{{ t.categoria || '—' }}</td>
+            <td class="px-5 py-3">
+              <span class="text-[10px] font-semibold px-2 py-1 rounded-full bg-slate-300 text-slate-700">Desativado</span>
+            </td>
+            <td class="px-5 py-3">{{ fmtDateTime(t.deactivated_at) }}</td>
+            <td class="px-5 py-3">{{ t.deactivated_by?.name || '—' }}</td>
+            <td class="px-5 py-3 text-right space-x-2">
+              <Link :href="route('treatments.show', t.id)" class="text-xs text-slate-500">Detalhes</Link>
+              <button @click="reactivate(t)" class="text-xs text-teal-600 font-medium">Reativar</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </ScrollFadeX>
   </div>
 </AppLayout>
 </template>

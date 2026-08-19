@@ -30,7 +30,8 @@ const props = defineProps({
     eligibleProfessionals: { type: Array, default: () => [] },
     hub:                 { type: Object, default: () => ({}) },
     latestPatientInvite: { type: Object, default: () => null },
-    anamnesisHub:        { type: Object, default: () => ({ instances: [], templates: [], alerts: [] }) },
+    anamnesisHub:        { type: Object, default: () => ({ instances: [], templates: [] }) },
+    anamnesisAlerts:     { type: Array,  default: () => [] },
     documentHub:         { type: Object, default: () => ({ documents: [], pagination: null, templates: [] }) },
     patientNotes:              { type: Array,  default: () => [] },
     notesPagination:           { type: Object, default: () => null },
@@ -723,7 +724,7 @@ function tlExport() {
 <template>
     <AppLayout>
         <!-- Cabeçalho -->
-        <div class="mb-6 flex justify-between">
+        <div class="mb-6 flex flex-wrap gap-3 justify-between">
             <div>
                 <div class="flex items-center gap-2">
                     <h1 class="text-3xl font-semibold">{{ patient.nome }} {{ patient.sobrenome }}</h1>
@@ -818,7 +819,7 @@ function tlExport() {
                     </template>
                 </div>
                 <PatientAlertChips
-                    :anamnesis-alerts="anamnesisHub?.alerts || []"
+                    :anamnesis-alerts="anamnesisAlerts"
                     :note-alerts="noteAlerts"
                 />
                 <div class="flex flex-wrap items-center gap-2 mt-2">
@@ -846,9 +847,17 @@ function tlExport() {
             </div>
         </div>
 
-        <!-- Abas centrais + sidebar -->
-        <div class="relative grid gap-6" :class="sidebarOpen ? 'md:grid-cols-3' : 'md:grid-cols-1'">
-            <div :class="sidebarOpen ? 'md:col-span-2' : 'md:col-span-1'" class="bg-white rounded-2xl border p-6">
+        <!-- Abas centrais + sidebar — layout 67/33 só a partir de `lg` (1024px).
+             Em `md` (768px) o painel direito ficava espremido ao lado de uma
+             coluna principal já estreitada pela divisão 2/3, comprimindo em
+             cascata a grade interna Dados Pessoais/Odontograma (ver
+             PatientOverviewTab.vue) a ponto de quebrar nome/endereço em
+             7-8 linhas — confirmado por medição, não presumido. Abaixo de
+             `lg` o painel empilha abaixo do conteúdo principal, que passa a
+             usar a largura inteira da página; a composição desktop (≥1024,
+             já aprovada) fica idêntica a antes. -->
+        <div class="relative grid gap-6" :class="sidebarOpen ? 'lg:grid-cols-3' : 'lg:grid-cols-1'">
+            <div :class="sidebarOpen ? 'lg:col-span-2' : 'lg:col-span-1'" class="bg-white rounded-2xl border p-6">
                 <PatientHubTabs
                     @tab-change="onTabChange"
                     :patient="patient"
@@ -1095,14 +1104,6 @@ function tlExport() {
                     <a href="https://one.google.com/storage" target="_blank" rel="noopener"
                        class="mt-1 inline-block underline font-medium">Gerenciar armazenamento →</a>
                 </div>
-            </div>
-
-            <!-- Flash -->
-            <div v-if="flash.success" class="mb-4 flex items-start gap-2 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
-                <span class="mt-0.5 shrink-0">✓</span><span>{{ flash.success }}</span>
-            </div>
-            <div v-if="flash.error" class="mb-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                <span class="mt-0.5 shrink-0">✗</span><span>{{ flash.error }}</span>
             </div>
 
             <!-- Drive não conectado -->

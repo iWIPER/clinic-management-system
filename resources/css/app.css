@@ -10,11 +10,55 @@
 @tailwind utilities;
 
 :root {
-    /* Altura da navbar global fixa (AppLayout.vue). Qualquer elemento sticky
-       no fluxo de página (não dentro de um container com scroll próprio) deve
-       usar `top-[var(--app-navbar-h)]` (ou um calc() a partir dela) em vez de
-       `top-0`, para não ficar sobreposto pela navbar. */
+    /* G — gutter único do content shell da clínica (AppLayout.vue). É
+       LITERALMENTE uma única distância, usada idêntica nos quatro lados da
+       TopIsland e do conteúdo: acima da TopIsland, abaixo dela (até o
+       conteúdo começar), e nas margens esquerda/direita de ambas (TopIsland
+       e conteúdo compartilham o mesmo wrapper horizontal — ver
+       CONTENT_WIDTH_CLASSES.full em AppLayout.vue). Não é mais derivado de
+       uma % de largura (94%) — a largura do conteúdo é sempre
+       `100% - 2×G` da área disponível após a sidebar. Se o respiro do shell
+       precisar mudar, muda-se só aqui.
+       Responsivo em UM único breakpoint: 1024px, o mesmo em que
+       Sidebar.vue vira drawer (`lg:hidden`) — não é um valor novo/arbitrário,
+       é o breakpoint estrutural que já existe. Abaixo dele, G cai um degrau
+       na escala de espaçamento já usada no resto do projeto (1rem, o mesmo
+       de `px-4` nos outros tiers de largura). */
+    --shell-gutter: 1rem;
+
+    /* Altura real da TopIsland — sempre h-11 (ver TopIsland.vue). Separado
+       do gutter de propósito: um é o espaço EXTERNO (moldura), o outro é o
+       tamanho do próprio elemento. Não misturar os dois num número só. */
+    --top-island-height: 2.75rem;
+
+    /* Altura da zona sticky do shell clínico quando a página NÃO usa
+       PageHeader — SEMPRE derivada de G + altura da ilha + G, nunca um
+       valor fixo solto. Qualquer elemento sticky renderizado DENTRO do
+       fluxo de página (não dentro de um container com scroll próprio)
+       precisa usar `top-[var(--shell-top-h)]` em vez de `top-0`, senão fica
+       escondido atrás da TopIsland durante o scroll — foi exatamente esse
+       bug que gerou esta variável (ver PatientHubTabs.vue). Se uma página
+       usa PageHeader, a zona sticky é mais alta que isso — não existe hoje
+       um caso de sticky-dentro-do-fluxo numa página com PageHeader, então
+       não foi criada uma segunda variável pra isso. */
+    --shell-top-h: calc(var(--shell-gutter) + var(--top-island-height) + var(--shell-gutter));
+
+    /* Altura da navbar horizontal "clássica" — usada SÓ pelo Backoffice
+       (Topbar.vue) e pela área de Afiliados (AffiliateLayout.vue), que são
+       shells independentes e ainda têm uma barra de topo de verdade. Não
+       confundir com --shell-top-h: o modo clínica não tem mais navbar, tem
+       a TopIsland (sidebar + ilhas flutuantes). */
     --app-navbar-h: 4rem;
+}
+
+/* G sobe um degrau em telas onde a sidebar deixa de ser drawer e passa a
+   ocupar espaço fixo — mesmo breakpoint de Sidebar.vue (`lg:hidden`, 1024px).
+   Continua sendo o MESMO token nos quatro lados, só o valor muda por
+   viewport — nunca quatro valores independentes. */
+@media (min-width: 1024px) {
+    :root {
+        --shell-gutter: 1.5rem;
+    }
 }
 
 /* Estilos específicos do sistema de clínicas */

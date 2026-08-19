@@ -1,6 +1,7 @@
 <script setup>
 import InputError from '@/Components/InputError.vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import PageHeader from '@/Components/Navigation/PageHeader.vue'
 import ClinicLogo from '@/Components/ClinicLogo.vue'
 import SettingsTabs from '@/Components/ClinicSettings/SettingsTabs.vue'
 import { useForm, usePage } from '@inertiajs/vue3'
@@ -83,6 +84,10 @@ const removeLogo = () => {
 
 <template>
 <AppLayout>
+    <template #pageHeader>
+        <PageHeader title="Configurações da Clínica" description="Gerencie os dados, recursos e áreas da sua clínica." />
+    </template>
+
     <SettingsTabs active="general" />
 
     <div class="mb-4">

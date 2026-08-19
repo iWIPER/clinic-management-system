@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref, watch, nextTick } from 'vue'
+import { reactive, ref, computed, watch, nextTick } from 'vue'
 import Modal from '@/Components/UI/Modal.vue'
 import InputError from '@/Components/InputError.vue'
 import PatientCombobox from './PatientCombobox.vue'
@@ -10,7 +10,12 @@ const toast = useToast()
 const props = defineProps({
     show: { type: Boolean, default: false },
     task: { type: Object, default: null },
+    // Mapa completo (inclui o status legado 'waiting') — só usado pra
+    // rotular a opção extra abaixo quando necessário, nunca pra montar a
+    // lista principal do dropdown (ver statusOptions).
     statuses: { type: Object, required: true },
+    // As 3 opções reais oferecidas na criação/edição — ver Task::KANBAN_STATUSES.
+    kanbanStatuses: { type: Object, required: true },
     priorities: { type: Object, required: true },
     teamMembers: { type: Array, default: () => [] },
     availableLabels: { type: Array, default: () => [] },
@@ -30,6 +35,20 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'saved', 'label-created', 'label-deleted'])
+
+// Dropdown de status: só as 3 opções reais do Kanban (A Fazer/Fazendo/
+// Feito) — exceto quando editando uma tarefa que já tem um status legado
+// (ex.: 'waiting'/Aguardando, ver Task::STATUSES no backend): nesse caso a
+// opção atual entra também, senão o <select> ficaria sem nenhuma opção
+// batendo com o valor da tarefa. Nunca é oferecida pra tarefa nova nem
+// depois que o usuário troca pra um dos 3 status reais.
+const statusOptions = computed(() => {
+    const opts = { ...props.kanbanStatuses }
+    if (props.task && !(props.task.status in opts)) {
+        opts[props.task.status] = props.statuses[props.task.status] ?? props.task.status
+    }
+    return opts
+})
 
 const initialForm = () => ({
     title: '',
@@ -236,7 +255,7 @@ async function removeLabel(label) {
             <div>
                 <label class="block text-xs font-medium text-slate-600 mb-1">Status</label>
                 <select v-model="form.status" class="w-full rounded-lg border-slate-300 text-sm transition-colors focus:border-emerald-500 focus:ring-emerald-500">
-                    <option v-for="(l, key) in statuses" :key="key" :value="key">{{ l }}</option>
+                    <option v-for="(l, key) in statusOptions" :key="key" :value="key">{{ l }}</option>
                 </select>
                 <InputError :message="errors.status?.[0]" />
             </div>
@@ -312,7 +331,7 @@ async function removeLabel(label) {
             <div v-if="showNewLabel" class="mt-2">
                 <div class="flex items-center gap-1.5">
                     <input v-model="newLabelColor" type="color" class="h-7 w-8 rounded border-0" title="Cor" />
-                    <input v-model="newLabelName" @keydown.enter.prevent="createLabel" @keyup.esc="showNewLabel = false"
+                    <input v-model="newLabelName" @keydown.enter.prevent="createLabel" @keyup.esc.stop="showNewLabel = false"
                            type="text" placeholder="Nome da etiqueta" maxlength="15" autofocus
                            class="flex-1 rounded-lg border-slate-300 px-2.5 py-1 text-xs transition-colors focus:border-emerald-500 focus:ring-emerald-500" />
                     <button type="button" @click="createLabel" :disabled="creatingLabel"

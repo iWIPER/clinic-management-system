@@ -134,3 +134,51 @@ test('invalid cpf is rejected', function () {
         ])
         ->assertSessionHasErrors('cpf');
 });
+
+test('quick actions can be updated with allowed keys', function () {
+    ['user' => $user] = setupProfileContext();
+
+    $this->actingAs($user)
+        ->patch(route('profile.quick-actions.update'), [
+            'quick_actions' => ['treatments.create', 'inventory.create'],
+        ])
+        ->assertRedirect();
+
+    expect($user->fresh()->preferences['quick_actions'])
+        ->toBe(['treatments.create', 'inventory.create']);
+});
+
+test('quick actions rejects a key outside the allowed whitelist', function () {
+    ['user' => $user] = setupProfileContext();
+
+    $this->actingAs($user)
+        ->patch(route('profile.quick-actions.update'), [
+            'quick_actions' => ['clinic-settings.edit'],
+        ])
+        ->assertSessionHasErrors('quick_actions.0');
+
+    expect($user->fresh()->preferences['quick_actions'] ?? [])->toBe([]);
+});
+
+test('quick actions rejects more than 2 selections', function () {
+    ['user' => $user] = setupProfileContext();
+
+    $this->actingAs($user)
+        ->patch(route('profile.quick-actions.update'), [
+            'quick_actions' => ['treatments.create', 'inventory.create', 'document-templates.create'],
+        ])
+        ->assertSessionHasErrors('quick_actions');
+});
+
+test('quick actions can be cleared back to empty', function () {
+    ['user' => $user] = setupProfileContext();
+    $user->update(['preferences' => ['quick_actions' => ['treatments.create']]]);
+
+    $this->actingAs($user)
+        ->patch(route('profile.quick-actions.update'), [
+            'quick_actions' => [],
+        ])
+        ->assertRedirect();
+
+    expect($user->fresh()->preferences['quick_actions'])->toBe([]);
+});

@@ -1,6 +1,6 @@
 <script setup>
 import { Link } from '@inertiajs/vue3'
-import { MapPinIcon as PinOutline, StarIcon as StarOutline } from '@heroicons/vue/24/outline'
+import { MapPinIcon as PinOutline, StarIcon as StarOutline, UserIcon } from '@heroicons/vue/24/outline'
 import { MapPinIcon as PinSolid, StarIcon as StarSolid } from '@heroicons/vue/24/solid'
 import {
     cardPriorityClass as cardClass, priorityTextClass, isOverdueTask as isOverdue,
@@ -108,7 +108,8 @@ const hasSecondaryMeta = (task) => !!task.patient
                     <Link v-if="task.patient" :href="route('patients.prontuario', task.patient.id)"
                           class="inline-flex items-center gap-1 font-medium text-slate-500 hover:text-emerald-700 hover:underline"
                           @click.stop>
-                        👤 {{ patientName(task.patient) }}
+                        <UserIcon class="h-3 w-3 shrink-0" />
+                        {{ patientName(task.patient) }}
                     </Link>
                 </div>
             </button>

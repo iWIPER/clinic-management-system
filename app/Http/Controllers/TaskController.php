@@ -49,6 +49,7 @@ class TaskController extends Controller
         return response()->json([
             'tasks'          => $tasks,
             'statuses'       => Task::STATUSES,
+            'kanbanStatuses' => Task::KANBAN_STATUSES,
             'priorities'     => Task::PRIORITIES,
             'availableLabels' => TaskLabel::forClinic($clinicId)->orderBy('name')->get(['id', 'name', 'color']),
             'teamMembers'    => $clinic->users()->select('users.id', 'users.name')->orderBy('users.name')->get(),
@@ -162,57 +163,6 @@ class TaskController extends Controller
             'status'       => $validated['status'],
             'completed_at' => $validated['status'] === 'done' ? now() : null,
         ]);
-
-        return response()->json($this->presentTask($task));
-    }
-
-    /**
-     * Move uma tarefa entre as colunas do Board (Entrada/Hoje/Próximas/
-     * Concluídas) — traduz a coluna de destino pros mesmos campos reais que
-     * já determinam `bucketOf()` no frontend (due_date/status/completed_at),
-     * sem inventar uma classificação paralela. Endpoint pequeno e dedicado
-     * (em vez de reenviar o formulário inteiro pelo update() genérico)
-     * porque o frontend só sabe "pra qual coluna foi", não o resto do form.
-     */
-    public function move(Request $request, Task $task)
-    {
-        $validated = $request->validate([
-            'column'   => ['required', Rule::in(['inbox', 'today', 'upcoming', 'done'])],
-            'due_date' => ['nullable', 'date'],
-        ]);
-        $column = $validated['column'];
-
-        $updates = [];
-
-        if ($column === 'done') {
-            $updates['status'] = 'done';
-            $updates['completed_at'] = now();
-            // due_date não é tocado — "manter due_date existente" (regra 5).
-        } else {
-            // Saindo de Concluídas pra qualquer outra coluna: reabre. Mesma
-            // convenção de updateStatus() (reabrir = status 'todo').
-            if ($task->status === 'done') {
-                $updates['status'] = 'todo';
-                $updates['completed_at'] = null;
-            }
-
-            if ($column === 'inbox') {
-                $updates['due_date'] = null;
-            } elseif ($column === 'today') {
-                $updates['due_date'] = now()->toDateString();
-            } elseif ($column === 'upcoming') {
-                $dueDate = $validated['due_date'] ?? null;
-                if (! $dueDate || $dueDate <= now()->toDateString()) {
-                    throw ValidationException::withMessages(['due_date' => 'Informe uma data futura para mover para "Próximas".']);
-                }
-                if (self::isUrgentWithFutureDueDate($task->priority, $dueDate)) {
-                    throw ValidationException::withMessages(['due_date' => 'Prioridade urgente não está disponível para tarefas em "Próximas" (vencimento futuro).']);
-                }
-                $updates['due_date'] = $dueDate;
-            }
-        }
-
-        $task->update($updates);
 
         return response()->json($this->presentTask($task));
     }

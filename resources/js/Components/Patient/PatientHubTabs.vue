@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
-import { Link } from '@inertiajs/vue3'
+import { Link, router } from '@inertiajs/vue3'
 import PatientOverviewTab from './PatientOverviewTab.vue'
 import PatientAnamnesesTab from './PatientAnamnesesTab.vue'
 import PatientDocumentsTab from './PatientDocumentsTab.vue'
@@ -43,7 +43,41 @@ const tab = ref(props.activeTab)
 
 watch(() => props.activeTab, (v) => { tab.value = v })
 
-watch(tab, (v) => { emit('tab-change', v) }, { immediate: true })
+// ─── Carregamento sob demanda das abas secundárias (Fase B1) ─────────────────
+// PatientController::show() só computa de verdade a aba ativa no load
+// inicial (hub/evolutionsHub ficam de fora — são da sidebar sempre visível,
+// sempre eager). As demais chegam com os defaults vazios das props e
+// precisam ser buscadas na primeira vez que o usuário clica nelas — depois
+// disso ficam em cache local (loadedTabs) e trocar de aba volta a ser
+// instantâneo, sem refetch a cada clique.
+const TAB_PROPS = {
+    anamneses:  ['anamnesisHub'],
+    documents:  ['documentHub'],
+    treatments: ['patientTreatments'],
+    payments:   ['patientPayments', 'paymentSummary'],
+    notes:      ['patientNotes', 'notesPagination'],
+}
+
+const loadedTabs = ref(new Set([props.activeTab]))
+const loadingTab = ref(null)
+
+watch(tab, (v) => {
+    emit('tab-change', v)
+
+    const onlyProps = TAB_PROPS[v]
+    if (! onlyProps || loadedTabs.value.has(v)) return
+
+    loadingTab.value = v
+    router.reload({
+        only: onlyProps,
+        preserveScroll: true,
+        preserveState: true,
+        onFinish: () => {
+            loadedTabs.value = new Set(loadedTabs.value).add(v)
+            loadingTab.value = null
+        },
+    })
+}, { immediate: true })
 
 const tabs = [
     { id: 'overview',    label: 'Visão Geral' },
@@ -76,7 +110,7 @@ onBeforeUnmount(() => {
     <div>
         <span ref="stickySentinel" class="block h-px" aria-hidden="true"></span>
 
-        <div class="sticky top-0 z-20 -mx-6 px-6 bg-white transition-shadow duration-200"
+        <div class="sticky top-[var(--shell-top-h)] z-20 -mx-6 px-6 bg-white transition-shadow duration-200"
              :class="isStuck ? 'shadow-sm' : ''">
             <Transition
                 enter-active-class="transition-all duration-200 ease-out"
@@ -114,7 +148,11 @@ onBeforeUnmount(() => {
             </nav>
         </div>
 
-        <PatientOverviewTab v-if="tab === 'overview'"
+        <div v-if="loadingTab === tab" class="py-16 text-center text-sm text-slate-400">
+            Carregando…
+        </div>
+
+        <PatientOverviewTab v-else-if="tab === 'overview'"
             :patient="patient"
             :hub="hub"
             :fmt-date="fmtDate"

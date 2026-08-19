@@ -12,9 +12,17 @@ defineProps({
     counts: { type: Object, required: true },
     // { mine: {name,color,...}, team: {...}, custom: [{id,name,color,is_owner,...}] }
     lists: { type: Object, default: () => ({}) },
+    // Abaixo de `lg`, a sidebar (224px fixos) some do fluxo e vira um drawer
+    // sobreposto — do contrário ela sozinha ocupa a maior parte de um modal
+    // que no mobile é quase full-width, sem espaço sobrando pra Lista/Board.
+    // Mesmo padrão visual do drawer da Sidebar.vue principal (ver
+    // useSidebarState.js), mas com estado local: o painel de Tarefas é um
+    // modal autocontido, não faz sentido compartilhar estado em nível de
+    // módulo com a navegação global.
+    mobileOpen: { type: Boolean, default: false },
 })
 
-defineEmits(['update:activeView', 'update:scope', 'close', 'open-list-settings', 'create-list'])
+defineEmits(['update:activeView', 'update:scope', 'close', 'open-list-settings', 'create-list', 'close-mobile'])
 
 const VIEWS = [
     { id: 'inbox',    label: 'Entrada',    icon: InboxIcon },
@@ -25,7 +33,21 @@ const VIEWS = [
 </script>
 
 <template>
-    <aside class="flex w-56 shrink-0 flex-col border-r bg-slate-50">
+    <!-- Backdrop do drawer mobile — `absolute` (não `fixed`) porque precisa
+         ficar contido dentro da caixa do modal (TaskPanel.vue), que já tem
+         seu próprio overlay de fundo cobrindo a página inteira. -->
+    <Transition
+        enter-active-class="transition-opacity duration-150 ease-out"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition-opacity duration-100 ease-in"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0">
+        <div v-if="mobileOpen" class="absolute inset-0 z-40 bg-slate-900/30 lg:hidden" @click="$emit('close-mobile')" />
+    </Transition>
+
+    <aside class="absolute inset-y-0 left-0 z-50 flex w-56 shrink-0 flex-col border-r bg-slate-50 shadow-xl transition-transform duration-200 ease-out lg:static lg:z-auto lg:translate-x-0 lg:shadow-none"
+           :class="mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'">
         <div class="flex items-center justify-between px-4 py-4">
             <div class="flex items-start gap-1">
                 <h2 class="text-sm font-semibold text-slate-800">Tarefas</h2>
