@@ -2,13 +2,9 @@
 
 namespace App\Providers;
 
-use App\Contracts\Signature\SignatureAdapterInterface;
 use App\Listeners\LogAuthEvents;
 use App\Models\StripeSubscription;
 use App\Models\StripeSubscriptionItem;
-use App\Services\Signature\AutentiqueAdapter;
-use App\Services\Signature\NullSignatureAdapter;
-use App\Services\Signature\ZapSignAdapter;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Support\Facades\Event;
@@ -19,13 +15,6 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->singleton(SignatureAdapterInterface::class, function () {
-            return match (config('services.signature.driver', 'null')) {
-                'zapsign' => new ZapSignAdapter(),
-                'autentique' => new AutentiqueAdapter(),
-                default => new NullSignatureAdapter(),
-            };
-        });
     }
 
     public function boot(): void

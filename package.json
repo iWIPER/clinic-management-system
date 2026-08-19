@@ -31,7 +31,6 @@
         "date-fns": "^3.6",
         "flag-icons": "^7.5.0",
         "qrcode": "^1.5.4",
-        "vue-cal": "^4.10",
         "vue-chartjs": "^5.3.4"
     }
 }

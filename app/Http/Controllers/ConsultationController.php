@@ -74,7 +74,7 @@ class ConsultationController extends Controller
 
     public function show(Consultation $consultation)
     {
-        $consultation->load(['patient', 'professional', 'appointment', 'medicalRecord']);
+        $consultation->load(['patient', 'professional', 'appointment']);
 
         $treatments = \App\Models\Treatment::where('clinic_id', $consultation->clinic_id)
             ->forScheduling()
