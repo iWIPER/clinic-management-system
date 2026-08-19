@@ -8,19 +8,39 @@ use App\Models\Subscription;
 use App\Services\SubscriptionService;
 use Illuminate\Support\Facades\Log;
 use Laravel\Cashier\Http\Controllers\WebhookController as CashierWebhookController;
+use Laravel\Cashier\Http\Middleware\VerifyWebhookSignature;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Extends Cashier's own webhook controller (signature verification already
- * wired via its constructor when cashier.webhook.secret is set) to additionally
- * plug Stripe's checkout confirmation into this app's own domain-level
+ * Extends Cashier's own webhook controller to additionally plug Stripe's
+ * checkout confirmation into this app's own domain-level
  * Subscription/ReferralConversion bookkeeping (App\Services\SubscriptionService),
  * which Cashier has no knowledge of. Every event is recorded in
  * stripe_webhook_events first, keyed by Stripe's own event id, so a retried
  * delivery never double-activates a subscription or double-releases a bônus.
+ *
+ * Constructor overridden (não herdado do Cashier): o WebhookController do
+ * Cashier só registra VerifyWebhookSignature quando cashier.webhook.secret
+ * está configurado — com o secret vazio (hoje o caso em produção, ver
+ * BillingCheckoutStripeTest), ele simplesmente processa qualquer POST sem
+ * verificar assinatura nenhuma. Fail-closed aqui: sem secret configurado,
+ * o endpoint inteiro recusa a requisição (503) em qualquer ambiente, antes
+ * de handleWebhook() rodar — nunca aceita payload não verificado. Não
+ * reimplementa verificação de assinatura própria; usa o mesmo
+ * VerifyWebhookSignature (Stripe\WebhookSignature::verifyHeader) do
+ * Cashier quando o secret existe.
  */
 class StripeWebhookController extends CashierWebhookController
 {
+    public function __construct()
+    {
+        if (! config('cashier.webhook.secret')) {
+            abort(503, 'Stripe webhook secret is not configured; refusing to process webhook requests.');
+        }
+
+        $this->middleware(VerifyWebhookSignature::class);
+    }
+
     protected function handleCheckoutSessionCompleted(array $payload): Response
     {
         $eventId = $payload['id'] ?? null;
