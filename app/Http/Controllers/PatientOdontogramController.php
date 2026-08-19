@@ -14,6 +14,8 @@ class PatientOdontogramController extends Controller
 {
     public function show(Request $request, Patient $patient, PatientHubService $hubService)
     {
+        $this->authorize('view', $patient);
+
         $patient->load('photos');
 
         $odontogram = $patient->odontogram ?? PatientOdontogram::make([

@@ -72,7 +72,7 @@ class ProfileController extends Controller
         // O cargo define regras do sistema (elegibilidade clínica, permissões) —
         // só quem é owner/admin da clínica atual pode alterá-lo, inclusive o
         // próprio. Demais usuários: valor enviado é ignorado, mantém o atual.
-        $canEditJobTitle = in_array($user->roleInCurrentClinic(), ['owner', 'admin']);
+        $canEditJobTitle = $user->can('manageTeam', $user->currentClinic());
 
         $user->fill([
             'name'       => $validated['name'],

@@ -75,7 +75,7 @@ class InviteController extends Controller
     public function resend(Invite $invite): JsonResponse
     {
         $this->authorizeAdmin();
-        abort_unless($invite->clinic_id == session('current_clinic_id'), 403);
+        $this->authorize('manage', $invite);
         abort_if($invite->status !== 'pending' || $invite->isExpired(), 422);
 
         // Reenvio renova o token, não só a validade — evita que um link já
@@ -108,7 +108,7 @@ class InviteController extends Controller
     public function regenerateToken(Invite $invite): JsonResponse
     {
         $this->authorizeAdmin();
-        abort_unless($invite->clinic_id == session('current_clinic_id'), 403);
+        $this->authorize('manage', $invite);
 
         $invite = $this->service->regenerateToken($invite);
 
@@ -130,7 +130,7 @@ class InviteController extends Controller
     public function reactivate(Invite $invite): JsonResponse
     {
         $this->authorizeAdmin();
-        abort_unless($invite->clinic_id == session('current_clinic_id'), 403);
+        $this->authorize('manage', $invite);
 
         $invite = $this->service->reactivate($invite);
 
@@ -152,7 +152,7 @@ class InviteController extends Controller
     public function destroy(Invite $invite): JsonResponse
     {
         $this->authorizeAdmin();
-        abort_unless($invite->clinic_id == session('current_clinic_id'), 403);
+        $this->authorize('manage', $invite);
 
         $this->service->cancel($invite);
 
@@ -311,12 +311,11 @@ class InviteController extends Controller
     }
 
     // ── Autorização ────────────────────────────────────────────────────────
+    // Fase C4 — a regra em si (owner/admin da clínica ativa) agora mora em
+    // ClinicPolicy::manageTeam(); este helper continua existindo só como
+    // atalho de nomenclatura pros 6 call sites deste controller.
     private function authorizeAdmin(): void
     {
-        abort_unless(
-            in_array(Auth::user()?->roleInCurrentClinic(), ['owner', 'admin']),
-            403,
-            'Acesso não autorizado.'
-        );
+        $this->authorize('manageTeam', Auth::user()?->currentClinic());
     }
 }

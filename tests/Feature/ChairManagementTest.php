@@ -305,7 +305,7 @@ test('an appointment chair can be changed on update', function () {
     $appointment = Appointment::create([
         'clinic_id' => $clinic->id, 'patient_id' => $patient->id, 'professional_id' => $user->id,
         'treatment_id' => $treatment->id, 'chair_id' => $chairA->id,
-        'start' => now()->addDay(), 'end' => now()->addDay()->addMinutes(30), 'status' => 'scheduled',
+        'start' => now()->addDay()->setTime(10, 0), 'end' => now()->addDay()->setTime(10, 30), 'status' => 'scheduled',
     ]);
 
     $this->actingAs($user)

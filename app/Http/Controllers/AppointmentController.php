@@ -11,18 +11,21 @@ use App\Models\Patient;
 use App\Models\PatientTag;
 use App\Models\Treatment;
 use App\Models\User;
+use App\Services\AppointmentSchedulingService;
 use App\Services\BrazilianHolidayService;
 use App\Services\PatientMarkerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class AppointmentController extends Controller
 {
-    public function __construct(private PatientMarkerService $markerService) {}
+    public function __construct(
+        private PatientMarkerService $markerService,
+        private AppointmentSchedulingService $schedulingService,
+    ) {}
 
     public function index(Request $request)
     {
@@ -47,7 +50,6 @@ class AppointmentController extends Controller
             ->with([
                 'patient:id,nome,sobrenome,telefone,email',
                 'professional:id,name',
-                'treatment:id,nome,duracao_padrao',
                 'chair:id,name,color',
                 'consultation:id,appointment_id,status',
                 'tags:id,name,color',
@@ -189,81 +191,6 @@ class AppointmentController extends Controller
     }
 
     /**
-     * Bloqueia criar/editar um agendamento que caia num feriado nacional
-     * (quando a clínica ativou essa regra), num dia que o profissional não
-     * atende, ou fora do horário de atendimento dele. Feriado é checado
-     * PRIMEIRO de propósito — tem precedência sobre dia/horário configurado
-     * (ver regra aprovada: feriado sempre vence dia de atendimento normal).
-     * Quem não tem configuração de agenda (pivot nulo, ex.: staff
-     * não-clínico) só é bloqueado pelo feriado — dia/horário sempre foram
-     * "sem restrição" pra esse caso, e continuam sendo.
-     */
-    private function assertProfessionalAvailable(int $professionalId, int $clinicId, Carbon $start, Carbon $end, ?int $chairId = null, ?int $excludeAppointmentId = null): void
-    {
-        $clinic = Clinic::find($clinicId);
-        if ($clinic?->considersNationalHolidays() && BrazilianHolidayService::isHoliday($start)) {
-            throw ValidationException::withMessages([
-                'start' => 'Este dia está configurado como feriado e não possui atendimento.',
-            ]);
-        }
-
-        $professional = User::find($professionalId);
-        $pivot = $professional?->clinicPivotFor($clinicId);
-
-        if ($pivot) {
-            // effective* aplica a regra administrativa da clínica por cima
-            // (quando obrigatória) — ver ClinicUserPivot::effectiveWorksOnDate/
-            // effectiveIsWithinWorkingHours. Sem regra ativa, comportamento
-            // idêntico a worksOnDate()/isWithinWorkingHours() de sempre.
-            if (! $pivot->effectiveWorksOnDate($clinic, $start)) {
-                throw ValidationException::withMessages([
-                    'start' => 'Este profissional não possui atendimento neste dia.',
-                ]);
-            }
-
-            if (! $pivot->effectiveIsWithinWorkingHours($clinic, $start, $end)) {
-                throw ValidationException::withMessages([
-                    'start' => 'Este horário está fora do horário de atendimento deste profissional.',
-                ]);
-            }
-        }
-
-        $this->assertNoConflict($professionalId, $chairId, $start, $end, $excludeAppointmentId);
-    }
-
-    /**
-     * Fonte de verdade de "esse horário está livre?" pra store()/update() —
-     * o botão "Encontrar horário" só sugere, quem garante de verdade no
-     * momento de salvar é isto aqui (outro usuário pode ter agendado depois
-     * da sugestão ser consultada). Conflito é OR, não AND: bloqueia se o
-     * profissional já está ocupado em QUALQUER cadeira nesse intervalo, OU
-     * se a cadeira já está ocupada por QUALQUER profissional — as duas
-     * coisas são fisicamente impossíveis ao mesmo tempo, mesmo combinadas.
-     * cancelled/no_show nunca contam como ocupação (ver regra aprovada:
-     * cancelar/faltar libera o horário sem apagar o registro).
-     */
-    private function assertNoConflict(int $professionalId, ?int $chairId, Carbon $start, Carbon $end, ?int $excludeAppointmentId = null): void
-    {
-        $conflict = Appointment::where(function ($q) use ($professionalId, $chairId) {
-            $q->where('professional_id', $professionalId);
-            if ($chairId) {
-                $q->orWhere('chair_id', $chairId);
-            }
-        })
-            ->whereNotIn('status', ['cancelled', 'no_show'])
-            ->when($excludeAppointmentId, fn ($q, $id) => $q->where('id', '!=', $id))
-            ->where('start', '<', $end)
-            ->where('end', '>', $start)
-            ->exists();
-
-        if ($conflict) {
-            throw ValidationException::withMessages([
-                'start' => 'Este horário já está ocupado. Escolha outro horário.',
-            ]);
-        }
-    }
-
-    /**
      * "Encontrar horário" do modal de agendamento — sugere horários vagos
      * de verdade, reaproveitando as MESMAS regras de assertProfessionalAvailable
      * (feriado, dia de atendimento, horário de atendimento) mais checagem de
@@ -292,13 +219,13 @@ class AppointmentController extends Controller
         $professional = User::findOrFail($validated['professional_id']);
         $pivot = $professional->clinicPivotFor($clinicId);
 
-        $day = $this->dayAvailability($clinic, $professional, $pivot, $date, $duration, $chairId);
+        $day = $this->schedulingService->dayAvailability($clinicId, $clinic, $professional, $pivot, $date, $duration, $chairId);
 
         // "Próximo horário disponível" só faz sentido calcular quando o dia
         // pedido não tem nenhum horário cheio — é o item 4 da prioridade do
         // pedido (feito por último, só quando os anteriores não resolvem).
         $nextAvailable = empty($day['slots'])
-            ? $this->nextAvailableSlot($clinic, $professional, $pivot, $date, $duration, $chairId)
+            ? $this->schedulingService->nextAvailableSlot($clinicId, $clinic, $professional, $pivot, $date, $duration, $chairId)
             : null;
 
         return response()->json([
@@ -308,138 +235,6 @@ class AppointmentController extends Controller
             'message' => $day['message'],
             'next_available' => $nextAvailable,
         ]);
-    }
-
-    /**
-     * Disponibilidade completa de UM dia: horários cheios (respeitando a
-     * duração pedida, mesma lógica de sempre) + janelas parciais (menores
-     * que a duração, mas ainda úteis — só calculadas quando não há nenhum
-     * horário cheio, pra não poluir a lista à toa quando o cheio já
-     * resolve). Reaproveitado tanto pelo dia exibido quanto pela busca do
-     * próximo dia disponível (ver nextAvailableSlot).
-     */
-    private function dayAvailability(?Clinic $clinic, User $professional, ?ClinicUserPivot $pivot, Carbon $date, int $duration, ?int $chairId): array
-    {
-        if ($clinic?->considersNationalHolidays() && BrazilianHolidayService::isHoliday($date)) {
-            return ['slots' => [], 'partial_slots' => [], 'message' => 'Este dia está configurado como feriado e não possui atendimento.'];
-        }
-
-        if ($pivot && ! $pivot->effectiveWorksOnDate($clinic, $date)) {
-            return ['slots' => [], 'partial_slots' => [], 'message' => 'Este profissional não possui atendimento neste dia.'];
-        }
-
-        // effectiveWorkingHours já aplica a regra administrativa da clínica
-        // por cima quando obrigatória (ver ClinicUserPivot). Sem pivot
-        // (staff sem agenda própria), mantém o mesmo intervalo padrão da
-        // grade de sempre — não faz sentido sugerir um horário que a
-        // própria grade nunca mostraria.
-        $hours = $pivot?->effectiveWorkingHours($clinic, ClinicUserPivot::dayKeyFor($date)) ?? ['start' => '07:00', 'end' => '21:00'];
-        [$startH, $startM] = array_map('intval', explode(':', $hours['start']));
-        [$endH, $endM] = array_map('intval', explode(':', $hours['end']));
-        $windowStart = $date->copy()->setTime($startH, $startM);
-        $windowEnd = $date->copy()->setTime($endH, $endM);
-
-        // Mesma regra de conflito de assertNoConflict: profissional OU
-        // cadeira ocupados bloqueiam, cancelado/faltou nunca ocupam.
-        $existing = Appointment::where(function ($q) use ($professional, $chairId) {
-                $q->where('professional_id', $professional->id);
-                if ($chairId) {
-                    $q->orWhere('chair_id', $chairId);
-                }
-            })
-            ->whereDate('start', $date)
-            ->whereNotIn('status', ['cancelled', 'no_show'])
-            ->get(['start', 'end']);
-
-        $step = 15; // minutos — mesma granularidade dos slots clicáveis na grade.
-        $now = Carbon::now();
-        $slots = [];
-        $cursor = $windowStart->copy();
-
-        while (count($slots) < 8 && $cursor->copy()->addMinutes($duration)->lte($windowEnd)) {
-            $slotEnd = $cursor->copy()->addMinutes($duration);
-
-            $isPast = $date->isSameDay($now) && $cursor->lt($now);
-            $overlaps = ! $isPast && $existing->contains(
-                fn ($appt) => $cursor->lt(Carbon::parse($appt->end)) && $slotEnd->gt(Carbon::parse($appt->start))
-            );
-
-            if (! $isPast && ! $overlaps) {
-                $slots[] = $cursor->format('H:i');
-            }
-
-            $cursor->addMinutes($step);
-        }
-
-        $partialSlots = empty($slots)
-            ? $this->partialGaps($windowStart, $windowEnd, $existing, $duration, $date, $now)
-            : [];
-
-        return ['slots' => $slots, 'partial_slots' => $partialSlots, 'message' => null];
-    }
-
-    /**
-     * Janelas livres menores que a duração pedida (ex.: 15min livres pra uma
-     * consulta de 30min) — mostradas separadas dos horários cheios, nunca
-     * como se comportassem a duração inteira (ver pedido: "não deve ser
-     * tratada como um horário válido"). Teto de 5 sugestões.
-     */
-    private function partialGaps(Carbon $windowStart, Carbon $windowEnd, $existing, int $duration, Carbon $date, Carbon $now): array
-    {
-        $cursor = $windowStart->copy();
-        if ($date->isSameDay($now) && $cursor->lt($now)) {
-            $minutesIn = max(0, $windowStart->diffInMinutes($now));
-            $cursor = $windowStart->copy()->addMinutes((int) (ceil($minutesIn / 15) * 15));
-        }
-
-        $busy = $existing
-            ->map(fn ($a) => [Carbon::parse($a->start), Carbon::parse($a->end)])
-            ->sortBy(fn ($pair) => $pair[0]->timestamp)
-            ->values();
-
-        $gaps = [];
-        foreach ($busy as [$busyStart, $busyEnd]) {
-            if ($busyStart->gt($cursor)) {
-                $gaps[] = [$cursor->copy(), $busyStart->copy()];
-            }
-            if ($busyEnd->gt($cursor)) {
-                $cursor = $busyEnd->copy();
-            }
-        }
-        if ($cursor->lt($windowEnd)) {
-            $gaps[] = [$cursor->copy(), $windowEnd->copy()];
-        }
-
-        $partial = [];
-        foreach ($gaps as [$gapStart, $gapEnd]) {
-            $minutes = $gapStart->diffInMinutes($gapEnd);
-            if ($minutes >= 15 && $minutes < $duration) {
-                $partial[] = ['start' => $gapStart->format('H:i'), 'minutes' => $minutes];
-            }
-            if (count($partial) >= 5) {
-                break;
-            }
-        }
-
-        return $partial;
-    }
-
-    /**
-     * Escaneia pra frente a partir do dia SEGUINTE ao pedido até achar o
-     * primeiro horário cheio — teto de 14 dias, nunca procura
-     * indefinidamente (pedido explícito: "defina uma janela razoável").
-     */
-    private function nextAvailableSlot(?Clinic $clinic, User $professional, ?ClinicUserPivot $pivot, Carbon $fromDate, int $duration, ?int $chairId): ?array
-    {
-        for ($i = 1; $i <= 14; $i++) {
-            $day = $fromDate->copy()->addDays($i);
-            $result = $this->dayAvailability($clinic, $professional, $pivot, $day, $duration, $chairId);
-            if (! empty($result['slots'])) {
-                return ['date' => $day->format('Y-m-d'), 'time' => $result['slots'][0]];
-            }
-        }
-
-        return null;
     }
 
     /**
@@ -509,7 +304,6 @@ class AppointmentController extends Controller
             ->with([
                 'patient:id,nome,sobrenome,telefone,email',
                 'professional:id,name',
-                'treatment:id,nome,duracao_padrao',
                 'chair:id,name,color',
                 'consultation:id,appointment_id,status,check_in_at',
                 'tags:id,name,color',
@@ -623,7 +417,7 @@ class AppointmentController extends Controller
         $duration = (int) ($validated['duration_minutes'] ?? $treatment?->duracao_padrao ?? 30);
         $end = $start->copy()->addMinutes($duration);
 
-        $this->assertProfessionalAvailable($validated['professional_id'], $clinicId, $start, $end, $validated['chair_id'] ?? null);
+        $this->schedulingService->assertProfessionalAvailable($validated['professional_id'], $clinicId, $start, $end, $validated['chair_id'] ?? null);
 
         $patient = Patient::findOrFail($validated['patient_id']);
         $tagIds = $validated['tag_ids'] ?? [];
@@ -804,7 +598,7 @@ class AppointmentController extends Controller
             || (int) ($appointment->chair_id ?? 0) !== (int) ($validated['chair_id'] ?? 0);
 
         if ($scheduleChanged) {
-            $this->assertProfessionalAvailable($validated['professional_id'], $clinicId, $start, $end, $validated['chair_id'] ?? null, $appointment->id);
+            $this->schedulingService->assertProfessionalAvailable($validated['professional_id'], $clinicId, $start, $end, $validated['chair_id'] ?? null, $appointment->id);
         }
 
         $patient = Patient::findOrFail($validated['patient_id']);

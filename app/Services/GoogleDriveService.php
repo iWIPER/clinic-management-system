@@ -2,17 +2,12 @@
 
 namespace App\Services;
 
-use Google_Client;
 use Google_Service_Drive;
 use Google_Service_Drive_DriveFile;
 use Google_Service_Exception;
-use Google_Service_Oauth2;
 use App\Exceptions\DriveStructureMissingException;
 use App\Exceptions\GoogleDriveReauthRequiredException;
-use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Log;
 use App\Models\Clinic;
-use App\Models\ClinicStorageConnection;
 use App\Models\DriveActivityLog;
 use App\Models\Patient;
 use App\Models\PatientPhoto;
@@ -20,273 +15,102 @@ use App\Models\User;
 
 class GoogleDriveService
 {
-    private Google_Client $client;
-
     /**
-     * Clinic bound to the last getDriveForClinic() call — used by callDrive()
-     * to know which connection to refresh when an auth error is hit mid-call.
+     * Clinic bound to the last getDriveForClinic() call — usado pelos
+     * wrappers de folder/callDrive pra saber qual clínica passar adiante
+     * (GoogleDriveCallExecutor::call() e os métodos de
+     * GoogleDriveStructureService que só recebem Google_Service_Drive,
+     * não Patient/Clinic). GoogleDriveAuthService e
+     * GoogleDriveStructureService não guardam esse estado — recebem
+     * Clinic explicitamente em cada método, de propósito (ver C1.2.2/C1.2.3).
      */
     private ?Clinic $currentClinic = null;
 
-    public function __construct()
-    {
-        $this->client = new Google_Client();
-        $this->client->setClientId(config('services.google.client_id'));
-        $this->client->setClientSecret(config('services.google.client_secret'));
-        $this->client->setRedirectUri(config('services.google.redirect'));
-        $this->client->addScope(Google_Service_Drive::DRIVE_FILE);
-        $this->client->addScope(Google_Service_Oauth2::USERINFO_EMAIL);
-        $this->client->setAccessType('offline');
-        $this->client->setPrompt('consent');
+    public function __construct(
+        private GoogleDriveAuthService $authService,
+        private GoogleDriveCallExecutor $callExecutor,
+        private GoogleDriveStructureService $structureService,
+    ) {
     }
 
-    // ─── OAuth ────────────────────────────────────────────────────────────────
+    /**
+     * Fase C1.2.1 — seam de teste. Fase C1.2.2: o Google_Client agora vive
+     * só em GoogleDriveAuthService — isto é um wrapper mínimo pra não
+     * quebrar nenhum teste já escrito contra esta classe (folders, upload,
+     * fotos, quota, health — nada disso foi movido nesta fase).
+     */
+    public function useHttpClientForTesting(\GuzzleHttp\ClientInterface $http): void
+    {
+        $this->authService->useHttpClientForTesting($http);
+    }
+
+    // ─── OAuth (C1.2.2: delegado a GoogleDriveAuthService) ─────────────────────
 
     public function getAuthUrl(): string
     {
-        return $this->client->createAuthUrl();
+        return $this->authService->getAuthUrl();
     }
 
     public function exchangeCode(string $code): array
     {
-        return $this->client->fetchAccessTokenWithAuthCode($code);
+        return $this->authService->exchangeCode($code);
     }
 
-    /**
-     * Return the Google account email from a freshly issued token array.
-     * Called once during the OAuth callback — no extra HTTP round-trip needed
-     * because the id_token is already in the token response.
-     */
     public function fetchEmailFromToken(array $token): ?string
     {
-        try {
-            $payload = $this->client->verifyIdToken($token['id_token'] ?? null);
-            return $payload['email'] ?? null;
-        } catch (\Throwable) {
-            return null;
-        }
+        return $this->authService->fetchEmailFromToken($token);
     }
 
     // ─── Authenticated Drive client ───────────────────────────────────────────
 
     /**
-     * Return an authenticated Google_Service_Drive for the given clinic.
-     * Restores the cached access token and refreshes proactively when expired.
-     *
      * @throws GoogleDriveReauthRequiredException when there is no usable refresh token.
      */
     public function getDriveForClinic(Clinic $clinic): Google_Service_Drive
     {
         $this->currentClinic = $clinic;
-        $connection = $clinic->storageConnection;
 
-        if (!$connection || !$connection->refresh_token) {
-            throw new GoogleDriveReauthRequiredException($clinic);
-        }
-
-        $tokenRestored = false;
-
-        if ($connection->access_token) {
-            try {
-                $cached = json_decode(Crypt::decryptString($connection->access_token), true);
-                $this->client->setAccessToken($cached);
-                $tokenRestored = true;
-            } catch (\Throwable) {
-                // Corrupted cache — will refresh below
-            }
-        }
-
-        if (!$tokenRestored || $this->client->isAccessTokenExpired()) {
-            $this->forceRefreshAccessToken($clinic);
-        }
-
-        return new Google_Service_Drive($this->client);
+        return $this->authService->getDriveForClinic($clinic);
     }
 
     /**
-     * Attempt to renew the Drive connection using only the stored refresh token,
-     * without opening the Google consent screen.
-     *
      * Used by the "Reconectar Drive" button: the OAuth flow is only triggered
      * when this returns false (Caso 3 do fluxo de reconexão).
      */
     public function tryRenewConnection(Clinic $clinic): bool
     {
-        $connection = $clinic->storageConnection;
-
-        if (!$connection || !$connection->refresh_token) {
-            return false;
-        }
-
-        $this->currentClinic = $clinic;
-
-        try {
-            $this->forceRefreshAccessToken($clinic);
-            return true;
-        } catch (\Throwable) {
-            return false;
-        }
-    }
-
-    /**
-     * Force a refresh-token exchange, bypassing the local expiry cache.
-     * Called both proactively (cached token expired) and reactively
-     * (a live Drive call came back with an auth error).
-     *
-     * @throws GoogleDriveReauthRequiredException when the refresh token itself is invalid.
-     */
-    private function forceRefreshAccessToken(Clinic $clinic): void
-    {
-        $connection = $clinic->storageConnection;
-
-        if (!$connection || !$connection->refresh_token) {
-            throw new GoogleDriveReauthRequiredException($clinic);
-        }
-
-        try {
-            $refreshToken = Crypt::decryptString($connection->refresh_token);
-        } catch (\Throwable) {
-            $this->clearInvalidTokens($connection);
-            throw new GoogleDriveReauthRequiredException($clinic);
-        }
-
-        $newToken = $this->client->fetchAccessTokenWithRefreshToken($refreshToken);
-
-        if (isset($newToken['error'])) {
-            if (in_array($newToken['error'], ['invalid_grant', 'invalid_client'], true)) {
-                $this->clearInvalidTokens($connection);
-                throw new GoogleDriveReauthRequiredException($clinic);
-            }
-
-            throw new \RuntimeException(
-                'Falha ao renovar token do Google Drive: '
-                . ($newToken['error_description'] ?? $newToken['error'])
-            );
-        }
-
-        $connection->update([
-            'access_token' => Crypt::encryptString(json_encode($this->client->getAccessToken())),
-            'expires_at'   => now()->addSeconds($newToken['expires_in'] ?? 3600),
-        ]);
-    }
-
-    /**
-     * Refresh token confirmed dead — drop only the token material and mark
-     * the connection as needing reauth. Account config (google_email,
-     * drive_root_folder_id, provider) is preserved (Caso 2).
-     */
-    private function clearInvalidTokens(ClinicStorageConnection $connection): void
-    {
-        $connection->update([
-            'access_token'  => null,
-            'refresh_token' => null,
-            'expires_at'    => null,
-            'status'        => 'reauth_required',
-        ]);
-
-        Log::warning('Refresh Token do Google Drive inválido — tokens removidos, reautenticação necessária.', [
-            'clinic_id' => $connection->clinic_id,
-        ]);
+        return $this->authService->tryRenewConnection($clinic);
     }
 
     /**
      * Run a live Drive API call, transparently refreshing the access token
      * and retrying once if the call fails due to an expired/revoked token.
      * Every raw $drive->... call in this class goes through here (Caso 1).
+     *
+     * Fase C1.2.3 — a lógica de retry em si mora agora em
+     * GoogleDriveCallExecutor (reutilizada também por
+     * GoogleDriveStructureService); este método só resolve qual Clinic
+     * passar adiante a partir do estado local.
      */
     private function callDrive(callable $fn)
     {
-        try {
-            return $fn();
-        } catch (Google_Service_Exception $e) {
-            if (!$this->isAuthError($e) || !$this->currentClinic) {
-                throw $e;
-            }
-
-            $this->forceRefreshAccessToken($this->currentClinic);
-
+        if (!$this->currentClinic) {
             return $fn();
         }
+
+        return $this->callExecutor->call($this->currentClinic, $fn);
     }
 
-    private function isAuthError(Google_Service_Exception $e): bool
-    {
-        if ($e->getCode() === 401) {
-            return true;
-        }
-
-        foreach ($e->getErrors() as $error) {
-            if (($error['reason'] ?? null) === 'authError') {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    // ─── Folder helpers ───────────────────────────────────────────────────────
-
-    /**
-     * Search for a folder by exact name inside a parent (or Drive root).
-     * Returns the folder ID or null if not found.
-     */
-    private function findFolder(string $name, ?string $parentId, Google_Service_Drive $drive): ?string
-    {
-        $escaped = str_replace("'", "\\'", $name);
-        $parent  = $parentId ?? 'root';
-
-        $q = implode(' and ', [
-            "mimeType = 'application/vnd.google-apps.folder'",
-            "name = '{$escaped}'",
-            "'{$parent}' in parents",
-            'trashed = false',
-        ]);
-
-        $result = $this->callDrive(fn () => $drive->files->listFiles([
-            'q'        => $q,
-            'fields'   => 'files(id)',
-            'spaces'   => 'drive',
-            'pageSize' => 1,
-        ]));
-
-        $files = $result->getFiles();
-
-        return count($files) > 0 ? $files[0]->getId() : null;
-    }
-
-    /**
-     * Create a new folder. Returns its ID.
-     */
-    private function createFolder(string $name, ?string $parentId, Google_Service_Drive $drive): string
-    {
-        $metadata = new Google_Service_Drive_DriveFile([
-            'name'     => $name,
-            'mimeType' => 'application/vnd.google-apps.folder',
-            'parents'  => [$parentId ?? 'root'],
-        ]);
-
-        $folder = $this->callDrive(fn () => $drive->files->create($metadata, ['fields' => 'id']));
-
-        return $folder->getId();
-    }
-
-    /**
-     * Find an existing folder or create it — prevents duplicates.
-     */
-    private function findOrCreateFolder(string $name, ?string $parentId, Google_Service_Drive $drive): string
-    {
-        return $this->findFolder($name, $parentId, $drive)
-            ?? $this->createFolder($name, $parentId, $drive);
-    }
+    // ─── Folder helpers (Fase C1.2.3: delegado a GoogleDriveStructureService) ──
 
     public function locateFolder(string $name, ?string $parentId, Google_Service_Drive $drive): ?string
     {
-        return $this->findFolder($name, $parentId, $drive);
+        return $this->structureService->locateFolder($name, $parentId, $drive, $this->currentClinic);
     }
 
     public function folderExists(string $folderId, Google_Service_Drive $drive): bool
     {
-        return $this->checkFolderExists($folderId, $drive);
+        return $this->structureService->folderExists($folderId, $drive, $this->currentClinic);
     }
 
     /**
@@ -434,7 +258,11 @@ class GoogleDriveService
             ));
         });
 
-        $check('delete', 'Permissão para excluir', function () use ($drive, $testFileId) {
+        // Fase C1.2.1.1 — &$testFileId por referência (achado em C1.2.1: era
+        // por valor, então "$testFileId = null" só zerava a cópia local do
+        // closure, nunca a variável externa — o cleanup abaixo sempre
+        // tentava um segundo DELETE no mesmo arquivo já excluído).
+        $check('delete', 'Permissão para excluir', function () use ($drive, &$testFileId) {
             $this->callDrive(fn () => $drive->files->delete($testFileId));
             $testFileId = null;
         });
@@ -451,287 +279,14 @@ class GoogleDriveService
         return $results;
     }
 
-    /**
-     * Check whether a folder ID still exists and is not trashed.
-     */
-    private function checkFolderExists(string $folderId, Google_Service_Drive $drive): bool
-    {
-        try {
-            $file = $this->callDrive(fn () => $drive->files->get($folderId, ['fields' => 'id,trashed']));
-            return !(bool) $file->getTrashed();
-        } catch (Google_Service_Exception $e) {
-            if ($e->getCode() === 404) return false;
-            throw $e;
-        }
-    }
-
-    // ─── Folder hierarchy ─────────────────────────────────────────────────────
+    // ─── Folder hierarchy (Fase C1.2.3: delegado a GoogleDriveStructureService) ─
 
     /**
      * Whether this clinic/patient ever had Drive folder IDs persisted.
      */
     public function structureWasPreviouslyEstablished(Patient $patient, User $doctor): bool
     {
-        $clinic = $patient->clinic;
-        $pivot  = $doctor->clinics()->where('clinics.id', $clinic->id)->first()?->pivot;
-
-        return (bool) (
-            $clinic->storageConnection?->drive_root_folder_id
-            || $pivot?->drive_doctor_folder_id
-            || $patient->drive_folder_id
-        );
-    }
-
-    /**
-     * Detect the first missing level in a previously established structure.
-     *
-     * @return array{level: string, old_folder_id: ?string}|null
-     */
-    public function detectStructureMissing(
-        Patient $patient,
-        User $doctor,
-        ?Google_Service_Drive $drive = null
-    ): ?array {
-        if (!$this->structureWasPreviouslyEstablished($patient, $doctor)) {
-            return null;
-        }
-
-        $clinic     = $patient->clinic;
-        $connection = $clinic->storageConnection;
-        $drive    ??= $this->getDriveForClinic($clinic);
-        $pivot      = $doctor->clinics()->where('clinics.id', $clinic->id)->first()?->pivot;
-
-        if ($connection->drive_root_folder_id
-            && !$this->checkFolderExists($connection->drive_root_folder_id, $drive)) {
-            return ['level' => 'root', 'old_folder_id' => $connection->drive_root_folder_id];
-        }
-
-        $doctorFolder = $pivot?->drive_doctor_folder_id;
-        if ($doctorFolder && !$this->checkFolderExists($doctorFolder, $drive)) {
-            return ['level' => 'clinic', 'old_folder_id' => $doctorFolder];
-        }
-
-        if ($patient->drive_folder_id
-            && !$this->checkFolderExists($patient->drive_folder_id, $drive)) {
-            return ['level' => 'patient', 'old_folder_id' => $patient->drive_folder_id];
-        }
-
-        return null;
-    }
-
-    /**
-     * @throws DriveStructureMissingException
-     */
-    public function assertStructureAvailable(Patient $patient, User $doctor): void
-    {
-        $missing = $this->detectStructureMissing($patient, $doctor);
-
-        if ($missing) {
-            $this->logStructureNotFound($patient, $missing['level'], $missing['old_folder_id']);
-            throw new DriveStructureMissingException($missing['level'], $missing['old_folder_id']);
-        }
-    }
-
-    public function notifyStructureMissing(Patient $patient, User $doctor): bool
-    {
-        $missing = $this->detectStructureMissing($patient, $doctor);
-
-        if (!$missing) {
-            return false;
-        }
-
-        $this->logStructureNotFound($patient, $missing['level'], $missing['old_folder_id']);
-
-        return true;
-    }
-
-    private function logStructureNotFound(Patient $patient, string $level, ?string $oldFolderId): void
-    {
-        Log::warning('Estrutura Google Drive não encontrada — aguardando autorização do usuário.', [
-            'clinic_id'     => $patient->clinic_id,
-            'patient_id'    => $patient->id,
-            'level'         => $level,
-            'old_folder_id' => $oldFolderId,
-        ]);
-
-        DriveActivityLog::create([
-            'clinic_id'   => $patient->clinic_id,
-            'patient_id'  => $patient->id,
-            'event_type'  => 'structure_not_found',
-            'description' => 'Detectada ausência da estrutura Google Drive.',
-            'metadata'    => [
-                'level'         => $level,
-                'old_folder_id' => $oldFolderId,
-            ],
-        ]);
-    }
-
-    /**
-     * Clear stale cached IDs before authorized recreation.
-     * Kept for compatibility — no longer called in the main recovery path.
-     */
-    private function clearFolderIds(Clinic $clinic, Patient $patient, User $doctor): void
-    {
-        $clinic->storageConnection?->update(['drive_root_folder_id' => null]);
-        $doctor->clinics()->updateExistingPivot($clinic->id, ['drive_doctor_folder_id' => null]);
-        $patient->update(['drive_folder_id' => null]);
-        $patient->refresh();
-        $clinic->storageConnection?->refresh();
-    }
-
-    /**
-     * Smart partial repair: validates the folder hierarchy top-to-bottom and
-     * recreates only the levels that are actually missing.
-     *
-     * Efficiency: as soon as the first missing level is found the descent stops,
-     * since children cannot exist when their parent is gone. At most 3 API calls
-     * are made during the validation phase.
-     *
-     * @return array{
-     *   upload_folder_id: string,
-     *   patient_folder_id: string,
-     *   recreated_levels: string[],
-     * }
-     */
-    private function partialRepair(
-        Patient $patient,
-        User $doctor,
-        ?string $categoria,
-        Google_Service_Drive $drive
-    ): array {
-        $clinic      = $patient->clinic;
-        $connection  = $clinic->storageConnection;
-        $pivot       = $doctor->clinics()->where('clinics.id', $clinic->id)->first()?->pivot;
-        $patientName = trim("{$patient->nome} {$patient->sobrenome}");
-        $recreated   = [];
-        $rebuildFrom = null;
-
-        // Level 1 — Wildental root
-        $rootId = $connection->drive_root_folder_id;
-        if (!$rootId || !$this->checkFolderExists($rootId, $drive)) {
-            $rebuildFrom = 'root';
-        }
-
-        // Level 2 — Professional folder (skipped when root is already gone)
-        if ($rebuildFrom === null) {
-            $doctorId = $pivot?->drive_doctor_folder_id;
-            if (!$doctorId || !$this->checkFolderExists($doctorId, $drive)) {
-                $rebuildFrom = 'doctor';
-            }
-        }
-
-        // Level 3 — Patient folder (skipped when any ancestor is already gone)
-        if ($rebuildFrom === null) {
-            $patientId = $patient->drive_folder_id;
-            if (!$patientId || !$this->checkFolderExists($patientId, $drive)) {
-                $rebuildFrom = 'patient';
-            }
-        }
-
-        // Rebuild only from the first missing level downward
-        if ($rebuildFrom !== null) {
-            // Root — recreate if it was the missing level
-            if ($rebuildFrom === 'root') {
-                $rootId = $this->findOrCreateFolder('Wildental', null, $drive);
-                $connection->update(['drive_root_folder_id' => $rootId]);
-                $recreated[] = 'root';
-            } else {
-                $rootId = $connection->drive_root_folder_id;
-            }
-
-            // Professional — recreate if it or any ancestor was missing
-            if (in_array($rebuildFrom, ['root', 'doctor'], true)) {
-                $doctorId = $this->findOrCreateFolder($doctor->name, $rootId, $drive);
-                $doctor->clinics()->updateExistingPivot($clinic->id, [
-                    'drive_doctor_folder_id' => $doctorId,
-                ]);
-                $recreated[] = 'doctor';
-            } else {
-                $doctorId = $pivot?->drive_doctor_folder_id;
-            }
-
-            // Patient — always recreated once any ancestor is missing
-            $patientId = $this->findOrCreateFolder($patientName, $doctorId, $drive);
-            $patient->update(['drive_folder_id' => $patientId]);
-            $patient->refresh();
-            $recreated[] = 'patient';
-        } else {
-            $patientId = $patient->drive_folder_id;
-        }
-
-        // Level 4 — Category subfolder (find or create; never duplicates)
-        $uploadFolderId = $patientId;
-        if ($categoria) {
-            $uploadFolderId = $this->findOrCreateFolder($categoria, $patientId, $drive);
-        }
-
-        return [
-            'upload_folder_id'  => $uploadFolderId,
-            'patient_folder_id' => $patientId,
-            'recreated_levels'  => $recreated,
-        ];
-    }
-
-    /**
-     * Build folder hierarchy for first-time setup (no cached IDs).
-     *
-     * @return array{upload_folder_id: string, patient_folder_id: string}
-     */
-    private function ensureFirstTimeStructure(
-        Patient $patient,
-        User $doctor,
-        ?string $categoria,
-        Google_Service_Drive $drive
-    ): array {
-        $clinic      = $patient->clinic;
-        $connection  = $clinic->storageConnection;
-        $patientName = trim("{$patient->nome} {$patient->sobrenome}");
-
-        $rootId = $this->findOrCreateFolder('Wildental', null, $drive);
-        $connection->update(['drive_root_folder_id' => $rootId]);
-
-        $doctorFolder = $this->findOrCreateFolder($doctor->name, $rootId, $drive);
-        $doctor->clinics()->updateExistingPivot($clinic->id, [
-            'drive_doctor_folder_id' => $doctorFolder,
-        ]);
-
-        $patientFolder = $this->findOrCreateFolder($patientName, $doctorFolder, $drive);
-        $patient->update(['drive_folder_id' => $patientFolder]);
-
-        $uploadFolderId = $categoria
-            ? $this->findOrCreateFolder($categoria, $patientFolder, $drive)
-            : $patientFolder;
-
-        return [
-            'upload_folder_id'  => $uploadFolderId,
-            'patient_folder_id' => $patientFolder,
-        ];
-    }
-
-    /**
-     * Use validated cached folder IDs and ensure category subfolder exists.
-     *
-     * @return array{upload_folder_id: string, patient_folder_id: string}
-     */
-    private function resolveExistingStructure(
-        Patient $patient,
-        User $doctor,
-        ?string $categoria,
-        Google_Service_Drive $drive
-    ): array {
-        $clinic     = $patient->clinic;
-        $connection = $clinic->storageConnection;
-        $pivot      = $doctor->clinics()->where('clinics.id', $clinic->id)->first()?->pivot;
-
-        $patientFolder = $patient->drive_folder_id;
-        $uploadFolderId = $categoria
-            ? $this->findOrCreateFolder($categoria, $patientFolder, $drive)
-            : $patientFolder;
-
-        return [
-            'upload_folder_id'  => $uploadFolderId,
-            'patient_folder_id' => $patientFolder,
-        ];
+        return $this->structureService->structureWasPreviouslyEstablished($patient, $doctor);
     }
 
     /**
@@ -739,79 +294,7 @@ class GoogleDriveService
      */
     public function recoverStructure(Patient $patient, User $doctor): void
     {
-        $drive  = $this->getDriveForClinic($patient->clinic);
-        $this->logDisasterRecoveryAuthorized($patient, $doctor);
-        $result = $this->rebuildAuthorizedStructure($patient, $doctor, null, $drive);
-        $this->logDisasterRecoveryCompleted($patient, $result['recreated_levels']);
-    }
-
-    /**
-     * Authorized disaster recovery — rebuilds only the missing levels of the hierarchy.
-     *
-     * @return array{upload_folder_id: string, patient_folder_id: string, recreated_levels: string[]}
-     */
-    private function rebuildAuthorizedStructure(
-        Patient $patient,
-        User $doctor,
-        ?string $categoria,
-        Google_Service_Drive $drive
-    ): array {
-        return $this->partialRepair($patient, $doctor, $categoria, $drive);
-    }
-
-    private function logDisasterRecoveryAuthorized(Patient $patient, User $doctor): void
-    {
-        DriveActivityLog::create([
-            'clinic_id'   => $patient->clinic_id,
-            'patient_id'  => $patient->id,
-            'event_type'  => 'structure_recovery_authorized',
-            'description' => 'Usuário autorizou a recriação da estrutura.',
-            'metadata'    => ['authorized_by_id' => $doctor->id],
-        ]);
-    }
-
-    private function logDisasterRecoveryCompleted(Patient $patient, array $recreatedLevels = []): void
-    {
-        $description = match(true) {
-            in_array('root', $recreatedLevels, true)    => 'Estrutura completa recriada com sucesso.',
-            in_array('doctor', $recreatedLevels, true)  => 'Pasta do profissional e do paciente recriadas com sucesso.',
-            in_array('patient', $recreatedLevels, true) => 'Pasta do paciente recriada com sucesso.',
-            default                                     => 'Estrutura recriada com sucesso.',
-        };
-
-        DriveActivityLog::create([
-            'clinic_id'   => $patient->clinic_id,
-            'patient_id'  => $patient->id,
-            'event_type'  => 'structure_recreated',
-            'description' => $description,
-            'metadata'    => ['recreated_levels' => $recreatedLevels],
-        ]);
-    }
-
-    private function logStructureVerifyRepaired(
-        Patient $patient,
-        array $recreatedLevels,
-        array $recreatedCategories
-    ): void {
-        $description = match(true) {
-            in_array('root', $recreatedLevels, true)    => 'Verificação detectou e recriou a estrutura completa.',
-            in_array('doctor', $recreatedLevels, true)  => 'Verificação detectou e recriou pasta do profissional e do paciente.',
-            in_array('patient', $recreatedLevels, true) => 'Verificação detectou e recriou pasta do paciente.',
-            !empty($recreatedCategories)                => 'Verificação detectou e recriou categoria(s) ausente(s).',
-            default                                     => 'Verificação detectou e recriou partes da estrutura.',
-        };
-
-        DriveActivityLog::create([
-            'clinic_id'   => $patient->clinic_id,
-            'patient_id'  => $patient->id,
-            'event_type'  => 'structure_recreated',
-            'description' => $description,
-            'metadata'    => [
-                'recreated_levels'     => $recreatedLevels,
-                'recreated_categories' => $recreatedCategories,
-                'triggered_by'         => 'verify',
-            ],
-        ]);
+        $this->structureService->recoverStructure($patient, $doctor);
     }
 
     private function logUploadResumed(Patient $patient, PatientPhoto $photo, array $metadata): void
@@ -830,21 +313,6 @@ class GoogleDriveService
         ]);
     }
 
-    /**
-     * Level 3 — patient folder inside the doctor's folder.
-     */
-    public function ensurePatientFolder(Patient $patient, User $doctor): string
-    {
-        $drive = $this->getDriveForClinic($patient->clinic);
-
-        if ($this->structureWasPreviouslyEstablished($patient, $doctor)) {
-            $this->assertStructureAvailable($patient, $doctor);
-            return $this->resolveExistingStructure($patient, $doctor, null, $drive)['patient_folder_id'];
-        }
-
-        return $this->ensureFirstTimeStructure($patient, $doctor, null, $drive)['patient_folder_id'];
-    }
-
     // ─── Upload ───────────────────────────────────────────────────────────────
 
     /**
@@ -861,15 +329,7 @@ class GoogleDriveService
      */
     public function resolveUploadFolder(Patient $patient, User $doctor, ?string $categoria = null): array
     {
-        $drive = $this->getDriveForClinic($patient->clinic);
-
-        if ($this->structureWasPreviouslyEstablished($patient, $doctor)) {
-            $this->assertStructureAvailable($patient, $doctor);
-
-            return $this->resolveExistingStructure($patient, $doctor, $categoria, $drive);
-        }
-
-        return $this->ensureFirstTimeStructure($patient, $doctor, $categoria, $drive);
+        return $this->structureService->resolveUploadFolder($patient, $doctor, $categoria);
     }
 
     /**
@@ -897,7 +357,7 @@ class GoogleDriveService
             $uploaded = $this->performDriveUpload($drive, $folderId, $filePath, $fileName, $mimeType);
         } catch (Google_Service_Exception $e) {
             if ($e->getCode() === 404) {
-                $this->logStructureNotFound($patient, 'upload', $folderId);
+                $this->structureService->logStructureNotFound($patient, 'upload', $folderId);
                 throw new DriveStructureMissingException('upload', $folderId);
             }
             throw $e;
@@ -930,19 +390,19 @@ class GoogleDriveService
             $hadStructure = $this->structureWasPreviouslyEstablished($patient, $doctor);
 
             if ($hadStructure && !$authorizeRecovery) {
-                $this->assertStructureAvailable($patient, $doctor);
-                $resolved = $this->resolveExistingStructure($patient, $doctor, $categoria, $drive);
+                $this->structureService->assertStructureAvailable($patient, $doctor);
+                $resolved = $this->structureService->resolveExistingStructure($patient, $doctor, $categoria, $drive);
             } elseif ($authorizeRecovery) {
-                $this->logDisasterRecoveryAuthorized($patient, $doctor);
-                $repaired  = $this->rebuildAuthorizedStructure($patient, $doctor, $categoria, $drive);
+                $this->structureService->logDisasterRecoveryAuthorized($patient, $doctor);
+                $repaired  = $this->structureService->rebuildAuthorizedStructure($patient, $doctor, $categoria, $drive);
                 $resolved  = [
                     'upload_folder_id'  => $repaired['upload_folder_id'],
                     'patient_folder_id' => $repaired['patient_folder_id'],
                 ];
                 $recreated = true;
-                $this->logDisasterRecoveryCompleted($patient, $repaired['recreated_levels']);
+                $this->structureService->logDisasterRecoveryCompleted($patient, $repaired['recreated_levels']);
             } else {
-                $resolved = $this->ensureFirstTimeStructure($patient, $doctor, $categoria, $drive);
+                $resolved = $this->structureService->ensureFirstTimeStructure($patient, $doctor, $categoria, $drive);
             }
 
             $folderId = $resolved['upload_folder_id'];
@@ -952,7 +412,7 @@ class GoogleDriveService
             $uploaded = $this->performDriveUpload($drive, $folderId, $filePath, $fileName, $mimeType);
         } catch (Google_Service_Exception $e) {
             if ($e->getCode() === 404 && !$authorizeRecovery) {
-                $this->logStructureNotFound($patient, 'upload', $folderId);
+                $this->structureService->logStructureNotFound($patient, 'upload', $folderId);
                 throw new DriveStructureMissingException('upload', $folderId);
             }
             throw $e;
@@ -1180,10 +640,11 @@ class GoogleDriveService
             $photo->loadMissing('patient');
             abort_if(!$photo->patient?->drive_folder_id, 422, 'Estrutura de pastas do paciente não encontrada.');
 
-            $newDriveFolderId = $this->findOrCreateFolder(
+            $newDriveFolderId = $this->structureService->findOrCreateFolder(
                 $newCategoria,
                 $photo->patient->drive_folder_id,
-                $drive
+                $drive,
+                $clinic
             );
 
             $this->callDrive(fn () => $drive->files->update(
@@ -1358,65 +819,6 @@ class GoogleDriveService
         }
 
         return $existingIds;
-    }
-
-    /**
-     * Validate the full folder hierarchy and auto-repair anything missing.
-     * Also checks and recreates category subfolders found in the patient's photos.
-     *
-     * Never recreates what already exists. Never creates duplicates.
-     *
-     * @return array{
-     *   missing: bool,
-     *   level: ?string,
-     *   recreated: string[],
-     *   recreated_categories: string[],
-     *   intact: bool,
-     * }
-     */
-    public function verifyFolderStructure(Patient $patient, User $doctor): array
-    {
-        if (!$this->structureWasPreviouslyEstablished($patient, $doctor)) {
-            return [
-                'missing'              => false,
-                'level'                => null,
-                'recreated'            => [],
-                'recreated_categories' => [],
-                'intact'               => true,
-            ];
-        }
-
-        $drive  = $this->getDriveForClinic($patient->clinic);
-        $repair = $this->partialRepair($patient, $doctor, null, $drive);
-
-        $recreated       = $repair['recreated_levels'];
-        $patientFolderId = $repair['patient_folder_id'];
-        $recreatedCats   = [];
-
-        // Check every category folder referenced by the patient's photos
-        $categories = $patient->photos()
-            ->whereNotNull('categoria')
-            ->distinct()
-            ->pluck('categoria');
-
-        foreach ($categories as $categoria) {
-            if ($this->findFolder($categoria, $patientFolderId, $drive) === null) {
-                $this->createFolder($categoria, $patientFolderId, $drive);
-                $recreatedCats[] = $categoria;
-            }
-        }
-
-        if (!empty($recreated) || !empty($recreatedCats)) {
-            $this->logStructureVerifyRepaired($patient, $recreated, $recreatedCats);
-        }
-
-        return [
-            'missing'              => false,
-            'level'                => null,
-            'recreated'            => $recreated,
-            'recreated_categories' => $recreatedCats,
-            'intact'               => empty($recreated) && empty($recreatedCats),
-        ];
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────

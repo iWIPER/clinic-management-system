@@ -12,8 +12,8 @@ class ChairController extends Controller
     public function index()
     {
         // Filtro explícito de clinic_id (não só o global scope) — mesma
-        // cautela de authorizeOwnership(): nunca depender só do scope pra
-        // isolamento entre clínicas.
+        // cautela de ChairPolicy: nunca depender só do scope pra isolamento
+        // entre clínicas.
         $chairs = Chair::where('clinic_id', session('current_clinic_id'))
             ->withCount('appointments')
             ->orderBy('id')
@@ -55,7 +55,7 @@ class ChairController extends Controller
 
     public function update(Request $request, Chair $chair)
     {
-        $this->authorizeOwnership($chair);
+        $this->authorize('update', $chair);
 
         $validated = $request->validate([
             'name'  => 'required|string|max:30',
@@ -72,7 +72,7 @@ class ChairController extends Controller
 
     public function destroy(Request $request, Chair $chair)
     {
-        $this->authorizeOwnership($chair);
+        $this->authorize('delete', $chair);
 
         $usageCount = $chair->appointments()->count();
 
@@ -95,8 +95,4 @@ class ChairController extends Controller
         return response()->json(['id' => $chair->id]);
     }
 
-    private function authorizeOwnership(Chair $chair): void
-    {
-        abort_unless((int) $chair->clinic_id === (int) session('current_clinic_id'), 403);
-    }
 }

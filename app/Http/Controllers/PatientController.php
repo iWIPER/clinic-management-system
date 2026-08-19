@@ -200,6 +200,8 @@ class PatientController extends Controller
         \App\Services\PatientInviteService $inviteService,
         \App\Services\PatientPaymentService $paymentService,
     ) {
+        $this->authorize('view', $patient);
+
         $anamnesesPage   = max(1, (int) $request->get('anamneses_page', 1));
         $notesPage       = max(1, (int) $request->get('notes_page', 1));
         $documentsPage   = max(1, (int) $request->get('documents_page', 1));
@@ -452,6 +454,8 @@ class PatientController extends Controller
 
     public function edit(Patient $patient)
     {
+        $this->authorize('update', $patient);
+
         // DUMP 1: dados brutos do banco (via route model binding)
         Log::debug('[PatientController@edit] DUMP 1 — patient.toArray()', $patient->toArray());
 
@@ -482,6 +486,8 @@ class PatientController extends Controller
 
     public function update(Request $request, Patient $patient, PatientStatusService $statusService)
     {
+        $this->authorize('update', $patient);
+
         $validated = $request->validate([
             ...$this->patientValidationRules($patient->clinic_id),
             'status_automatico' => 'boolean',
@@ -507,6 +513,8 @@ class PatientController extends Controller
      */
     public function updateResponsibleProfessional(Request $request, Patient $patient)
     {
+        $this->authorize('update', $patient);
+
         $validated = $request->validate([
             'responsible_professional_id' => 'required|exists:users,id',
         ]);
@@ -533,6 +541,8 @@ class PatientController extends Controller
 
     public function destroy(Patient $patient)
     {
+        $this->authorize('delete', $patient);
+
         $patient->delete();
 
         return redirect()

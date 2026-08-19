@@ -16,6 +16,8 @@ class PatientProntuarioController extends Controller
 {
     public function show(Patient $patient)
     {
+        $this->authorize('view', $patient);
+
         $patient->load([
             'anamnesis',
             'odontogram',
@@ -58,6 +60,8 @@ class PatientProntuarioController extends Controller
 
     public function updateAnamnesis(Request $request, Patient $patient)
     {
+        $this->authorize('update', $patient);
+
         $validated = $request->validate([
             'queixa_principal' => 'nullable|string',
             'historico_medico' => 'nullable|string',
@@ -90,6 +94,8 @@ class PatientProntuarioController extends Controller
 
     public function storeEvolution(Request $request, Patient $patient)
     {
+        $this->authorize('update', $patient);
+
         $validated = $request->validate([
             'content' => 'required|string',
             'recorded_at' => 'nullable|date',
@@ -108,6 +114,8 @@ class PatientProntuarioController extends Controller
 
     public function updateOdontogram(Request $request, Patient $patient)
     {
+        $this->authorize('update', $patient);
+
         $validated = $request->validate([
             'teeth_data' => 'required|array',
             'notes' => 'nullable|string',
@@ -128,6 +136,8 @@ class PatientProntuarioController extends Controller
 
     public function generatePdf(Patient $patient, PatientProntuarioPdfService $pdfService)
     {
+        $this->authorize('view', $patient);
+
         $path = $pdfService->generate($patient);
 
         return Storage::disk('s3')->download(

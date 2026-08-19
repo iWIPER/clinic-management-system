@@ -257,21 +257,30 @@ test('working_end must be after working_start', function () {
         ->assertJsonValidationErrors(['working_end']);
 });
 
-test('a professional without configured hours has no working-hours restriction at all — same spirit as working_days unset', function () {
+test('a professional without configured hours falls back to the default 07:00-21:00 window instead of "no restriction"', function () {
     ['colleague' => $colleague, 'patient' => $patient, 'treatment' => $treatment] = setupAgendaAvailabilityContext();
 
     $pivot = $colleague->clinicPivotFor(session('current_clinic_id'));
-    // Sem restrição real (o que de fato bloqueia agendamento) — nunca ficou
-    // silenciosamente travado em 09-18 sem o profissional ter configurado nada.
     expect($pivot->workingHoursConfigured())->toBeNull();
-    // A UI de configurações, porém, ainda mostra um valor sugerido nos campos.
+    // A UI de configurações ainda mostra um valor sugerido nos campos — isso não muda.
     expect($pivot->workingHoursResolved())->toBe(['start' => '09:00', 'end' => '18:00']);
 
-    // Confirma na prática: agendamento bem fora de 09-18 (22h) passa normalmente.
+    // CORREÇÃO — antes, sem configuração, nada bloqueava (bug real: permitia
+    // agendamentos de madrugada, fora de qualquer grade). Agora o teto
+    // absoluto passa a ser o mesmo default 07:00-21:00 usado pela grade
+    // visual e por dayAvailability() (ver AppointmentSchedulingService::
+    // DEFAULT_HOURS) — 22h continua bloqueado.
     $lateMonday = nextWeekday(\Carbon\Carbon::MONDAY)->setTime(22, 0);
     $this->actingAs($colleague)->postJson(route('appointments.store'), [
         'patient_id' => $patient->id, 'professional_id' => $colleague->id, 'treatment_id' => $treatment->id,
         'start' => $lateMonday->toDateTimeString(),
+    ])->assertStatus(422)->assertJsonValidationErrors(['start']);
+
+    // Mas dentro do default (07:00-21:00) continua permitido normalmente.
+    $withinDefault = nextWeekday(\Carbon\Carbon::MONDAY)->setTime(10, 0);
+    $this->actingAs($colleague)->postJson(route('appointments.store'), [
+        'patient_id' => $patient->id, 'professional_id' => $colleague->id, 'treatment_id' => $treatment->id,
+        'start' => $withinDefault->toDateTimeString(),
     ])->assertRedirect();
 
     expect(Appointment::where('professional_id', $colleague->id)->count())->toBe(1);
@@ -289,7 +298,7 @@ test('booking before the configured start time is blocked with a friendly messag
         'start' => $monday->toDateTimeString(),
     ])->assertStatus(422)->assertJsonValidationErrors(['start']);
 
-    expect($response->json('errors.start.0'))->toBe('Este horário está fora do horário de atendimento deste profissional.');
+    expect($response->json('errors.start.0'))->toBe('Este horário está fora do horário de atendimento (09:00–18:00).');
     expect(Appointment::where('professional_id', $colleague->id)->count())->toBe(0);
 });
 

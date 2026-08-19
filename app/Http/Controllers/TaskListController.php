@@ -76,7 +76,7 @@ class TaskListController extends Controller
 
     public function updateCustom(Request $request, TaskList $taskList)
     {
-        $this->authorizeOwnership($taskList);
+        $this->authorize('update', $taskList);
 
         $clinicId = session('current_clinic_id');
         $validated = $this->validatedCustomList($request, $clinicId);
@@ -94,7 +94,7 @@ class TaskListController extends Controller
 
     public function destroy(TaskList $taskList)
     {
-        $this->authorizeOwnership($taskList);
+        $this->authorize('delete', $taskList);
 
         DB::transaction(function () use ($taskList) {
             // Nada se perde — as tarefas só saem do escopo excluído e voltam
@@ -104,13 +104,6 @@ class TaskListController extends Controller
         });
 
         return response()->json(['id' => $taskList->id]);
-    }
-
-    private function authorizeOwnership(TaskList $taskList): void
-    {
-        abort_unless((int) $taskList->clinic_id === (int) session('current_clinic_id'), 403);
-        abort_unless($taskList->key === null, 404); // essa rota não mexe em mine/team
-        abort_unless((int) $taskList->user_id === (int) auth()->id(), 403, 'Apenas quem criou o escopo pode administrá-lo.');
     }
 
     private function validatedCustomList(Request $request, int $clinicId): array

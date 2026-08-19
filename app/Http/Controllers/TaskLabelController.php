@@ -38,14 +38,7 @@ class TaskLabelController extends Controller
 
     public function destroy(Request $request, TaskLabel $label)
     {
-        // Só a clínica dona da etiqueta pode excluí-la — etiquetas globais
-        // (clinic_id nulo) nunca batem com a sessão, mesma regra de
-        // PatientMarkerController::authorizeClinicOwnership().
-        abort_unless(
-            (int) $label->clinic_id === (int) session('current_clinic_id'),
-            403,
-            'Esta etiqueta não pode ser administrada por esta clínica.'
-        );
+        $this->authorize('delete', $label);
 
         $usageCount = $label->tasks()->count();
 

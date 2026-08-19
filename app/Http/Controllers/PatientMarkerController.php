@@ -43,21 +43,6 @@ class PatientMarkerController extends Controller
     }
 
     /**
-     * Só marcadores criados pela própria clínica podem ter o nome alterado ou
-     * ser excluídos — isso bloqueia automaticamente os marcadores globais de
-     * sistema (clinic_id nulo nunca bate com a clínica da sessão) e os de
-     * outras clínicas, com uma única checagem.
-     */
-    private function authorizeClinicOwnership(PatientTag $marker): void
-    {
-        abort_unless(
-            (int) $marker->clinic_id === (int) session('current_clinic_id'),
-            403,
-            'Este marcador não pode ser administrado por esta clínica.'
-        );
-    }
-
-    /**
      * Marcador de sistema: só cor (a customização visual pertence à clínica,
      * mas a linha é global — muda pra todo mundo que usa esse marcador).
      * Marcador da clínica: nome e cor, e precisa ser dono do registro.
@@ -72,7 +57,7 @@ class PatientMarkerController extends Controller
         if ($marker->is_system) {
             abort_if($validated['name'] !== null, 403, 'Marcadores do sistema não podem ser renomeados.');
         } else {
-            $this->authorizeClinicOwnership($marker);
+            $this->authorize('update', $marker);
         }
 
         $this->service->update($marker, $validated['name'] ?? null, $validated['color']);
@@ -83,7 +68,7 @@ class PatientMarkerController extends Controller
     public function destroy(PatientTag $marker)
     {
         abort_if($marker->is_system, 403, 'Marcadores do sistema não podem ser excluídos.');
-        $this->authorizeClinicOwnership($marker);
+        $this->authorize('delete', $marker);
 
         $this->service->delete($marker);
 

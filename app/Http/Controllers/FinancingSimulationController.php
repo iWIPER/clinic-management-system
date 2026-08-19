@@ -13,7 +13,7 @@ class FinancingSimulationController extends Controller
 {
     public function simulate(Budget $budget, Request $request, FinancingSimulationService $simulations)
     {
-        abort_unless($budget->clinic_id === (int) session('current_clinic_id'), 403);
+        $this->authorize('view', $budget);
 
         $validated = $request->validate([
             'cpf'          => 'required|string|min:11|max:14',

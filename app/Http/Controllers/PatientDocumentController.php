@@ -27,11 +27,13 @@ class PatientDocumentController extends Controller
 
     public function store(Request $request, Patient $patient)
     {
+        $this->authorize('update', $patient);
+
         $validated = $request->validate([
             // DocumentTemplate não tem ClinicScope automático (clinic_id
-            // nulo = modelo global de sistema) — precisa da mesma checagem
-            // explícita de scopeForClinic() aqui, senão um template PRIVADO
-            // de outra clínica passaria.
+            // nulo = modelo global de sistema, ver DocumentTemplatePolicy) —
+            // precisa da mesma checagem explícita de scopeForClinic() aqui,
+            // senão um template PRIVADO de outra clínica passaria.
             'template_id'  => ['required', \Illuminate\Validation\Rule::exists('document_templates', 'id')->where(
                 fn ($q) => $q->whereNull('clinic_id')->orWhere('clinic_id', $patient->clinic_id)
             )],
@@ -112,6 +114,7 @@ class PatientDocumentController extends Controller
 
     public function show(Patient $patient, Document $document)
     {
+        $this->authorize('view', $patient);
         abort_unless($document->patient_id === $patient->id, 404);
 
         $document->load(['signatures', 'template.category', 'professional', 'relatedTreatments', 'relatedBudgets']);
@@ -140,6 +143,7 @@ class PatientDocumentController extends Controller
 
     public function pdf(Request $request, Patient $patient, Document $document)
     {
+        $this->authorize('view', $patient);
         abort_unless($document->patient_id === $patient->id, 404);
 
         $this->pdfService->generate($document, $request->user()->id, $request);
@@ -149,6 +153,7 @@ class PatientDocumentController extends Controller
 
     public function cancel(Request $request, Patient $patient, Document $document, DocumentStatusService $statusService)
     {
+        $this->authorize('update', $patient);
         abort_unless($document->patient_id === $patient->id, 404);
 
         $statusService->cancel($document, $request->input('reason', 'Cancelado pelo usuário.'), $request->user()?->id);
@@ -158,6 +163,7 @@ class PatientDocumentController extends Controller
 
     public function destroy(Patient $patient, Document $document)
     {
+        $this->authorize('update', $patient);
         abort_unless($document->patient_id === $patient->id, 404);
         abort_unless($document->status === DocumentStatus::Draft->value, 422, 'Somente rascunhos podem ser excluídos.');
 

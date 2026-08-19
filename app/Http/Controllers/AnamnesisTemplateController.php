@@ -78,7 +78,7 @@ class AnamnesisTemplateController extends Controller
 
     public function edit(AnamnesisTemplate $anamnesisTemplate)
     {
-        $this->authorizeTemplate($anamnesisTemplate);
+        $this->authorize('manage', $anamnesisTemplate);
 
         $clinicId = session('current_clinic_id');
 
@@ -93,7 +93,7 @@ class AnamnesisTemplateController extends Controller
 
     public function update(Request $request, AnamnesisTemplate $anamnesisTemplate)
     {
-        $this->authorizeTemplate($anamnesisTemplate);
+        $this->authorize('manage', $anamnesisTemplate);
 
         $validated = $request->validate([
             'name' => 'required|string|max:150',
@@ -119,7 +119,7 @@ class AnamnesisTemplateController extends Controller
 
     public function attachQuestion(Request $request, AnamnesisTemplate $anamnesisTemplate)
     {
-        $this->authorizeTemplate($anamnesisTemplate);
+        $this->authorize('manage', $anamnesisTemplate);
 
         $validated = $request->validate([
             'question_id' => ['required', $this->questionExistsRule()],
@@ -138,7 +138,7 @@ class AnamnesisTemplateController extends Controller
 
     public function detachQuestion(AnamnesisTemplate $anamnesisTemplate, int $questionId)
     {
-        $this->authorizeTemplate($anamnesisTemplate);
+        $this->authorize('manage', $anamnesisTemplate);
         $this->questionBank->detachFromTemplate($anamnesisTemplate, $questionId);
 
         return back()->with('success', 'Pergunta removida do modelo.');
@@ -146,7 +146,7 @@ class AnamnesisTemplateController extends Controller
 
     public function duplicate(AnamnesisTemplate $anamnesisTemplate)
     {
-        $this->authorizeTemplate($anamnesisTemplate);
+        $this->authorize('manage', $anamnesisTemplate);
 
         $clinicId = session('current_clinic_id');
 
@@ -177,7 +177,7 @@ class AnamnesisTemplateController extends Controller
 
     public function destroy(AnamnesisTemplate $anamnesisTemplate)
     {
-        $this->authorizeTemplate($anamnesisTemplate);
+        $this->authorize('manage', $anamnesisTemplate);
 
         if ($anamnesisTemplate->is_system) {
             return back()->with('error', 'Modelos do sistema não podem ser excluídos.');
@@ -191,7 +191,7 @@ class AnamnesisTemplateController extends Controller
 
     public function deactivate(AnamnesisTemplate $anamnesisTemplate)
     {
-        $this->authorizeTemplate($anamnesisTemplate);
+        $this->authorize('manage', $anamnesisTemplate);
         $anamnesisTemplate->update(['is_active' => false]);
 
         return back()->with('success', 'Modelo desativado.');
@@ -199,7 +199,7 @@ class AnamnesisTemplateController extends Controller
 
     public function setDefault(AnamnesisTemplate $anamnesisTemplate)
     {
-        $this->authorizeTemplate($anamnesisTemplate);
+        $this->authorize('manage', $anamnesisTemplate);
         $clinicId = session('current_clinic_id');
 
         AnamnesisTemplate::query()
@@ -213,7 +213,7 @@ class AnamnesisTemplateController extends Controller
 
     public function moveQuestion(Request $request, AnamnesisTemplate $anamnesisTemplate, int $questionId)
     {
-        $this->authorizeTemplate($anamnesisTemplate);
+        $this->authorize('manage', $anamnesisTemplate);
 
         $validated = $request->validate([
             'direction' => 'required|in:up,down',
@@ -222,15 +222,6 @@ class AnamnesisTemplateController extends Controller
         $this->questionBank->moveQuestion($anamnesisTemplate, $questionId, $validated['direction']);
 
         return back();
-    }
-
-    private function authorizeTemplate(AnamnesisTemplate $template): void
-    {
-        $clinicId = session('current_clinic_id');
-
-        if ($template->clinic_id && $template->clinic_id !== $clinicId) {
-            abort(403);
-        }
     }
 
     // Mesmo filtro de AnamnesisQuestion::scopeForClinic() — sem isto, uma

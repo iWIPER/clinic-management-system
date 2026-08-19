@@ -66,6 +66,8 @@ class ClinicalRecordController extends Controller
 
     public function show(ClinicalRecord $clinicalRecord)
     {
+        $this->authorize('view', $clinicalRecord);
+
         $clinicalRecord->load([
             'patient',
             'professional',
@@ -98,6 +100,8 @@ class ClinicalRecordController extends Controller
 
     public function generatePdf(ClinicalRecord $clinicalRecord, ClinicalRecordPdfService $pdfService)
     {
+        $this->authorize('view', $clinicalRecord);
+
         $path = $pdfService->generate($clinicalRecord);
 
         return Storage::disk('s3')->download($path, 'atendimento-' . $clinicalRecord->id . '.pdf');

@@ -38,7 +38,7 @@ class AnamnesisCategoryController extends Controller
 
     public function update(Request $request, AnamnesisCategoryDefinition $anamnesisCategory)
     {
-        $this->authorizeCategory($anamnesisCategory);
+        $this->authorize('manage', $anamnesisCategory);
 
         $validated = $request->validate([
             'name' => 'required|string|max:100',
@@ -56,7 +56,7 @@ class AnamnesisCategoryController extends Controller
 
     public function deactivate(AnamnesisCategoryDefinition $anamnesisCategory)
     {
-        $this->authorizeCategory($anamnesisCategory);
+        $this->authorize('manage', $anamnesisCategory);
 
         if ($anamnesisCategory->questions()->exists()) {
             $anamnesisCategory->update(['is_active' => false]);
@@ -65,13 +65,5 @@ class AnamnesisCategoryController extends Controller
         }
 
         return back()->with('error', 'Categoria sem perguntas vinculadas.');
-    }
-
-    private function authorizeCategory(AnamnesisCategoryDefinition $category): void
-    {
-        $clinicId = session('current_clinic_id');
-        if ($category->clinic_id && $category->clinic_id !== $clinicId) {
-            abort(403);
-        }
     }
 }

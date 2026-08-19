@@ -214,6 +214,7 @@ class PatientAnamnesisController extends Controller
 
     public function pdf(Request $request, Patient $patient, AnamnesisInstance $anamnesis)
     {
+        $this->authorize('view', $patient);
         abort_unless($anamnesis->patient_id === $patient->id, 404);
 
         $path = $this->pdfService->generate($anamnesis, (int) auth()->id(), $request);

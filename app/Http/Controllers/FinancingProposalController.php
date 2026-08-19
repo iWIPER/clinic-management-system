@@ -12,7 +12,7 @@ class FinancingProposalController extends Controller
 {
     public function store(Budget $budget, Request $request, FinancingProposalService $proposals)
     {
-        abort_unless($budget->clinic_id === (int) session('current_clinic_id'), 403);
+        $this->authorize('view', $budget);
 
         $validated = $request->validate([
             'provider'               => 'required|string',

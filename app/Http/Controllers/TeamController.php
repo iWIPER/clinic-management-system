@@ -119,9 +119,11 @@ class TeamController extends Controller
         return back()->with('success', 'Cargo atualizado com sucesso.');
     }
 
+    // Fase C4 — a regra em si (owner/admin da clínica ativa) agora mora em
+    // ClinicPolicy::manageTeam(); este helper continua existindo só como
+    // atalho de nomenclatura pros call sites deste controller.
     private function authorizeAdmin(int $clinicId): void
     {
-        $role = auth()->user()->roleInCurrentClinic();
-        abort_unless(in_array($role, ['owner', 'admin']), 403, 'Acesso não autorizado.');
+        $this->authorize('manageTeam', Clinic::find($clinicId));
     }
 }

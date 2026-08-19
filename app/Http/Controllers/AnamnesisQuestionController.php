@@ -33,7 +33,12 @@ class AnamnesisQuestionController extends Controller
         $validated = $this->validateQuestion($request);
         $template = null;
         if ($request->filled('template_id')) {
-            $template = \App\Models\AnamnesisTemplate::findOrFail($request->integer('template_id'));
+            // AnamnesisTemplate não tem ClinicScope automático — sem
+            // forClinic() aqui, a nova pergunta desta clínica poderia ser
+            // anexada a um modelo PRIVADO de outra clínica.
+            $template = \App\Models\AnamnesisTemplate::query()
+                ->forClinic(session('current_clinic_id'))
+                ->findOrFail($request->integer('template_id'));
         }
 
         $question = $this->service->store($validated, session('current_clinic_id'), $template);
@@ -43,7 +48,7 @@ class AnamnesisQuestionController extends Controller
 
     public function update(Request $request, AnamnesisQuestion $question)
     {
-        $this->authorizeQuestion($question);
+        $this->authorize('manage', $question);
         $validated = $this->validateQuestion($request);
         $question = $this->service->update($question, $validated, session('current_clinic_id'));
 
@@ -52,7 +57,7 @@ class AnamnesisQuestionController extends Controller
 
     public function duplicate(AnamnesisQuestion $question)
     {
-        $this->authorizeQuestion($question);
+        $this->authorize('manage', $question);
         $copy = $this->service->duplicate($question);
 
         return response()->json(['question' => $this->service->serializeQuestion($copy)]);
@@ -60,7 +65,7 @@ class AnamnesisQuestionController extends Controller
 
     public function deactivate(AnamnesisQuestion $question)
     {
-        $this->authorizeQuestion($question);
+        $this->authorize('manage', $question);
         $question = $this->service->toggleActive($question);
 
         return response()->json(['question' => $this->service->serializeQuestion($question)]);
@@ -68,7 +73,7 @@ class AnamnesisQuestionController extends Controller
 
     public function toggleActive(AnamnesisQuestion $question)
     {
-        $this->authorizeQuestion($question);
+        $this->authorize('manage', $question);
         $question = $this->service->toggleActive($question);
 
         return response()->json(['question' => $this->service->serializeQuestion($question)]);
@@ -89,11 +94,4 @@ class AnamnesisQuestionController extends Controller
         ]);
     }
 
-    private function authorizeQuestion(AnamnesisQuestion $question): void
-    {
-        $clinicId = session('current_clinic_id');
-        if ($question->clinic_id && $question->clinic_id !== $clinicId) {
-            abort(403);
-        }
-    }
 }

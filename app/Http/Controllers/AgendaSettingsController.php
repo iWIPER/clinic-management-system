@@ -15,7 +15,7 @@ class AgendaSettingsController extends Controller
     {
         $clinicId = session('current_clinic_id');
         $viewer = auth()->user();
-        $viewerCanManageOthers = in_array($viewer->roleInCurrentClinic(), ['owner', 'admin']);
+        $viewerCanManageOthers = $viewer->can('manageTeam', $viewer->currentClinic());
 
         $professionals = User::clinicalProfessionalsOf($clinicId)
             ->orderBy('id')
@@ -63,9 +63,9 @@ class AgendaSettingsController extends Controller
         abort_unless($user->clinics()->where('clinics.id', $clinicId)->exists(), 404);
 
         // Cada profissional mexe na própria configuração; owner/admin também
-        // podem gerenciar a dos demais — mesma regra já usada em
-        // TeamController::authorizeAdmin(), não uma lógica de permissão nova.
-        $canManageOthers = in_array($viewer->roleInCurrentClinic(), ['owner', 'admin']);
+        // podem gerenciar a dos demais — mesma regra centralizada em
+        // ClinicPolicy::manageTeam().
+        $canManageOthers = $viewer->can('manageTeam', $viewer->currentClinic());
         abort_unless($user->id === $viewer->id || $canManageOthers, 403);
 
         $rules = [
@@ -162,7 +162,7 @@ class AgendaSettingsController extends Controller
         $clinicId = session('current_clinic_id');
         $viewer = auth()->user();
 
-        abort_unless(in_array($viewer->roleInCurrentClinic(), ['owner', 'admin']), 403);
+        $this->authorize('manageTeam', $viewer->currentClinic());
 
         $validated = $request->validate([
             'consider_national_holidays' => 'required|boolean',
@@ -193,7 +193,7 @@ class AgendaSettingsController extends Controller
         $clinicId = session('current_clinic_id');
         $viewer = auth()->user();
 
-        abort_unless(in_array($viewer->roleInCurrentClinic(), ['owner', 'admin']), 403);
+        $this->authorize('manageTeam', $viewer->currentClinic());
 
         $rules = ['enforced' => 'required|boolean'];
         foreach (ClinicUserPivot::DAY_KEYS as $day) {

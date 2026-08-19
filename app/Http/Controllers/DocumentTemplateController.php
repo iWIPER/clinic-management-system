@@ -70,6 +70,8 @@ class DocumentTemplateController extends Controller
 
     public function edit(DocumentTemplate $documentTemplate)
     {
+        $this->authorize('manage', $documentTemplate);
+
         $documentTemplate->load(['currentVersion', 'category', 'versions.createdBy']);
         $clinicId = session('current_clinic_id');
 
@@ -102,6 +104,8 @@ class DocumentTemplateController extends Controller
 
     public function update(Request $request, DocumentTemplate $documentTemplate)
     {
+        $this->authorize('manage', $documentTemplate);
+
         $validated = $this->validated($request);
 
         $documentTemplate->update([
@@ -135,6 +139,8 @@ class DocumentTemplateController extends Controller
 
     public function duplicate(DocumentTemplate $documentTemplate)
     {
+        $this->authorize('manage', $documentTemplate);
+
         $documentTemplate->load('currentVersion');
         $clinicId = session('current_clinic_id');
 
@@ -165,6 +171,8 @@ class DocumentTemplateController extends Controller
 
     public function archive(DocumentTemplate $documentTemplate)
     {
+        $this->authorize('manage', $documentTemplate);
+
         $documentTemplate->update(['is_active' => false]);
 
         return back()->with('success', 'Modelo arquivado.');
@@ -172,6 +180,8 @@ class DocumentTemplateController extends Controller
 
     public function setDefault(DocumentTemplate $documentTemplate)
     {
+        $this->authorize('manage', $documentTemplate);
+
         DocumentTemplate::query()
             ->where('category_id', $documentTemplate->category_id)
             ->where('clinic_id', $documentTemplate->clinic_id)
@@ -184,6 +194,8 @@ class DocumentTemplateController extends Controller
 
     public function destroy(DocumentTemplate $documentTemplate)
     {
+        $this->authorize('manage', $documentTemplate);
+
         if ($documentTemplate->documents()->exists()) {
             return back()->withErrors([
                 'template' => 'Não é possível excluir: existem documentos emitidos com este modelo. Arquive-o em vez disso.',
@@ -202,8 +214,8 @@ class DocumentTemplateController extends Controller
 
         return $request->validate([
             // DocumentCategory não tem ClinicScope automático (clinic_id
-            // nulo = categoria global de sistema) — precisa da mesma
-            // checagem explícita usada em scopeForClinic().
+            // nulo = categoria global de sistema, ver DocumentCategoryPolicy)
+            // — precisa da mesma checagem explícita usada em scopeForClinic().
             'category_id' => ['required', \Illuminate\Validation\Rule::exists('document_categories', 'id')->where(
                 fn ($q) => $q->whereNull('clinic_id')->orWhere('clinic_id', $clinicId)
             )],

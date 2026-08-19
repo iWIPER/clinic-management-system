@@ -45,6 +45,7 @@ class DocumentCategoryController extends Controller
 
     public function update(Request $request, DocumentCategory $documentCategory)
     {
+        $this->authorize('manage', $documentCategory);
         abort_if($documentCategory->is_system, 403, 'Categorias do sistema não podem ser editadas.');
 
         $validated = $request->validate([
@@ -61,10 +62,12 @@ class DocumentCategoryController extends Controller
 
     public function deactivate(DocumentCategory $documentCategory)
     {
+        $this->authorize('manage', $documentCategory);
         abort_if($documentCategory->is_system, 403, 'Categorias do sistema não podem ser desativadas.');
 
         $documentCategory->update(['is_active' => false]);
 
         return back()->with('success', 'Categoria arquivada.');
     }
+
 }
