@@ -45,7 +45,7 @@ const { toasts, show: showToast, dismiss } = useToast()
 watch(() => page.props.flash?.success, (val) => { if (val) showToast(val, 'success') }, { immediate: true })
 watch(() => page.props.flash?.error,   (val) => { if (val) showToast(val, 'error') },   { immediate: true })
 
-const isSuperAdmin = computed(() => page.props.auth?.isSuperAdmin ?? false)
+const isSystemAdmin = computed(() => page.props.auth?.isSystemAdmin ?? false)
 const isReferralsActive = computed(() => page.url.split('?')[0].startsWith('/indicacoes'))
 
 const toastIcon = {
@@ -153,7 +153,7 @@ const showTasksPanel = ref(false)
                   <div class="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Minha conta</div>
                   <NavbarDropdownItem :href="route('profile.edit')" @click="close">Meu perfil</NavbarDropdownItem>
                   <NavbarDropdownItem :href="route('access-logs.index')" @click="close">Logs de acesso</NavbarDropdownItem>
-                  <NavbarDropdownItem v-if="isSuperAdmin" :href="route('admin.index')" @click="close">Backoffice</NavbarDropdownItem>
+                  <NavbarDropdownItem v-if="isSystemAdmin" :href="route('admin.index')" @click="close">Backoffice</NavbarDropdownItem>
                   <div class="my-1 border-t border-slate-100" />
                   <!-- Clínica -->
                   <div class="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Clínica</div>

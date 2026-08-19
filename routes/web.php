@@ -19,6 +19,19 @@ Route::post('/documentos/assinar/{token}', [\App\Http\Controllers\Public\Documen
     ->middleware('throttle:20,1')
     ->name('documents.public-sign.store');
 
+// Compartilhamento de documento — "Ver senha" (público, sem login; nome+CPF
+// é a verificação de identidade, ver DocumentSharePasswordController)
+Route::get('/documentos/compartilhados/{token}/senha', [\App\Http\Controllers\Public\DocumentSharePasswordController::class, 'show'])
+    ->name('documents.shared.password.show');
+Route::post('/documentos/compartilhados/{token}/senha', [\App\Http\Controllers\Public\DocumentSharePasswordController::class, 'verify'])
+    ->middleware('throttle:20,1')
+    ->name('documents.shared.password.verify');
+Route::get('/documentos/compartilhados/{token}/visualizar', [\App\Http\Controllers\Public\DocumentSharePasswordController::class, 'viewDocument'])
+    ->name('documents.shared.view');
+Route::post('/documentos/compartilhados/{token}/enviar-senha', [\App\Http\Controllers\Public\DocumentSharePasswordController::class, 'sendPassword'])
+    ->middleware('throttle:10,1')
+    ->name('documents.shared.send-password');
+
 // Convites de cadastro — wizard público do paciente (Fase 2, ver docs/PATIENT_INVITATIONS_BRD.md §8)
 Route::get('/p/{token}', [\App\Http\Controllers\Public\PatientInvitePublicController::class, 'show'])->name('patient-invites.public.show');
 Route::patch('/p/{token}', [\App\Http\Controllers\Public\PatientInvitePublicController::class, 'update'])
@@ -141,7 +154,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/document-categories/{documentCategory}/deactivate', [\App\Http\Controllers\DocumentCategoryController::class, 'deactivate'])->name('document-categories.deactivate');
 
         // Modelos de Documentos (editor, versionamento)
-        Route::get('/document-templates', [\App\Http\Controllers\DocumentTemplateController::class, 'index'])->name('document-templates.index');
         Route::get('/document-templates/create', [\App\Http\Controllers\DocumentTemplateController::class, 'create'])->name('document-templates.create');
         Route::post('/document-templates', [\App\Http\Controllers\DocumentTemplateController::class, 'store'])->name('document-templates.store');
         Route::post('/document-templates/preview', [\App\Http\Controllers\DocumentTemplatePreviewController::class, 'preview'])->name('document-templates.preview');
@@ -157,9 +169,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/patients/{patient}/documents', [\App\Http\Controllers\PatientDocumentController::class, 'store'])->name('patients.documents.store');
         Route::get('/patients/{patient}/documents/{document}', [\App\Http\Controllers\PatientDocumentController::class, 'show'])->name('patients.documents.show');
         Route::get('/patients/{patient}/documents/{document}/pdf', [\App\Http\Controllers\PatientDocumentController::class, 'pdf'])->name('patients.documents.pdf');
+        Route::get('/patients/{patient}/documents/{document}/file', [\App\Http\Controllers\PatientDocumentController::class, 'file'])->name('patients.documents.file');
         Route::post('/patients/{patient}/documents/{document}/cancel', [\App\Http\Controllers\PatientDocumentController::class, 'cancel'])->name('patients.documents.cancel');
         Route::delete('/patients/{patient}/documents/{document}', [\App\Http\Controllers\PatientDocumentController::class, 'destroy'])->name('patients.documents.destroy');
         Route::post('/patients/{patient}/documents/{document}/sign/{role}', [\App\Http\Controllers\DocumentSignatureController::class, 'store'])->name('patients.documents.sign');
+
+        // Compartilhamento de documento (Fase A.3/A.4)
+        Route::post('/patients/{patient}/documents/{document}/share', [\App\Http\Controllers\DocumentShareController::class, 'store'])->name('patients.documents.share');
+        Route::get('/patients/{patient}/documents/{document}/shares', [\App\Http\Controllers\DocumentShareController::class, 'index'])->name('patients.documents.shares');
+        Route::post('/patients/{patient}/documents/{document}/shares/{share}/revoke', [\App\Http\Controllers\DocumentShareController::class, 'revoke'])->name('patients.documents.shares.revoke');
 
         // Painel de assinaturas
         Route::get('/patients/{patient}/documents/{document}/signature-panel', [\App\Http\Controllers\DocumentSignaturePanelController::class, 'show'])->name('patients.documents.signature-panel');
@@ -446,22 +464,44 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/{conversion}', [\App\Http\Controllers\ReferralController::class, 'show'])->name('show');
     });
 
-    // Backoffice — Super Administrador
-    Route::prefix('admin')->name('admin.')->middleware('super-admin')->group(function () {
+    // Backoffice — System Admin (camada global da plataforma, não depende
+    // de current_clinic_id nem de role de clínica — ver SystemAdmin
+    // middleware/User::isSystemAdmin()).
+    Route::prefix('admin')->name('admin.')->middleware('system-admin')->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('index');
         Route::post('/settings', [\App\Http\Controllers\Admin\DashboardController::class, 'updateSettings'])->name('settings');
-        Route::get('/clinicas', [\App\Http\Controllers\Admin\DashboardController::class, 'clinics'])->name('clinics');
-        Route::post('/clinicas/{clinic}/bloquear', [\App\Http\Controllers\Admin\DashboardController::class, 'blockClinic'])->name('clinics.block');
-        Route::post('/clinicas/{clinic}/desbloquear', [\App\Http\Controllers\Admin\DashboardController::class, 'unblockClinic'])->name('clinics.unblock');
-        Route::get('/indicacoes', [\App\Http\Controllers\Admin\DashboardController::class, 'referrals'])->name('referrals');
-        Route::post('/afiliados/convidar', [\App\Http\Controllers\Admin\DashboardController::class, 'inviteAffiliate'])->name('affiliates.invite');
-        Route::get('/planos', [\App\Http\Controllers\Admin\DashboardController::class, 'plans'])->name('plans');
-        Route::put('/planos/{plan}', [\App\Http\Controllers\Admin\DashboardController::class, 'updatePlan'])->name('plans.update');
-        Route::post('/pagamentos/{payment}/aprovar', [\App\Http\Controllers\Admin\DashboardController::class, 'approvePayment'])->name('payments.approve');
-        Route::post('/pagamentos/{payment}/recusar', [\App\Http\Controllers\Admin\DashboardController::class, 'rejectPayment'])->name('payments.reject');
-        Route::post('/indicacoes/{conversion}/estornar', [\App\Http\Controllers\Admin\DashboardController::class, 'refundConversion'])->name('referrals.refund');
-        Route::post('/indicacoes/{conversion}/revisar', [\App\Http\Controllers\Admin\DashboardController::class, 'reviewConversion'])->name('referrals.review');
-        Route::get('/logs', [\App\Http\Controllers\Admin\DashboardController::class, 'logs'])->name('logs');
+        Route::post('/acknowledge-access', [\App\Http\Controllers\Admin\DashboardController::class, 'acknowledgeAccess'])->name('acknowledge-access');
+
+        Route::get('/clinicas', [\App\Http\Controllers\Admin\ClinicController::class, 'index'])->name('clinics');
+        Route::get('/clinicas/{clinic}', [\App\Http\Controllers\Admin\ClinicController::class, 'show'])->name('clinics.show');
+        Route::post('/clinicas/{clinic}/bloquear', [\App\Http\Controllers\Admin\ClinicController::class, 'block'])->name('clinics.block');
+        Route::post('/clinicas/{clinic}/desbloquear', [\App\Http\Controllers\Admin\ClinicController::class, 'unblock'])->name('clinics.unblock');
+
+        Route::get('/usuarios', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('users');
+        Route::get('/usuarios/{user}', [\App\Http\Controllers\Admin\UserController::class, 'show'])->name('users.show');
+        Route::post('/usuarios/{user}/bloquear', [\App\Http\Controllers\Admin\UserController::class, 'block'])->name('users.block');
+        Route::post('/usuarios/{user}/desbloquear', [\App\Http\Controllers\Admin\UserController::class, 'unblock'])->name('users.unblock');
+        Route::delete('/usuarios/{user}', [\App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('users.destroy');
+
+        Route::get('/system-admins', [\App\Http\Controllers\Admin\SystemAdminController::class, 'index'])->name('system-admins');
+        Route::post('/system-admins', [\App\Http\Controllers\Admin\SystemAdminController::class, 'store'])->name('system-admins.store');
+        Route::delete('/system-admins/{user}', [\App\Http\Controllers\Admin\SystemAdminController::class, 'destroy'])->name('system-admins.destroy');
+
+        Route::get('/exportacoes', [\App\Http\Controllers\Admin\ExportController::class, 'index'])->name('exports');
+        Route::post('/exportacoes/{dataset}', [\App\Http\Controllers\Admin\ExportController::class, 'download'])->name('exports.download');
+
+        Route::get('/indicacoes', [\App\Http\Controllers\Admin\ReferralAdminController::class, 'index'])->name('referrals');
+        Route::post('/afiliados/convidar', [\App\Http\Controllers\Admin\ReferralAdminController::class, 'inviteAffiliate'])->name('affiliates.invite');
+        Route::post('/indicacoes/{conversion}/estornar', [\App\Http\Controllers\Admin\ReferralAdminController::class, 'refund'])->name('referrals.refund');
+        Route::post('/indicacoes/{conversion}/revisar', [\App\Http\Controllers\Admin\ReferralAdminController::class, 'review'])->name('referrals.review');
+
+        Route::get('/planos', [\App\Http\Controllers\Admin\PlanController::class, 'index'])->name('plans');
+        Route::put('/planos/{plan}', [\App\Http\Controllers\Admin\PlanController::class, 'update'])->name('plans.update');
+
+        Route::post('/pagamentos/{payment}/aprovar', [\App\Http\Controllers\Admin\BillingController::class, 'approvePayment'])->name('payments.approve');
+        Route::post('/pagamentos/{payment}/recusar', [\App\Http\Controllers\Admin\BillingController::class, 'rejectPayment'])->name('payments.reject');
+
+        Route::get('/logs', [\App\Http\Controllers\Admin\LogController::class, 'index'])->name('logs');
     });
 });
 

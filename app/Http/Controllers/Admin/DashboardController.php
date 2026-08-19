@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AccessLog;
 use App\Models\Clinic;
 use App\Models\Plan;
 use App\Models\Referral;
@@ -10,20 +11,35 @@ use App\Models\ReferralConversion;
 use App\Models\ReferralPayment;
 use App\Models\ReferralSettings;
 use App\Models\Subscription;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
+/**
+ * Fase System Admin/Backoffice — DashboardController ficou só com o
+ * dashboard geral + configurações realmente globais da plataforma
+ * (updateSettings). Clínicas, planos, billing, indicações e logs foram
+ * extraídos pra controllers próprios por domínio (achado RC-16 da
+ * auditoria C0, resolvido nesta fase — ver ClinicController,
+ * PlanController, BillingController, ReferralAdminController,
+ * LogController).
+ */
 class DashboardController extends Controller
 {
     public function index(): \Inertia\Response
     {
-        $totalClinics     = Clinic::count();
-        $trialing         = Subscription::where('status', 'trial')->count();
-        $activeSubc       = Subscription::where('status', 'active')->count();
-        $cancelledSubc    = Subscription::where('status', 'cancelled')->count();
-        $totalConversions = ReferralConversion::count();
-        $paidConversions  = ReferralConversion::where('status', 'paid')->count();
-        $pendingPayments  = ReferralPayment::where('status', 'pending')->count();
+        $totalClinics      = Clinic::count();
+        $activeClinics     = Clinic::where('status', 'active')->count();
+        $blockedClinics    = Clinic::where('status', 'suspended')->count();
+        $trialing          = Subscription::where('status', 'trial')->count();
+        $activeSubc        = Subscription::where('status', 'active')->count();
+        $cancelledSubc     = Subscription::where('status', 'cancelled')->count();
+        $totalUsers        = User::count();
+        $newUsers30d       = User::where('created_at', '>=', now()->subDays(30))->count();
+        $newClinics30d     = Clinic::where('created_at', '>=', now()->subDays(30))->count();
+        $totalConversions  = ReferralConversion::count();
+        $paidConversions   = ReferralConversion::where('status', 'paid')->count();
+        $pendingPayments   = ReferralPayment::where('status', 'pending')->count();
 
         $revenueMonth = DB::table('invoices')
             ->where('status', 'paid')
@@ -42,7 +58,26 @@ class DashboardController extends Controller
             ->where('subscriptions.interval', 'monthly')
             ->sum('plans.price_monthly');
 
-        // Ranking de indicadores
+        // Distribuição de clínicas por plano (contagem real, não estimada)
+        $clinicsByPlan = Subscription::select('plan_id', DB::raw('count(*) as total'))
+            ->whereIn('status', ['trial', 'active'])
+            ->with('plan:id,name')
+            ->groupBy('plan_id')
+            ->get()
+            ->map(fn ($s) => ['plan' => $s->plan?->name ?? '—', 'total' => $s->total]);
+
+        // Cadastros de clínicas nos últimos 30 dias, por dia — só quando há
+        // dados suficientes pra fazer sentido como tendência (evita gráfico
+        // vazio/enganoso em ambiente com pouquíssimas clínicas).
+        $clinicSignupTrend = $newClinics30d >= 3
+            ? Clinic::selectRaw('DATE(created_at) as day, count(*) as total')
+                ->where('created_at', '>=', now()->subDays(30))
+                ->groupBy('day')
+                ->orderBy('day')
+                ->get()
+                ->map(fn ($r) => ['day' => $r->day, 'total' => $r->total])
+            : [];
+
         $topReferrers = Referral::with('clinic:id,name')
             ->orderByDesc('conversions_count')
             ->limit(10)
@@ -55,12 +90,10 @@ class DashboardController extends Controller
                 'conversion_rate'  => $r->conversionRate(),
             ]);
 
-        // Conversões por status
         $conversionsByStatus = ReferralConversion::select('status', DB::raw('count(*) as total'))
             ->groupBy('status')
             ->pluck('total', 'status');
 
-        // Conversões por plano
         $conversionsByPlan = ReferralConversion::select('plan_id', DB::raw('count(*) as total'))
             ->whereNotNull('plan_id')
             ->with('plan:id,name')
@@ -71,7 +104,6 @@ class DashboardController extends Controller
         $settings = ReferralSettings::current();
         $plans    = Plan::withCount('subscriptions')->orderBy('sort_order')->get();
 
-        // Últimas clínicas cadastradas
         $recentClinics = Clinic::with(['subscription.plan'])
             ->latest()
             ->limit(10)
@@ -84,7 +116,6 @@ class DashboardController extends Controller
                 'status'       => $c->subscription?->status ?? 'sem_assinatura',
             ]);
 
-        // Pagamentos pendentes
         $pendingPaymentsList = ReferralPayment::with(['wallet.clinic:id,name'])
             ->where('status', 'pending')
             ->latest('requested_at')
@@ -99,25 +130,50 @@ class DashboardController extends Controller
                 'requested_at' => $p->requested_at->toISOString(),
             ]);
 
+        // Atividade administrativa recente — só ações que carregam a marca
+        // "admin_*"/"system_admin_*" (não o log clínico do dia a dia).
+        $recentAdminActivity = AccessLog::where(function ($q) {
+                $q->where('action', 'like', 'admin_%')->orWhere('action', 'like', 'system_admin_%');
+            })
+            ->with('user:id,name')
+            ->latest('created_at')
+            ->limit(15)
+            ->get()
+            ->map(fn ($log) => [
+                'id'           => $log->id,
+                'action_label' => $log->action_label,
+                'description'  => $log->description,
+                'user'         => $log->user?->name ?? '—',
+                'created_at'   => $log->created_at->toISOString(),
+            ]);
+
         return Inertia::render('Admin/Index', [
             'stats' => [
-                'total_clinics'       => $totalClinics,
-                'trialing'            => $trialing,
-                'active_subscriptions'=> $activeSubc,
-                'cancelled'           => $cancelledSubc,
-                'revenue_month'       => $revenueMonth,
-                'revenue_year'        => $revenueYear,
-                'mrr'                 => $mrr,
-                'total_conversions'   => $totalConversions,
-                'paid_conversions'    => $paidConversions,
-                'pending_payments'    => $pendingPayments,
-                'churn'               => $totalClinics > 0 ? round(($cancelledSubc / max($totalClinics, 1)) * 100, 1) : 0,
+                'total_clinics'        => $totalClinics,
+                'active_clinics'       => $activeClinics,
+                'blocked_clinics'      => $blockedClinics,
+                'trialing'             => $trialing,
+                'active_subscriptions' => $activeSubc,
+                'cancelled'            => $cancelledSubc,
+                'total_users'          => $totalUsers,
+                'new_users_30d'        => $newUsers30d,
+                'new_clinics_30d'      => $newClinics30d,
+                'revenue_month'        => $revenueMonth,
+                'revenue_year'         => $revenueYear,
+                'mrr'                  => $mrr,
+                'total_conversions'    => $totalConversions,
+                'paid_conversions'     => $paidConversions,
+                'pending_payments'     => $pendingPayments,
+                'churn'                => $totalClinics > 0 ? round(($cancelledSubc / max($totalClinics, 1)) * 100, 1) : 0,
             ],
-            'top_referrers'       => $topReferrers,
+            'clinics_by_plan'       => $clinicsByPlan,
+            'clinic_signup_trend'   => $clinicSignupTrend,
+            'top_referrers'         => $topReferrers,
             'conversions_by_status' => $conversionsByStatus,
             'conversions_by_plan'   => $conversionsByPlan,
             'recent_clinics'        => $recentClinics,
             'pending_payments'      => $pendingPaymentsList,
+            'recent_admin_activity' => $recentAdminActivity,
             'settings'              => [
                 'reward_amount'            => $settings->reward_amount,
                 'referred_discount_amount' => $settings->referred_discount_amount,
@@ -136,6 +192,18 @@ class DashboardController extends Controller
         ]);
     }
 
+    /**
+     * Marca que o admin já viu o aviso de acesso privilegiado nesta sessão
+     * de login — puramente informativo (ver HandleInertiaRequests). Nunca
+     * usado por nenhuma checagem de autorização.
+     */
+    public function acknowledgeAccess(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
+    {
+        $request->session()->put('admin_access_acknowledged', true);
+
+        return response()->json(['ok' => true]);
+    }
+
     public function updateSettings(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
     {
         $validated = $request->validate([
@@ -148,287 +216,12 @@ class DashboardController extends Controller
 
         ReferralSettings::current()->update($validated);
 
-        \App\Models\AccessLog::record(
+        AccessLog::record(
             action: 'admin_settings_updated',
-            description: 'Configurações do programa de indicações atualizadas pelo super-admin',
+            description: 'Configurações do programa de indicações atualizadas pelo administrador da plataforma',
             metadata: $validated,
         );
 
         return response()->json(['ok' => true]);
-    }
-
-    public function approvePayment(\Illuminate\Http\Request $request, ReferralPayment $payment): \Illuminate\Http\JsonResponse
-    {
-        abort_unless($payment->status === 'pending', 422, 'Pagamento não está pendente.');
-
-        $payment->update([
-            'status'       => 'paid',
-            'processed_at' => now(),
-            'processed_by' => \Illuminate\Support\Facades\Auth::id(),
-            'notes'        => $request->input('notes'),
-        ]);
-
-        // Atualizar carteira
-        $wallet = $payment->wallet;
-        $wallet->decrement('balance', $payment->amount);
-        $wallet->increment('total_withdrawn', $payment->amount);
-        $wallet->update(['last_payment_at' => now()]);
-
-        \App\Models\AccessLog::record(
-            action: 'admin_payment_approved',
-            description: "Pagamento de R$ {$payment->amount} aprovado para {$wallet->clinic?->name}",
-            metadata: ['payment_id' => $payment->id, 'amount' => $payment->amount],
-        );
-
-        \App\Models\AccessLog::record(
-            action: 'referral_payment_sent',
-            description: 'Seu pagamento foi enviado via PIX.',
-            metadata: ['payment_id' => $payment->id, 'amount' => $payment->amount],
-            clinicId: $wallet->clinic_id,
-        );
-
-        return response()->json(['ok' => true]);
-    }
-
-    public function rejectPayment(\Illuminate\Http\Request $request, ReferralPayment $payment): \Illuminate\Http\JsonResponse
-    {
-        abort_unless($payment->status === 'pending', 422, 'Pagamento não está pendente.');
-
-        $payment->update([
-            'status'       => 'rejected',
-            'processed_at' => now(),
-            'processed_by' => \Illuminate\Support\Facades\Auth::id(),
-            'notes'        => $request->input('notes', 'Reprovado pelo administrador.'),
-        ]);
-
-        \App\Models\AccessLog::record(
-            action: 'admin_payment_rejected',
-            description: "Pagamento de R$ {$payment->amount} recusado para {$payment->wallet?->clinic?->name}",
-            metadata: ['payment_id' => $payment->id],
-        );
-
-        return response()->json(['ok' => true]);
-    }
-
-    public function refundConversion(
-        \Illuminate\Http\Request $request,
-        ReferralConversion $conversion,
-        \App\Services\ReferralService $referralService
-    ): \Illuminate\Http\JsonResponse {
-        $reason = $request->input('reason', '');
-        $referralService->markRefunded($conversion, $reason);
-
-        \App\Models\AccessLog::record(
-            action: 'admin_referral_refunded',
-            description: "Indicação #{$conversion->id} marcada como estornada pelo super-admin",
-            metadata: ['conversion_id' => $conversion->id, 'reason' => $reason],
-        );
-
-        return response()->json(['ok' => true]);
-    }
-
-    public function reviewConversion(
-        \Illuminate\Http\Request $request,
-        ReferralConversion $conversion,
-        \App\Services\ReferralService $referralService
-    ): \Illuminate\Http\JsonResponse {
-        $reason = $request->input('reason', '');
-        $referralService->markUnderReview($conversion, $reason);
-
-        \App\Models\AccessLog::record(
-            action: 'admin_referral_under_review',
-            description: "Indicação #{$conversion->id} colocada em revisão pelo super-admin",
-            metadata: ['conversion_id' => $conversion->id, 'reason' => $reason],
-        );
-
-        return response()->json(['ok' => true]);
-    }
-
-    public function inviteAffiliate(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
-    {
-        $validated = $request->validate([
-            'name'  => 'required|string|max:255',
-            'email' => 'required|email|max:255',
-        ]);
-
-        $invite = \App\Models\Invite::create([
-            'type'          => 'affiliate',
-            'clinic_id'     => null,
-            'name'          => $validated['name'],
-            'email'         => $validated['email'],
-            'invited_by_id' => \Illuminate\Support\Facades\Auth::id(),
-        ]);
-
-        \App\Models\AccessLog::record(
-            action: 'admin_affiliate_invited',
-            description: "Convite de afiliado criado para {$invite->name} ({$invite->email})",
-            metadata: ['invite_id' => $invite->id],
-        );
-
-        return response()->json([
-            'invite_link' => config('app.url') . '/convites/' . $invite->short_token,
-        ]);
-    }
-
-    public function clinics(\Illuminate\Http\Request $request): \Inertia\Response
-    {
-        $query = Clinic::with(['subscription.plan'])
-            ->when($request->search, fn ($q, $s) => $q->where('name', 'ilike', "%{$s}%")
-                ->orWhere('trade_name', 'ilike', "%{$s}%"))
-            ->latest();
-
-        $clinics = $query->paginate(25)->through(fn ($c) => [
-            'id'         => $c->id,
-            'name'       => $c->trade_name ?? $c->name,
-            'created_at' => $c->created_at->format('d/m/Y'),
-            'plan'       => $c->subscription?->plan?->name ?? 'Sem plano',
-            'status'     => $c->subscription?->status ?? 'sem_assinatura',
-            'referral_code' => Referral::where('clinic_id', $c->id)->value('code'),
-        ]);
-
-        return Inertia::render('Admin/Clinics/Index', [
-            'clinics' => $clinics,
-            'filters' => ['search' => $request->search],
-        ]);
-    }
-
-    public function referrals(\Illuminate\Http\Request $request): \Inertia\Response
-    {
-        $conversions = ReferralConversion::with(['referral.clinic:id,name,trade_name', 'referral.affiliate:id,name', 'referredClinic:id,name', 'plan:id,name'])
-            ->when($request->status, fn ($q, $s) => $q->where('status', $s))
-            ->latest()
-            ->paginate(30)
-            ->through(fn ($c) => [
-                'id'             => $c->id,
-                'referrer'       => $c->referral?->ownerDisplayName() ?? '—',
-                'referred'       => $c->referredClinic?->name ?? '—',
-                'plan'           => $c->plan?->name ?? '—',
-                'reward_amount'  => $c->reward_amount,
-                'status'         => $c->status,
-                'status_label'   => $c->statusLabel(),
-                'trial_started'  => $c->trial_started_at?->format('d/m/Y'),
-                'eligible_at'    => $c->eligible_at?->format('d/m/Y'),
-                'paid_at'        => $c->paid_at?->format('d/m/Y'),
-            ]);
-
-        return Inertia::render('Admin/Referrals/Index', [
-            'conversions' => $conversions,
-            'filters'     => ['status' => $request->status],
-            'status_options' => ReferralConversion::STATUS_LABELS,
-        ]);
-    }
-
-    public function plans(): \Inertia\Response
-    {
-        $plans = Plan::with('features')->orderBy('sort_order')->get();
-
-        return Inertia::render('Admin/Plans/Index', [
-            'plans' => $plans->map(fn ($p) => [
-                'id'            => $p->id,
-                'name'          => $p->name,
-                'slug'          => $p->slug,
-                'description'   => $p->description,
-                'price_monthly' => $p->price_monthly,
-                'price_yearly'  => $p->price_yearly,
-                'trial_days'    => $p->trial_days,
-                'max_patients'  => $p->max_patients,
-                'max_users'     => $p->max_users,
-                'is_active'     => $p->is_active,
-                'is_featured'   => $p->is_featured,
-                'features'      => $p->features->map(fn ($f) => [
-                    'label'    => $f->feature_label,
-                    'included' => $f->included,
-                ]),
-            ]),
-        ]);
-    }
-
-    public function updatePlan(\Illuminate\Http\Request $request, Plan $plan): \Illuminate\Http\JsonResponse
-    {
-        $validated = $request->validate([
-            'name'          => 'required|string|max:100',
-            'price_monthly' => 'required|numeric|min:0',
-            'price_yearly'  => 'required|numeric|min:0',
-            'trial_days'    => 'required|integer|min:0',
-            'max_patients'  => 'nullable|integer|min:1',
-            'max_users'     => 'nullable|integer|min:1',
-            'is_active'     => 'required|boolean',
-            'description'   => 'nullable|string|max:500',
-        ]);
-
-        $plan->update($validated);
-
-        \App\Models\AccessLog::record(
-            action: 'admin_plan_updated',
-            description: "Plano {$plan->name} atualizado pelo super-admin",
-            metadata: $validated,
-        );
-
-        return response()->json(['ok' => true, 'plan' => $plan->fresh()]);
-    }
-
-    public function blockClinic(Clinic $clinic): \Illuminate\Http\JsonResponse
-    {
-        $clinic->update(['status' => 'suspended']);
-
-        \App\Models\AccessLog::record(
-            action: 'admin_clinic_blocked',
-            description: "Clínica {$clinic->displayName()} bloqueada pelo super-admin",
-            metadata: ['clinic_id' => $clinic->id],
-        );
-
-        return response()->json(['ok' => true]);
-    }
-
-    public function unblockClinic(Clinic $clinic): \Illuminate\Http\JsonResponse
-    {
-        $clinic->update(['status' => 'active']);
-
-        \App\Models\AccessLog::record(
-            action: 'admin_clinic_unblocked',
-            description: "Clínica {$clinic->displayName()} desbloqueada pelo super-admin",
-            metadata: ['clinic_id' => $clinic->id],
-        );
-
-        return response()->json(['ok' => true]);
-    }
-
-    public function logs(\Illuminate\Http\Request $request): \Inertia\Response
-    {
-        $range = $request->get('range', '7days');
-        $from  = match ($range) {
-            'today'  => now()->startOfDay(),
-            '30days' => now()->subDays(30)->startOfDay(),
-            default  => now()->subDays(7)->startOfDay(),
-        };
-
-        $query = \App\Models\AccessLog::with(['user:id,name,email', 'clinic:id,name'])
-            ->where('created_at', '>=', $from);
-
-        if ($search = $request->get('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('description', 'ilike', "%{$search}%")
-                  ->orWhere('action', 'like', "%{$search}%")
-                  ->orWhere('ip_address', 'like', "%{$search}%");
-            });
-        }
-
-        $logs = $query->latest('created_at')->paginate(50)->through(fn ($log) => [
-            'id'           => $log->id,
-            'action'       => $log->action,
-            'action_label' => $log->action_label,
-            'description'  => $log->description,
-            'ip_address'   => $log->ip_address,
-            'browser'      => $log->browser,
-            'user'         => $log->user?->name ?? '—',
-            'clinic'       => $log->clinic?->name ?? '—',
-            'created_at'   => $log->created_at->toISOString(),
-            'metadata'     => $log->metadata,
-        ]);
-
-        return Inertia::render('Admin/Logs/Index', [
-            'logs'    => $logs,
-            'filters' => ['range' => $range, 'search' => $search ?? ''],
-        ]);
     }
 }

@@ -30,9 +30,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-            'clinic'      => \App\Http\Middleware\EnsureCurrentClinic::class,
-            'super-admin' => \App\Http\Middleware\SuperAdmin::class,
-            'affiliate'   => \App\Http\Middleware\EnsureAffiliate::class,
+            'clinic'       => \App\Http\Middleware\EnsureCurrentClinic::class,
+            'system-admin' => \App\Http\Middleware\SystemAdmin::class,
+            'affiliate'    => \App\Http\Middleware\EnsureAffiliate::class,
         ]);
 
         // Webhooks são chamados por serviços externos, sem sessão/cookie

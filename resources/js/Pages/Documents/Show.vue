@@ -1,9 +1,11 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { Link, usePage, router } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import DocumentStatusBadge from '@/Components/Documents/DocumentStatusBadge.vue'
 import DocumentSignaturePanel from '@/Components/Documents/DocumentSignaturePanel.vue'
+import ShareDocumentModal from '@/Components/Documents/ShareDocumentModal.vue'
+import DocumentSharesPanel from '@/Components/Documents/DocumentSharesPanel.vue'
 
 const props = defineProps({
     patient: Object,
@@ -19,6 +21,9 @@ const cancelDocument = () => {
     if (reason === null) return
     router.post(route('patients.documents.cancel', [props.patient.id, props.document.id]), { reason })
 }
+
+const showShareModal = ref(false)
+const shareRefreshKey = ref(0)
 </script>
 
 <template>
@@ -37,12 +42,27 @@ const cancelDocument = () => {
                     <a v-if="document.pdf_url" :href="document.pdf_url" target="_blank" class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">Ver PDF</a>
                     <a v-else :href="route('patients.documents.pdf', [patient.id, document.id])" class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">Gerar PDF</a>
                     <button
+                        v-if="document.pdf_url"
+                        @click="showShareModal = true"
+                        class="rounded-xl border border-teal-200 px-4 py-2 text-sm font-medium text-teal-700 hover:bg-teal-50 transition-colors"
+                    >Compartilhar</button>
+                    <button
                         v-if="document.status !== 'cancelled' && document.status !== 'completed'"
                         @click="cancelDocument"
                         class="rounded-xl border border-red-100 px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-50 transition-colors"
                     >Cancelar</button>
                 </div>
             </div>
+
+            <ShareDocumentModal
+                :show="showShareModal"
+                :patient-id="patient.id"
+                :document-id="document.id"
+                :default-email="patient.email"
+                :default-name="patient.nome_completo || `${patient.nome} ${patient.sobrenome}`"
+                @close="showShareModal = false"
+                @shared="shareRefreshKey++"
+            />
 
             <div class="grid lg:grid-cols-3 gap-5">
                 <div class="lg:col-span-2 space-y-5">
@@ -57,6 +77,12 @@ const cancelDocument = () => {
                             <span v-for="b in document.related_budgets" :key="'b' + b.id" class="text-[11px] rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-600">💰 Orçamento #{{ b.id }}</span>
                         </div>
                     </div>
+
+                    <DocumentSharesPanel
+                        :patient-id="patient.id"
+                        :document-id="document.id"
+                        :refresh-key="shareRefreshKey"
+                    />
                 </div>
 
                 <div>

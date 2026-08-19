@@ -1,21 +1,41 @@
 <script setup>
+import { ref } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import SystemAdminAccessNotice from '@/Components/Admin/SystemAdminAccessNotice.vue'
 
 const page = usePage()
 
 const navItems = [
-    { href: 'admin.index',      label: 'Dashboard',   match: '/admin$' },
-    { href: 'admin.clinics',    label: 'Clínicas',    match: '/admin/clinicas' },
-    { href: 'admin.referrals',  label: 'Indicações',  match: '/admin/indicacoes' },
-    { href: 'admin.plans',      label: 'Planos',      match: '/admin/planos' },
-    { href: 'admin.logs',       label: 'Logs',        match: '/admin/logs' },
+    { href: 'admin.index',         label: 'Dashboard',      match: '/admin$' },
+    { href: 'admin.clinics',       label: 'Clínicas',       match: '/admin/clinicas' },
+    { href: 'admin.users',         label: 'Usuários',       match: '/admin/usuarios' },
+    { href: 'admin.referrals',     label: 'Indicações',     match: '/admin/indicacoes' },
+    { href: 'admin.plans',         label: 'Planos',         match: '/admin/planos' },
+    { href: 'admin.exports',       label: 'Exportações',    match: '/admin/exportacoes' },
+    { href: 'admin.logs',          label: 'Logs',           match: '/admin/logs' },
+    { href: 'admin.system-admins', label: 'System Admins',  match: '/admin/system-admins' },
 ]
 
 function isActive(match) {
     const url = page.url.split('?')[0]
     if (match.endsWith('$')) return url === '/admin'
     return url.startsWith(match)
+}
+
+// Aviso de acesso privilegiado — puramente informativo, NUNCA um mecanismo
+// de autorização (a única autoridade real é o middleware system-admin no
+// backend). Estado vem da sessão do Laravel (auth.hasAcknowledgedAdminAccess,
+// ver HandleInertiaRequests), não de sessionStorage/localStorage: reaparece
+// numa sessão de login nova (logout invalida a sessão do Laravel) e não
+// reaparece só por causa de navegação/refresh dentro do mesmo login — sem
+// precisar de coluna nova no banco só pra isso. Um ref local dá feedback
+// instantâneo no clique, sem esperar o round-trip do axios.
+const showAccessNotice = ref(!page.props.auth.hasAcknowledgedAdminAccess)
+
+function acknowledgeAccess() {
+    showAccessNotice.value = false
+    window.axios.post(route('admin.acknowledge-access')).catch(() => {})
 }
 </script>
 
@@ -26,7 +46,7 @@ function isActive(match) {
                 <div class="flex items-center gap-2">
                     <h1 class="text-2xl font-semibold text-slate-900">Backoffice Wildental</h1>
                     <span class="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700">
-                        Super Admin
+                        System Admin
                     </span>
                 </div>
                 <p class="mt-1 text-sm text-slate-500">Painel administrativo exclusivo</p>
@@ -49,5 +69,7 @@ function isActive(match) {
         </nav>
 
         <slot />
+
+        <SystemAdminAccessNotice :show="showAccessNotice" @acknowledge="acknowledgeAccess" />
     </AppLayout>
 </template>

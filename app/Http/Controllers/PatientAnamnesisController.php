@@ -219,7 +219,7 @@ class PatientAnamnesisController extends Controller
 
         $path = $this->pdfService->generate($anamnesis, (int) auth()->id(), $request);
 
-        return Storage::disk('public')->download(
+        return Storage::disk('s3')->download(
             $path,
             'anamnese-' . $patient->id . '-' . $anamnesis->id . '.pdf'
         );

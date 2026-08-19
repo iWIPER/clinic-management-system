@@ -111,6 +111,22 @@ class User extends Authenticatable
     }
 
     /**
+     * Camada global da plataforma, acima do nível de clínica — não depende
+     * de current_clinic_id nem de role owner/admin de clínica. Fonte única:
+     * tabela system_admins (substitui o antigo e-mail hardcoded em
+     * SuperAdmin::EMAIL).
+     */
+    public function isSystemAdmin(): bool
+    {
+        return $this->systemAdminGrant()->exists();
+    }
+
+    public function systemAdminGrant()
+    {
+        return $this->hasOne(SystemAdmin::class)->active()->latest('granted_at');
+    }
+
+    /**
      * Pivot (role, agenda_visible_to_team, working_days...) do vínculo deste
      * usuário com uma clínica específica — evita repetir a mesma consulta
      * em cada controller que precisa ler configuração de agenda.

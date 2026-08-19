@@ -61,7 +61,9 @@ class DocumentSignaturePanelController extends Controller
             $document->refresh();
         }
 
-        Mail::to($patient->email)->send(
+        // Fase B5: sem anexo, sem segredo no payload (só um link com token já
+        // persistido) — enfileirado pra não bloquear a resposta no SMTP.
+        Mail::to($patient->email)->queue(
             new DocumentSignatureRequestMail($document, route('documents.public-sign', $document->signature_token))
         );
 

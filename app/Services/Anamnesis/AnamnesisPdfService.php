@@ -16,6 +16,49 @@ class AnamnesisPdfService
 
     public function generate(AnamnesisInstance $instance, int $userId, $request = null): string
     {
+        $dompdf = $this->render($instance);
+
+        $filename = 'anamneses/instance-' . $instance->id . '.pdf';
+        // Sem parâmetro de visibilidade: bucket usa Object Ownership
+        // "BucketOwnerEnforced" (confirmado via AWS read-only) — ACLs por
+        // objeto são recusadas. Privacidade vem do Block Public Access.
+        Storage::disk('s3')->put($filename, $dompdf->output());
+
+        $instance->update(['pdf_path' => $filename]);
+
+        AnamnesisActivityLog::create([
+            'clinic_id' => $instance->clinic_id,
+            'instance_id' => $instance->id,
+            'patient_id' => $instance->patient_id,
+            'template_id' => $instance->template_id,
+            'action' => 'pdf_generated',
+            'user_id' => $userId,
+            'ip_address' => $request?->ip(),
+            'user_agent' => $request?->userAgent(),
+        ]);
+
+        return $filename;
+    }
+
+    /**
+     * Bytes de uma cópia protegida por senha para o fluxo de compartilhamento
+     * — mesmo padrão de DocumentPdfService::generateProtectedCopyBytes().
+     * Nunca sobrescreve o pdf_path original.
+     */
+    public function generateProtectedCopyBytes(AnamnesisInstance $instance, string $password): string
+    {
+        $dompdf = $this->render($instance);
+        $canvas = $dompdf->getCanvas();
+
+        if (method_exists($canvas, 'get_cpdf')) {
+            $canvas->get_cpdf()->setEncryption($password, '', ['print']);
+        }
+
+        return $dompdf->output();
+    }
+
+    private function render(AnamnesisInstance $instance): Dompdf
+    {
         $instance->load(['patient', 'professional', 'clinic', 'answers', 'patientSignature', 'dentistSignature']);
         $editor = $this->anamnesisService->loadEditorData($instance);
 
@@ -59,23 +102,7 @@ class AnamnesisPdfService
         $dompdf->setPaper('A4');
         $dompdf->render();
 
-        $filename = 'anamneses/instance-' . $instance->id . '.pdf';
-        Storage::disk('public')->put($filename, $dompdf->output());
-
-        $instance->update(['pdf_path' => $filename]);
-
-        AnamnesisActivityLog::create([
-            'clinic_id' => $instance->clinic_id,
-            'instance_id' => $instance->id,
-            'patient_id' => $instance->patient_id,
-            'template_id' => $instance->template_id,
-            'action' => 'pdf_generated',
-            'user_id' => $userId,
-            'ip_address' => $request?->ip(),
-            'user_agent' => $request?->userAgent(),
-        ]);
-
-        return $filename;
+        return $dompdf;
     }
 
     private function sigDataUri(?string $path): ?string

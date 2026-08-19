@@ -130,7 +130,7 @@ class PatientDocumentController extends Controller
                 'status_color'   => $document->statusEnum()->color(),
                 'document_code'  => $document->document_code,
                 'rendered_html'  => $document->rendered_html,
-                'pdf_url'        => $document->pdf_path ? Storage::disk('public')->url($document->pdf_path) : null,
+                'pdf_url'        => $document->pdf_path ? route('patients.documents.file', [$patient, $document]) : null,
                 'issued_at'      => $document->issued_at?->format('d/m/Y H:i'),
                 'professional'   => $document->professional?->name,
                 'required_roles' => $document->requiredSignerRoles(),
@@ -148,7 +148,21 @@ class PatientDocumentController extends Controller
 
         $this->pdfService->generate($document, $request->user()->id, $request);
 
-        return redirect(Storage::disk('public')->url($document->fresh()->pdf_path));
+        return Storage::disk('s3')->response($document->fresh()->pdf_path);
+    }
+
+    /**
+     * Exibe o PDF já gerado sem regenerar (evita duplicar log de auditoria e
+     * reenviar ao Drive a cada abertura de "Ver PDF" — ver pdf() acima para
+     * o fluxo que gera/regenera).
+     */
+    public function file(Patient $patient, Document $document)
+    {
+        $this->authorize('view', $patient);
+        abort_unless($document->patient_id === $patient->id, 404);
+        abort_unless($document->pdf_path, 404);
+
+        return Storage::disk('s3')->response($document->pdf_path);
     }
 
     public function cancel(Request $request, Patient $patient, Document $document, DocumentStatusService $statusService)

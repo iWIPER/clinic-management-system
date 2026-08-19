@@ -9,12 +9,19 @@ const friendlyError = (err, fallback) => err?.response?.data?.message || err?.re
 
 const props = defineProps({
     stats:               { type: Object, required: true },
+    clinics_by_plan:     { type: Array,  default: () => [] },
+    clinic_signup_trend: { type: Array,  default: () => [] },
     top_referrers:       { type: Array,  default: () => [] },
     conversions_by_plan: { type: Array,  default: () => [] },
     recent_clinics:      { type: Array,  default: () => [] },
     pending_payments:    { type: Array,  default: () => [] },
+    recent_admin_activity: { type: Array, default: () => [] },
     settings:            { type: Object, required: true },
 })
+
+function formatDate(iso) {
+    return iso ? new Date(iso).toLocaleString('pt-BR') : '—'
+}
 
 const settingsForm = ref({ ...props.settings })
 const saving = ref(false)
@@ -83,21 +90,44 @@ async function rejectPayment(id) {
 
 <template>
     <AdminLayout>
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-3">
             <div v-for="(item, key) in [
                 { label: 'Clínicas cadastradas', value: stats.total_clinics, color: 'text-slate-800' },
+                { label: 'Clínicas ativas', value: stats.active_clinics, color: 'text-emerald-600' },
+                { label: 'Clínicas bloqueadas', value: stats.blocked_clinics, color: 'text-red-500' },
+                { label: 'Usuários totais', value: stats.total_users, color: 'text-slate-800' },
+                { label: 'Novos usuários (30d)', value: stats.new_users_30d, color: 'text-blue-600' },
+            ]" :key="key" class="rounded-2xl border bg-white p-4">
+                <p class="text-[11px] text-slate-500 leading-tight">{{ item.label }}</p>
+                <p class="mt-1 text-xl font-semibold" :class="item.color">{{ item.value }}</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+            <div v-for="(item, key) in [
                 { label: 'Em teste', value: stats.trialing, color: 'text-blue-600' },
                 { label: 'Assinaturas ativas', value: stats.active_subscriptions, color: 'text-emerald-600' },
                 { label: 'Receita mensal', value: formatMoney(stats.revenue_month), color: 'text-emerald-600' },
                 { label: 'MRR', value: formatMoney(stats.mrr), color: 'text-violet-600' },
                 { label: 'Receita anual', value: formatMoney(stats.revenue_year), color: 'text-blue-600' },
                 { label: 'Churn', value: stats.churn + '%', color: 'text-red-500' },
+                { label: 'Novas clínicas (30d)', value: stats.new_clinics_30d, color: 'text-slate-800' },
                 { label: 'Indicações geradas', value: stats.total_conversions, color: 'text-slate-800' },
                 { label: 'Indicações pagas', value: stats.paid_conversions, color: 'text-emerald-600' },
                 { label: 'Pagamentos pendentes', value: stats.pending_payments, color: 'text-amber-500' },
             ]" :key="key" class="rounded-2xl border bg-white p-4">
                 <p class="text-[11px] text-slate-500 leading-tight">{{ item.label }}</p>
                 <p class="mt-1 text-xl font-semibold" :class="item.color">{{ item.value }}</p>
+            </div>
+        </div>
+
+        <div v-if="clinics_by_plan.length" class="rounded-2xl border bg-white p-5 mb-6">
+            <h3 class="font-semibold text-slate-900 mb-3">Clínicas por plano</h3>
+            <div class="flex flex-wrap gap-3">
+                <div v-for="item in clinics_by_plan" :key="item.plan" class="rounded-xl bg-slate-50 px-4 py-2 text-sm">
+                    <span class="font-medium">{{ item.plan }}</span>
+                    <span class="ml-2 text-emerald-600 font-semibold">{{ item.total }}</span>
+                </div>
             </div>
         </div>
 
@@ -202,6 +232,19 @@ async function rejectPayment(id) {
                     <span class="ml-2 text-emerald-600 font-semibold">{{ item.total }}</span>
                 </div>
                 <p v-if="!conversions_by_plan.length" class="text-sm text-slate-400">Sem conversões por plano</p>
+            </div>
+        </div>
+
+        <!-- Atividade administrativa recente -->
+        <div class="rounded-2xl border bg-white overflow-hidden mt-6">
+            <div class="px-5 py-3 border-b font-semibold text-slate-800">Atividade administrativa recente</div>
+            <div class="divide-y max-h-96 overflow-y-auto">
+                <div v-for="log in recent_admin_activity" :key="log.id" class="px-5 py-3 text-sm">
+                    <p class="font-medium text-slate-800">{{ log.action_label }}</p>
+                    <p class="text-xs text-slate-500">{{ log.description }}</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">{{ log.user }} · {{ formatDate(log.created_at) }}</p>
+                </div>
+                <p v-if="!recent_admin_activity.length" class="px-5 py-6 text-center text-sm text-slate-400">Nenhuma ação administrativa registrada ainda.</p>
             </div>
         </div>
     </AdminLayout>

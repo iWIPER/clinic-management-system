@@ -22,9 +22,13 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
-                'isSuperAdmin' => fn () => $request->user()
-                    && $request->user()->email === \App\Http\Middleware\SuperAdmin::EMAIL,
+                'isSystemAdmin' => fn () => (bool) $request->user()?->isSystemAdmin(),
                 'isAffiliate' => fn () => (bool) $request->user()?->isAffiliate(),
+                // Aviso de acesso privilegiado ao /admin (puramente informativo,
+                // nunca autorização) — sessão do Laravel porque precisa
+                // reaparecer numa sessão de login nova e não reaparecer só por
+                // causa de navegação/refresh dentro do mesmo login.
+                'hasAcknowledgedAdminAccess' => fn () => (bool) $request->session()->get('admin_access_acknowledged'),
             ],
             'ziggy' => fn () => [
                 ...(new Ziggy)->toArray(),

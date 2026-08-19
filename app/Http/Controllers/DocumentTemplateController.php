@@ -13,24 +13,6 @@ class DocumentTemplateController extends Controller
 {
     public function __construct(private DocumentPlaceholderResolver $resolver) {}
 
-    public function index()
-    {
-        $clinicId = session('current_clinic_id');
-
-        $templates = DocumentTemplate::query()
-            ->forClinic($clinicId)
-            ->active()
-            ->with(['category', 'currentVersion'])
-            ->withCount('documents')
-            ->orderBy('sort_order')
-            ->get()
-            ->groupBy(fn (DocumentTemplate $t) => $t->category?->name ?? 'Sem categoria');
-
-        return Inertia::render('Documents/Templates/Index', [
-            'templatesByCategory' => $templates,
-        ]);
-    }
-
     public function create(Request $request)
     {
         $clinicId = session('current_clinic_id');
@@ -229,4 +211,5 @@ class DocumentTemplateController extends Controller
             'signature_expiration_hours'         => 'nullable|integer|min:1|max:8760',
         ]);
     }
+
 }
