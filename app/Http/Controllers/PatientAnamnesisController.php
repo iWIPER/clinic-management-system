@@ -66,7 +66,13 @@ class PatientAnamnesisController extends Controller
 
         $validated = $request->validate([
             'answers' => 'required|array',
-            'answers.*.question_id' => 'required|exists:anamnesis_questions,id',
+            // Cobre tanto pergunta do banco (clinic_id nulo ou da própria
+            // clínica) quanto pergunta específica desta instância — nunca
+            // exclui por instance_id, senão rejeitaria respostas legítimas
+            // de perguntas adicionadas via addInstanceQuestion().
+            'answers.*.question_id' => ['required', \Illuminate\Validation\Rule::exists('anamnesis_questions', 'id')->where(
+                fn ($q) => $q->whereNull('clinic_id')->orWhere('clinic_id', $anamnesis->clinic_id)
+            )],
             'answers.*.value' => 'nullable|string',
             'answers.*.supplementary_text' => 'nullable|string',
             'answers.*.file_path' => 'nullable|string',

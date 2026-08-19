@@ -119,7 +119,7 @@
         <div class="token-section">
             <div class="token-label">Código do convite</div>
             <div class="token-code">{{ $invite->short_token }}</div>
-            <div class="token-hint">Use este código na tela de aceite ou clique no botão abaixo</div>
+            <div class="token-hint">Guarde este código como referência — para aceitar, clique no botão abaixo</div>
         </div>
 
         <!-- CTA -->

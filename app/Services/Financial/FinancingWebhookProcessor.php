@@ -119,8 +119,12 @@ class FinancingWebhookProcessor
             return;
         }
 
-        if (!$signature || !$connection->webhook_secret) {
-            return;
+        if (!$signature) {
+            throw new \RuntimeException('Webhook rejeitado: assinatura ausente.');
+        }
+
+        if (!$connection->webhook_secret) {
+            throw new \RuntimeException('Webhook rejeitado: conexão sem webhook_secret configurado.');
         }
 
         $expected = hash_hmac(

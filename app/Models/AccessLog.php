@@ -22,8 +22,11 @@ class AccessLog extends Model
 
     // ── Ações disponíveis ──────────────────────────────────────────────────
     const ACTION_LOGIN               = 'login';
+    const ACTION_LOGIN_FAILED        = 'login_failed';
     const ACTION_LOGOUT              = 'logout';
     const ACTION_PASSWORD_CHANGED    = 'password_changed';
+    const ACTION_PATIENT_PAYMENTS_EXPORTED = 'patient_payments_exported';
+    const ACTION_ACCESS_LOG_EXPORTED = 'access_log_exported';
     const ACTION_PROFILE_UPDATED     = 'profile_updated';
     const ACTION_INVITE_SENT         = 'invite_sent';
     const ACTION_INVITE_ACCEPTED     = 'invite_accepted';
@@ -58,8 +61,11 @@ class AccessLog extends Model
     // Labels em PT-BR
     const LABELS = [
         'login'               => 'Login realizado',
+        'login_failed'        => 'Tentativa de login falhou',
         'logout'              => 'Logout',
         'password_changed'    => 'Senha alterada',
+        'patient_payments_exported' => 'Pagamentos de paciente exportados',
+        'access_log_exported'       => 'Logs de acesso exportados',
         'profile_updated'     => 'Perfil atualizado',
         'invite_sent'         => 'Convite enviado',
         'invite_accepted'     => 'Convite aceito',

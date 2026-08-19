@@ -88,7 +88,7 @@ class InviteService
             'job_title'     => $data['job_title'],
             'role'          => $role,
             'status'        => 'pending',
-            'expires_at'    => now()->addDays(7),
+            'expires_at'    => now()->addDays(Invite::MAX_VALIDITY_DAYS),
             'invited_by_id' => $invitedById,
             'token'         => Str::random(32),
             'short_token'   => Invite::generateShortToken(),
@@ -130,7 +130,7 @@ class InviteService
         $invite->update([
             'token'       => Str::random(32),
             'short_token' => Invite::generateShortToken(),
-            'expires_at'  => now()->addDays(7),
+            'expires_at'  => now()->addDays(Invite::MAX_VALIDITY_DAYS),
             'status'      => 'pending',
         ]);
 
@@ -151,7 +151,7 @@ class InviteService
         $invite->update([
             'token'       => Str::random(32),
             'short_token' => Invite::generateShortToken(),
-            'expires_at'  => now()->addDays(7),
+            'expires_at'  => now()->addDays(Invite::MAX_VALIDITY_DAYS),
             'status'      => 'pending',
         ]);
 
@@ -182,7 +182,7 @@ class InviteService
     {
         $mailerDriver = config('mail.default', 'log');
         $isLogDriver  = $mailerDriver === 'log';
-        $link         = config('app.url') . '/convites/' . $invite->short_token;
+        $link         = config('app.url') . '/convites/' . $invite->token;
 
         Log::info('[InviteService] Iniciando envio de e-mail de convite', [
             'invite_id'   => $invite->id,
@@ -276,6 +276,7 @@ class InviteService
     {
         return [
             'id'          => $invite->id,
+            'token'       => $invite->token,
             'short_token' => $invite->short_token,
             'email'       => $invite->email,
             'name'        => $invite->name,

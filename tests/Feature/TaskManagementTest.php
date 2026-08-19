@@ -415,6 +415,51 @@ test('a task cannot be linked to a patient from another clinic', function () {
         ->assertJsonValidationErrors(['patient_id']);
 });
 
+// Auditoria de segurança — label_ids.* validava só exists:task_labels,id,
+// sem checar clinic_id (diferente de task_list_id, duas linhas acima no
+// controller). Um label de outra clínica podia ser associado a uma tarefa.
+test('a task cannot be associated with a label from another clinic', function () {
+    ['user' => $user] = setupTaskContext();
+
+    $otherPlan = Plan::create([
+        'name' => 'Other Plan', 'slug' => 'other-plan-labels-' . uniqid(), 'is_free' => true,
+        'price_monthly_cents' => 0, 'price_yearly_cents' => 0, 'max_clinics' => 1,
+        'max_patients' => 100, 'max_users' => 5, 'storage_gb' => 1, 'features' => [],
+    ]);
+    $otherClinic = Clinic::create([
+        'name' => 'Outra Clínica Labels', 'slug' => 'outra-clinica-labels-' . uniqid(), 'type' => 'odontologia',
+        'status' => 'active', 'plan_id' => $otherPlan->id,
+    ]);
+    $foreignLabel = TaskLabel::create(['clinic_id' => $otherClinic->id, 'name' => 'Alheio', 'color' => '#dc2626']);
+
+    $this->actingAs($user)
+        ->postJson(route('tasks.store'), [
+            'title' => 'Tarefa qualquer',
+            'description' => 'Descrição qualquer',
+            'status' => 'todo',
+            'priority' => 'media',
+            'label_ids' => [$foreignLabel->id],
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['label_ids.0']);
+});
+
+test('a task can still be associated with a global (system-wide) label with a null clinic_id', function () {
+    ['user' => $user] = setupTaskContext();
+    $globalLabel = TaskLabel::create(['clinic_id' => null, 'name' => 'Global', 'color' => '#2563eb']);
+
+    $this->actingAs($user)
+        ->postJson(route('tasks.store'), [
+            'title' => 'Tarefa com etiqueta global',
+            'description' => 'Descrição qualquer',
+            'status' => 'todo',
+            'priority' => 'media',
+            'label_ids' => [$globalLabel->id],
+        ])
+        ->assertOk()
+        ->assertJsonPath('labels.0.id', $globalLabel->id);
+});
+
 test('the tasks panel endpoint auto-creates default mine/team lists on first access', function () {
     ['user' => $user] = setupTaskContext();
 

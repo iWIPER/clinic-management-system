@@ -34,7 +34,9 @@ class ClinicalRecordPdfService
         $dompdf->render();
 
         $filename = 'clinical-records/record-' . $record->id . '.pdf';
-        Storage::disk('public')->put($filename, $dompdf->output());
+        // Sem visibilidade: bucket usa Object Ownership "BucketOwnerEnforced",
+        // que recusa ACL por objeto — privacidade vem do Block Public Access.
+        Storage::disk('s3')->put($filename, $dompdf->output());
 
         $record->update(['pdf_path' => $filename]);
 

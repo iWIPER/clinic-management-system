@@ -84,6 +84,15 @@ class AccessLogController extends Controller
 
         $filename = 'logs-acesso-' . now()->format('Y-m-d') . '.csv';
 
+        // Auditado antes do streaming começar (não depois: se o download for
+        // interrompido no meio, ainda queremos o registro de que foi pedido)
+        // — mesmo padrão de Admin\ExportController::download().
+        AccessLog::record(
+            action: AccessLog::ACTION_ACCESS_LOG_EXPORTED,
+            description: 'Logs de acesso exportados',
+            metadata: ['range' => $range],
+        );
+
         return response()->streamDownload(function () use ($logs) {
             $handle = fopen('php://output', 'w');
             fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM UTF-8

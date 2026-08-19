@@ -19,7 +19,7 @@ class PatientTreatmentController extends Controller
 {
     public function store(Request $request, Patient $patient)
     {
-        $validated = $this->validateTreatment($request, false);
+        $validated = $this->validateTreatment($request, false, $patient->clinic_id);
 
         $treatment = $validated['treatment_id'] ? Treatment::find($validated['treatment_id']) : null;
 
@@ -76,7 +76,7 @@ class PatientTreatmentController extends Controller
             return back()->with('error', 'Tratamento concluído não pode ser editado.');
         }
 
-        $validated = $this->validateTreatment($request, false);
+        $validated = $this->validateTreatment($request, false, $patient->clinic_id);
         $treatment = $validated['treatment_id'] ? Treatment::find($validated['treatment_id']) : null;
 
         $newValues = [
@@ -164,7 +164,7 @@ class PatientTreatmentController extends Controller
         }
 
         $validated = $request->validate([
-            'professional_id' => 'required|exists:users,id',
+            'professional_id' => ['required', \Illuminate\Validation\Rule::exists('clinic_user', 'user_id')->where('clinic_id', $patient->clinic_id)],
             'completed_at'    => 'required|date',
             'evolution'       => 'nullable|string',
             'update_stock'    => 'sometimes|boolean',
@@ -285,7 +285,7 @@ class PatientTreatmentController extends Controller
         return back()->with('success', "Tratamento {$budgetCode} excluído.");
     }
 
-    private function validateTreatment(Request $request, bool $allowCompleted): array
+    private function validateTreatment(Request $request, bool $allowCompleted, int $clinicId): array
     {
         $statuses = $allowCompleted
             ? array_keys(PatientTreatment::STATUSES)
@@ -294,8 +294,8 @@ class PatientTreatmentController extends Controller
         return $request->validate([
             'treatment_id'    => 'nullable|exists:treatments,id',
             'procedure_name'  => 'required_without:treatment_id|nullable|string|max:255',
-            'professional_id' => 'required|exists:users,id',
-            'convenio_id'     => 'nullable|exists:convenios,id',
+            'professional_id' => ['required', \Illuminate\Validation\Rule::exists('clinic_user', 'user_id')->where('clinic_id', $clinicId)],
+            'convenio_id'     => ['nullable', \Illuminate\Validation\Rule::exists('convenios', 'id')->where('clinic_id', $clinicId)],
             'treatment_date'  => 'required|date',
             'tooth'           => 'nullable|string|max:10',
             // Só usado por store() (criação) — um dente por linha ao editar

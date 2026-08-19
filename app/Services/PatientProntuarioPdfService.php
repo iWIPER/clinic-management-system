@@ -44,7 +44,9 @@ class PatientProntuarioPdfService
         $dompdf->render();
 
         $filename = 'prontuarios/patient-' . $patient->id . '.pdf';
-        Storage::disk('public')->put($filename, $dompdf->output());
+        // Sem visibilidade: bucket usa Object Ownership "BucketOwnerEnforced",
+        // que recusa ACL por objeto — privacidade vem do Block Public Access.
+        Storage::disk('s3')->put($filename, $dompdf->output());
 
         return $filename;
     }

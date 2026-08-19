@@ -100,6 +100,6 @@ class ClinicalRecordController extends Controller
     {
         $path = $pdfService->generate($clinicalRecord);
 
-        return Storage::disk('public')->download($path, 'atendimento-' . $clinicalRecord->id . '.pdf');
+        return Storage::disk('s3')->download($path, 'atendimento-' . $clinicalRecord->id . '.pdf');
     }
 }

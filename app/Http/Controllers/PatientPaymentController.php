@@ -175,6 +175,15 @@ class PatientPaymentController extends Controller
 
         $filename = 'pagamentos-' . $patient->id . '-' . now()->format('Y-m-d');
 
+        // Auditado antes do streaming começar (não depois: se o download for
+        // interrompido no meio, ainda queremos o registro de que foi pedido)
+        // — mesmo padrão de Admin\ExportController::download().
+        \App\Models\AccessLog::record(
+            action: \App\Models\AccessLog::ACTION_PATIENT_PAYMENTS_EXPORTED,
+            description: "Pagamentos exportados do paciente {$patient->nome} {$patient->sobrenome}",
+            metadata: ['patient_id' => $patient->id, 'format' => $format],
+        );
+
         if ($format === 'excel') {
             return Excel::download(new PatientPaymentsExport($payments, $exportService), "{$filename}.xlsx");
         }

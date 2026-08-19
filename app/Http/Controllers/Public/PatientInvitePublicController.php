@@ -229,7 +229,7 @@ class PatientInvitePublicController extends Controller
      */
     private function draftValidationRules(PatientInvite $invite): array
     {
-        $fullRules = (new PatientController())->patientValidationRules();
+        $fullRules = (new PatientController())->patientValidationRules($invite->clinic_id);
 
         return collect($fullRules)
             ->only($this->draftFields($invite))

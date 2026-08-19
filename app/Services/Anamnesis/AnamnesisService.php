@@ -245,7 +245,14 @@ class AnamnesisService
     public function saveAnswers(AnamnesisInstance $instance, array $answers, int $userId, ?Request $request = null): AnamnesisInstance
     {
         return DB::transaction(function () use ($instance, $answers, $userId, $request) {
+            // Escopo por clínica é essencial aqui, não só um filtro de
+            // conveniência — sem ele, um question_id de outra clínica seria
+            // aceito e seu texto (question_text) copiado pra dentro desta
+            // anamnese. Não usa forClinic() (que exclui instance_id não
+            // nulo) porque perguntas específicas desta instância — ver
+            // addInstanceQuestion() — também precisam continuar respondíveis.
             $questions = AnamnesisQuestion::query()
+                ->where(fn ($q) => $q->whereNull('clinic_id')->orWhere('clinic_id', $instance->clinic_id))
                 ->whereIn('id', collect($answers)->pluck('question_id'))
                 ->get()
                 ->keyBy('id');

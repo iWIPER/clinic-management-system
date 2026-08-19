@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Inertia\Inertia;
 
 class InviteController extends Controller
@@ -66,18 +67,22 @@ class InviteController extends Controller
         return response()->json([
             'invite'       => InviteService::formatInvite($invite),
             'email_result' => $emailResult,
-            'invite_link'  => config('app.url') . '/convites/' . $invite->short_token,
+            'invite_link'  => config('app.url') . '/convites/' . $invite->token,
         ]);
     }
 
-    // ── 3. Reenviar e-mail (mantém token) ─────────────────────────────────
+    // ── 3. Reenviar e-mail (renova credencial e validade) ──────────────────
     public function resend(Invite $invite): JsonResponse
     {
         $this->authorizeAdmin();
         abort_unless($invite->clinic_id == session('current_clinic_id'), 403);
         abort_if($invite->status !== 'pending' || $invite->isExpired(), 422);
 
-        $invite->update(['expires_at' => now()->addDays(7)]);
+        // Reenvio renova o token, não só a validade — evita que um link já
+        // circulado (ex.: e-mail encaminhado por engano) continue válido
+        // depois de um reenvio "de boa fé". Mesmo mecanismo de
+        // regenerateToken(), só o texto de log/auditoria muda.
+        $invite = $this->service->regenerateToken($invite);
 
         Log::info('[InviteController] Reenvio de convite solicitado', [
             'invite_id'   => $invite->id,
@@ -91,10 +96,10 @@ class InviteController extends Controller
             metadata: ['invite_id' => $invite->id, 'short_token' => $invite->short_token],
         );
 
-        $emailResult = $this->service->dispatchEmail($invite->load('clinic', 'invitedBy'));
+        $emailResult = $this->service->dispatchEmail($invite);
 
         return response()->json([
-            'invite'       => InviteService::formatInvite($invite->fresh()),
+            'invite'       => InviteService::formatInvite($invite),
             'email_result' => $emailResult,
         ]);
     }
@@ -163,8 +168,10 @@ class InviteController extends Controller
     // ── 7. Página pública de aceite ────────────────────────────────────────
     public function show(string $token): \Inertia\Response
     {
-        $invite = Invite::where('short_token', $token)
-            ->orWhere('token', $token)
+        // O short_token (formato AAA-999) é só um código de referência
+        // visual — a credencial real de acesso é sempre o token forte
+        // (Str::random(32)), o único aceito aqui e em accept().
+        $invite = Invite::where('token', $token)
             ->with(['clinic:id,name,trade_name,logo_path,logo_type,default_logo', 'invitedBy:id,name'])
             ->firstOrFail();
 
@@ -203,8 +210,10 @@ class InviteController extends Controller
     // ── 8. Processar aceite ────────────────────────────────────────────────
     public function accept(Request $request, string $token): \Illuminate\Http\RedirectResponse
     {
-        $invite = Invite::where('short_token', $token)
-            ->orWhere('token', $token)
+        // O short_token (formato AAA-999) é só um código de referência
+        // visual — a credencial real de aceite é sempre o token forte
+        // (Str::random(32)), o único aceito aqui e em show().
+        $invite = Invite::where('token', $token)
             ->with('clinic')
             ->firstOrFail();
 
@@ -217,17 +226,34 @@ class InviteController extends Controller
             if (Auth::check() && Auth::user()->email === $invite->email) {
                 $user = Auth::user();
             } else {
-                // Verificar senha para confirmar identidade
+                // Verificar senha para confirmar identidade — mesmo padrão
+                // de rate limit do LoginRequest, pra não virar oráculo de
+                // senha sem limite de tentativas.
                 $request->validate(
                     ['password' => 'required|string'],
                     ['password.required' => 'Informe sua senha para confirmar o aceite.']
                 );
 
+                $throttleKey = 'invite-accept:' . $invite->id . '|' . $request->ip();
+
+                if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+                    $seconds = RateLimiter::availableIn($throttleKey);
+
+                    return back()->withErrors(['password' => trans('auth.throttle', [
+                        'seconds' => $seconds,
+                        'minutes' => ceil($seconds / 60),
+                    ])]);
+                }
+
                 $user = User::where('email', $invite->email)->firstOrFail();
 
                 if (! Hash::check($request->password, $user->password)) {
+                    RateLimiter::hit($throttleKey);
+
                     return back()->withErrors(['password' => 'Senha incorreta. Verifique e tente novamente.']);
                 }
+
+                RateLimiter::clear($throttleKey);
             }
         } else {
             // Novo usuário — criar conta

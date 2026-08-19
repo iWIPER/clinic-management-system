@@ -37,6 +37,20 @@ class LoginRequest extends FormRequest
         }
 
         RateLimiter::clear($this->throttleKey());
+
+        // Achado da fase System Admin/Backoffice: users.status='inativo' já
+        // existia (TeamController::deactivate) mas nunca era checado aqui —
+        // uma conta "desativada" continuava logando normalmente. A senha já
+        // foi provada correta acima, então isto não é força bruta — é
+        // credencial válida de uma conta que a própria clínica ou a
+        // plataforma bloqueou.
+        if (Auth::user()->status === 'inativo') {
+            Auth::logout();
+
+            throw ValidationException::withMessages([
+                'email' => 'Esta conta está desativada. Entre em contato com o administrador da sua clínica.',
+            ]);
+        }
     }
 
     public function ensureIsNotRateLimited(): void

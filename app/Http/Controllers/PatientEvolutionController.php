@@ -22,7 +22,7 @@ class PatientEvolutionController extends Controller
     public function store(Request $request, Patient $patient, GoogleDriveService $driveService)
     {
         $validated = $request->validate([
-            'professional_id'    => 'required|exists:users,id',
+            'professional_id'    => ['required', \Illuminate\Validation\Rule::exists('clinic_user', 'user_id')->where('clinic_id', $patient->clinic_id)],
             'recorded_at'        => 'required|date',
             'content'            => 'required|string',
             'signature_required' => 'sometimes|boolean',

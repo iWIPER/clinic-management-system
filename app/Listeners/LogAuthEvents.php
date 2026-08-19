@@ -3,11 +3,36 @@
 namespace App\Listeners;
 
 use App\Models\AccessLog;
+use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 
 class LogAuthEvents
 {
+    public function handleFailed(Failed $event): void
+    {
+        try {
+            $ua     = request()?->userAgent() ?? '';
+            $parsed = AccessLog::parseUserAgent($ua);
+
+            AccessLog::create([
+                'clinic_id'   => session('current_clinic_id'),
+                'user_id'     => $event->user?->id,
+                'action'      => AccessLog::ACTION_LOGIN_FAILED,
+                'description' => 'Tentativa de login falhou',
+                'ip_address'  => request()?->ip(),
+                'user_agent'  => $ua,
+                'device_type' => $parsed['device'],
+                'browser'     => $parsed['browser'],
+                'os'          => $parsed['os'],
+                'metadata'    => ['email' => $event->credentials['email'] ?? null],
+                'created_at'  => now(),
+            ]);
+        } catch (\Throwable) {
+            // Nunca bloquear o fluxo de login por falha no log
+        }
+    }
+
     public function handleLogin(Login $event): void
     {
         try {

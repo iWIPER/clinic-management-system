@@ -70,12 +70,18 @@ class PatientTag extends Model
     }
 
     /**
-     * Regra de validação reaproveitada por PatientNoteController (tag_ids)
-     * e PatientMarkerController (marker_ids) — ambos só podem referenciar
-     * marcadores ativos, nunca uma categoria legada nem um id qualquer.
+     * Regra de validação reaproveitada por PatientNoteController (tag_ids),
+     * PatientMarkerController (marker_ids) e AppointmentController (tag_ids)
+     * — só podem referenciar marcadores ativos, nunca uma categoria legada
+     * nem um id qualquer. $clinicId é obrigatório: marcadores custom têm
+     * clinic_id próprio (ver PatientMarkerController::store, "vocabulário da
+     * clínica") — sem esse filtro, um marcador privado de outra clínica
+     * poderia ser anexado a paciente/nota/agendamento desta clínica.
      */
-    public static function markerExistsRule(): Exists
+    public static function markerExistsRule(?int $clinicId): Exists
     {
-        return Rule::exists('patient_tags', 'id')->where('is_patient_marker', true);
+        return Rule::exists('patient_tags', 'id')
+            ->where('is_patient_marker', true)
+            ->where(fn ($q) => $q->whereNull('clinic_id')->orWhere('clinic_id', $clinicId));
     }
 }

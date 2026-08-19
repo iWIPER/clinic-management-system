@@ -279,12 +279,14 @@ class TaskController extends Controller
                     }
                 },
             ],
-            'assigned_to'  => 'nullable|exists:users,id',
+            'assigned_to'  => ['nullable', Rule::exists('clinic_user', 'user_id')->where('clinic_id', $clinicId)],
             'patient_id'   => ['nullable', Rule::exists('patients', 'id')->where('clinic_id', $clinicId)],
             'task_list_id' => ['nullable', Rule::exists('task_lists', 'id')->where('clinic_id', $clinicId)->whereNull('key')],
             'due_date'     => 'nullable|date',
             'label_ids'    => 'array|max:2',
-            'label_ids.*'  => 'exists:task_labels,id',
+            'label_ids.*'  => Rule::exists('task_labels', 'id')->where(
+                fn ($query) => $query->whereNull('clinic_id')->orWhere('clinic_id', $clinicId)
+            ),
         ], [
             'label_ids.max' => 'Uma tarefa pode possuir no máximo 2 etiquetas.',
         ]);

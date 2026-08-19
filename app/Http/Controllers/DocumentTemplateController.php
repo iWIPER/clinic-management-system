@@ -115,11 +115,16 @@ class DocumentTemplateController extends Controller
             'signature_expiration_hours'       => $validated['signature_expiration_hours'] ?? 72,
         ]);
 
+        // Compara já sanitizado dos dois lados — createNewVersion() também
+        // sanitiza, então comparar o HTML bruto de entrada contra a versão já
+        // sanitizada no banco criaria uma versão nova a cada save, mesmo sem
+        // mudança real de conteúdo.
         $currentContent = $documentTemplate->currentVersion?->content_html;
-        if ($currentContent !== $validated['content_html']) {
+        $incomingContent = \App\Services\HtmlSanitizer::richText($validated['content_html']);
+        if ($currentContent !== $incomingContent) {
             $documentTemplate->createNewVersion(
                 $validated['name'],
-                $validated['content_html'],
+                $incomingContent,
                 $request->input('change_summary'),
                 $request->user()->id
             );
@@ -193,8 +198,15 @@ class DocumentTemplateController extends Controller
 
     private function validated(Request $request): array
     {
+        $clinicId = session('current_clinic_id');
+
         return $request->validate([
-            'category_id'                       => 'required|exists:document_categories,id',
+            // DocumentCategory não tem ClinicScope automático (clinic_id
+            // nulo = categoria global de sistema) — precisa da mesma
+            // checagem explícita usada em scopeForClinic().
+            'category_id' => ['required', \Illuminate\Validation\Rule::exists('document_categories', 'id')->where(
+                fn ($q) => $q->whereNull('clinic_id')->orWhere('clinic_id', $clinicId)
+            )],
             'name'                               => 'required|string|max:160',
             'description'                        => 'nullable|string|max:500',
             'content_html'                       => 'required|string',

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\HtmlSanitizer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -96,7 +97,7 @@ class DocumentTemplate extends Model
         $version = $this->versions()->create([
             'version'        => $nextVersion,
             'title'          => $title,
-            'content_html'   => $contentHtml,
+            'content_html'   => HtmlSanitizer::richText($contentHtml),
             'change_summary' => $changeSummary,
             'created_by_id'  => $userId,
         ]);

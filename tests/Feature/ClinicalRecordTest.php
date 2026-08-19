@@ -132,6 +132,9 @@ test('clinical record is not duplicated on repeated finish', function () {
 });
 
 test('generates pdf for clinical record', function () {
+    // Fase A.3: PDF agora é gravado no disco 's3' (privado) — fake evita
+    // que o teste tente alcançar a AWS real.
+    \Illuminate\Support\Facades\Storage::fake('s3');
     ['user' => $user, 'clinic' => $clinic, 'consultation' => $consultation] = setupClinicalRecordContext();
 
     $clinic->update(['trade_name' => 'Sorriso Perfeito', 'slogan' => 'Excelência em odontologia']);

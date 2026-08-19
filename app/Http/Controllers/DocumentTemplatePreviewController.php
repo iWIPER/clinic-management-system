@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Clinic;
 use App\Models\Patient;
 use App\Services\Documents\DocumentPlaceholderResolver;
+use App\Services\HtmlSanitizer;
 use Illuminate\Http\Request;
 
 class DocumentTemplatePreviewController extends Controller
@@ -27,7 +28,7 @@ class DocumentTemplatePreviewController extends Controller
         }
         $patient ??= $this->mockPatient();
 
-        $html = $this->resolver->resolve($validated['content_html'] ?? '', [
+        $html = $this->resolver->resolve(HtmlSanitizer::richText($validated['content_html'] ?? ''), [
             'patient'      => $patient,
             'clinic'       => $clinic,
             'professional' => $request->user(),

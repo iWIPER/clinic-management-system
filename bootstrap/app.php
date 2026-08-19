@@ -35,9 +35,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'affiliate'   => \App\Http\Middleware\EnsureAffiliate::class,
         ]);
 
-        // Webhooks são chamados pelo Stripe, sem sessão/cookie CSRF do app.
+        // Webhooks são chamados por serviços externos, sem sessão/cookie
+        // CSRF do app — autenticados por assinatura própria (Cashier pro
+        // Stripe, HMAC verificado em FinancingWebhookProcessor pro financeiro).
         $middleware->validateCsrfTokens(except: [
             'stripe/webhook',
+            'webhooks/financial/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

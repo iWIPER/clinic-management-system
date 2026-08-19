@@ -130,6 +130,11 @@ class ProfileController extends Controller
 
         $this->profileService->logChange($user, 'Senha alterada', 'password', $request);
 
+        \App\Models\AccessLog::record(
+            action: \App\Models\AccessLog::ACTION_PASSWORD_CHANGED,
+            userId: $user->id,
+        );
+
         return back()->with('status', 'Senha alterada com sucesso.');
     }
 

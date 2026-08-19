@@ -100,7 +100,7 @@ class AnamnesisTemplateController extends Controller
             'description' => 'nullable|string',
             'is_active' => 'boolean',
             'question_order' => 'array',
-            'question_order.*' => 'integer|exists:anamnesis_questions,id',
+            'question_order.*' => ['integer', $this->questionExistsRule()],
         ]);
 
         $anamnesisTemplate->update([
@@ -122,7 +122,7 @@ class AnamnesisTemplateController extends Controller
         $this->authorizeTemplate($anamnesisTemplate);
 
         $validated = $request->validate([
-            'question_id' => 'required|exists:anamnesis_questions,id',
+            'question_id' => ['required', $this->questionExistsRule()],
             'is_required' => 'boolean',
         ]);
 
@@ -231,5 +231,19 @@ class AnamnesisTemplateController extends Controller
         if ($template->clinic_id && $template->clinic_id !== $clinicId) {
             abort(403);
         }
+    }
+
+    // Mesmo filtro de AnamnesisQuestion::scopeForClinic() — sem isto, uma
+    // pergunta PRIVADA de outra clínica poderia ser anexada a um modelo
+    // desta clínica e exibida pros pacientes dela.
+    private function questionExistsRule(): \Illuminate\Validation\Rules\Exists
+    {
+        $clinicId = session('current_clinic_id');
+
+        return \Illuminate\Validation\Rule::exists('anamnesis_questions', 'id')->where(
+            fn ($q) => $q->whereNull('instance_id')->where(
+                fn ($q2) => $q2->whereNull('clinic_id')->orWhere('clinic_id', $clinicId)
+            )
+        );
     }
 }

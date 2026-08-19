@@ -10,7 +10,7 @@ class InventoryController extends Controller
 {
     public function index(Request $request)
     {
-        $query = InventoryItem::query();
+        $query = InventoryItem::query()->where('clinic_id', session('current_clinic_id'));
 
         if ($search = $request->input('search')) {
             $query->where('nome', 'like', "%{$search}%");

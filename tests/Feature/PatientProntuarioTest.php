@@ -112,6 +112,9 @@ test('can save odontogram', function () {
 });
 
 test('generates prontuario pdf', function () {
+    // Fase A.3: PDF agora é gravado no disco 's3' (privado) — fake evita
+    // que o teste tente alcançar a AWS real.
+    \Illuminate\Support\Facades\Storage::fake('s3');
     ['user' => $user, 'patient' => $patient] = setupProntuarioContext();
 
     PatientAnamnesis::create([

@@ -8,6 +8,7 @@ use App\Models\Convenio;
 use App\Models\Invite;
 use App\Models\Plan;
 use App\Models\Referral;
+use App\Services\InviteService;
 use App\Services\ReferralService;
 use App\Services\SubscriptionService;
 use App\Services\WildentalCatalogService;
@@ -164,7 +165,7 @@ class OnboardingController extends Controller
         ]);
     }
 
-    public function sendInvites(Request $request)
+    public function sendInvites(Request $request, InviteService $inviteService)
     {
         $validated = $request->validate([
             'invites' => 'required|array|min:1',
@@ -175,24 +176,46 @@ class OnboardingController extends Controller
         $user = Auth::user();
         $clinicId = session('current_clinic_id');
 
-        foreach ($validated['invites'] as $inviteData) {
-            // Evitar duplicados
-            Invite::updateOrCreate(
-                ['clinic_id' => $clinicId, 'email' => $inviteData['email']],
-                [
-                    'role' => $inviteData['role'],
-                    'invited_by_id' => $user->id,
-                    'token' => Str::random(32),
-                    'expires_at' => now()->addDays(7),
-                ]
-            );
+        // O wizard de onboarding só coleta papel (admin/professional/staff),
+        // não o cargo completo — mapeia para o cargo representativo de cada
+        // papel (inverso de Invite::JOB_TITLE_ROLES) para reusar o mesmo
+        // InviteService/TeamInviteMail já usado pela tela Equipe.
+        $roleToJobTitle = [
+            'admin'        => 'Administrador',
+            'professional' => 'Dentista',
+            'staff'        => 'Secretário(a)',
+        ];
 
-            // TODO: Enviar email real (Mail)
-            // Mail::to($inviteData['email'])->send(new ClinicInviteMail(...));
+        $sentCount = 0;
+        $failedEmails = [];
+
+        foreach ($validated['invites'] as $inviteData) {
+            $invite = $inviteService->createOrUpdate([
+                'email'     => $inviteData['email'],
+                'name'      => $inviteData['email'],
+                'job_title' => $roleToJobTitle[$inviteData['role']] ?? 'Outro',
+            ], $clinicId, $user->id);
+
+            $result = $inviteService->dispatchEmail($invite);
+
+            if (in_array($result['status'], ['sent', 'log_driver'], true)) {
+                $sentCount++;
+            } else {
+                $failedEmails[] = $inviteData['email'];
+            }
+        }
+
+        if (! empty($failedEmails)) {
+            return redirect()->route('dashboard')->with(
+                'warning',
+                'Convite(s) criado(s), mas não foi possível enviar e-mail para: ' . implode(', ', $failedEmails) . '. Você pode reenviá-los em Equipe.'
+            );
         }
 
         return redirect()->route('dashboard')
-            ->with('success', 'Convites enviados com sucesso!');
+            ->with('success', $sentCount === 1
+                ? 'Convite enviado com sucesso!'
+                : "{$sentCount} convites enviados com sucesso!");
     }
 
     public function joinInvite()

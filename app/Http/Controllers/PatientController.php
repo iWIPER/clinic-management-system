@@ -112,7 +112,7 @@ class PatientController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate($this->patientValidationRules());
+        $validated = $request->validate($this->patientValidationRules((int) session('current_clinic_id')));
 
         $validated['status'] = $validated['status'] ?? 'ativo';
         $validated['origem'] = $validated['origem'] ?? 'manual';
@@ -137,9 +137,13 @@ class PatientController extends Controller
      * completa do formulário de paciente, para não duplicar entre os dois.
      * Público porque PatientInvitePublicController também reaproveita (relaxa
      * "required" e filtra por allowlist para o autosave do wizard público —
-     * ver PatientInviteService::saveDraftFields()).
+     * ver PatientInviteService::saveDraftFields()). $clinicId escopa
+     * convenio_id à clínica certa em ambos os casos (sessão autenticada ou
+     * a clínica do próprio convite, no wizard público) — mantido como regra
+     * STRING (não Rule::exists fluente) porque draftValidationRules() faz
+     * explode('|', $rule) em cima do valor, e quebraria com um array.
      */
-    public function patientValidationRules(): array
+    public function patientValidationRules(int $clinicId): array
     {
         return [
             'nome' => 'required|string|max:100',
@@ -173,7 +177,7 @@ class PatientController extends Controller
             'cidade' => 'nullable|string|max:100',
             'estado' => 'nullable|string|max:2',
             'origem' => 'nullable|string|in:manual,indicacao,google,instagram,facebook,whatsapp,site,convenio,outro,convite',
-            'convenio_id' => 'nullable|exists:convenios,id',
+            'convenio_id' => "nullable|exists:convenios,id,clinic_id,{$clinicId}",
             'tipo_atendimento' => 'nullable|string|in:particular,convenio,outro',
             'convenio_numero_carteirinha' => 'nullable|string|max:50',
             'convenio_titular' => 'nullable|string|max:100',
@@ -479,7 +483,7 @@ class PatientController extends Controller
     public function update(Request $request, Patient $patient, PatientStatusService $statusService)
     {
         $validated = $request->validate([
-            ...$this->patientValidationRules(),
+            ...$this->patientValidationRules($patient->clinic_id),
             'status_automatico' => 'boolean',
         ]);
 

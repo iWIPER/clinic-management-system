@@ -27,7 +27,7 @@ class TeamInviteMail extends Mailable
     public function content(): Content
     {
         $clinic     = $this->invite->clinic;
-        $acceptUrl  = config('app.url') . '/convites/' . $this->invite->short_token;
+        $acceptUrl  = config('app.url') . '/convites/' . $this->invite->token;
         $clinicName = $clinic?->trade_name ?? $clinic?->name ?? 'Wildental';
         $daysLeft   = max(0, (int) now()->diffInDays($this->invite->expires_at, false));
 

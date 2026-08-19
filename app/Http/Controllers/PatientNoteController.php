@@ -24,7 +24,7 @@ class PatientNoteController extends Controller
             'tag_ids' => 'array',
             // Observações reutilizam o mesmo vocabulário de marcadores do
             // paciente — mesma regra de PatientMarkerController::sync().
-            'tag_ids.*' => PatientTag::markerExistsRule(),
+            'tag_ids.*' => PatientTag::markerExistsRule($patient->clinic_id),
         ]);
 
         $this->service->store($patient, $validated, (int) auth()->id());
@@ -46,7 +46,7 @@ class PatientNoteController extends Controller
             'tag_ids' => 'array',
             // Observações reutilizam o mesmo vocabulário de marcadores do
             // paciente — mesma regra de PatientMarkerController::sync().
-            'tag_ids.*' => PatientTag::markerExistsRule(),
+            'tag_ids.*' => PatientTag::markerExistsRule($patient->clinic_id),
         ]);
 
         $this->service->update($note, $validated);

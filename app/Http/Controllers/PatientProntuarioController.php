@@ -130,7 +130,7 @@ class PatientProntuarioController extends Controller
     {
         $path = $pdfService->generate($patient);
 
-        return Storage::disk('public')->download(
+        return Storage::disk('s3')->download(
             $path,
             'prontuario-' . $patient->id . '-' . now()->format('Y-m-d') . '.pdf'
         );

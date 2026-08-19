@@ -16,6 +16,11 @@ class Invite extends Model
         'expires_at' => 'datetime',
     ];
 
+    // Regra de segurança do backend, não só informativa — nenhum convite de
+    // equipe pode ficar válido por mais de 7 dias, independente do que um
+    // chamador tente passar em expires_at (ver boot(), evento saving).
+    const MAX_VALIDITY_DAYS = 7;
+
     // Cargos disponíveis no sistema — lista única, usada tanto no convite da
     // equipe quanto no campo "Cargo na clínica" do perfil do usuário. Não deve
     // haver campo livre em nenhuma tela: sempre selecionar a partir daqui.
@@ -48,9 +53,6 @@ class Invite extends Model
             if (empty($invite->short_token)) {
                 $invite->short_token = self::generateShortToken();
             }
-            if (empty($invite->expires_at)) {
-                $invite->expires_at = now()->addDays(7);
-            }
             if (empty($invite->status)) {
                 $invite->status = 'pending';
             }
@@ -60,6 +62,17 @@ class Invite extends Model
             // Auto-map job_title → role se não fornecido
             if (empty($invite->role) && !empty($invite->job_title)) {
                 $invite->role = self::JOB_TITLE_ROLES[$invite->job_title] ?? 'staff';
+            }
+        });
+
+        // Autoridade única sobre expires_at — roda em create E update, então
+        // nenhum chamador (atual ou futuro) consegue conceder mais que
+        // MAX_VALIDITY_DAYS, mesmo passando um valor explícito maior.
+        static::saving(function ($invite) {
+            $maxExpiry = now()->addDays(self::MAX_VALIDITY_DAYS);
+
+            if (empty($invite->expires_at) || $invite->expires_at->greaterThan($maxExpiry)) {
+                $invite->expires_at = $maxExpiry;
             }
         });
     }
@@ -95,9 +108,17 @@ class Invite extends Model
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────
+    // Nunca confia só no expires_at armazenado — convites criados antes da
+    // regra de MAX_VALIDITY_DAYS (ou qualquer linha legada com validade
+    // maior) são tratados como expirados a partir de created_at + 7 dias,
+    // sem precisar reescrever dado histórico nenhum.
     public function isExpired(): bool
     {
-        return $this->expires_at->isPast();
+        $effectiveExpiry = $this->expires_at->min(
+            ($this->created_at ?? now())->copy()->addDays(self::MAX_VALIDITY_DAYS)
+        );
+
+        return $effectiveExpiry->isPast();
     }
 
     public function isPending(): bool

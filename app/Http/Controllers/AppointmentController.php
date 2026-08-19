@@ -278,7 +278,7 @@ class AppointmentController extends Controller
         $clinicId = session('current_clinic_id');
 
         $validated = $request->validate([
-            'professional_id' => 'required|exists:users,id',
+            'professional_id' => ['required', Rule::exists('clinic_user', 'user_id')->where('clinic_id', $clinicId)],
             'date' => 'required|date',
             'duration_minutes' => 'required|integer|min:5|max:480',
             'chair_id' => ['nullable', Rule::exists('chairs', 'id')->where('clinic_id', $clinicId)],
@@ -596,7 +596,7 @@ class AppointmentController extends Controller
 
         $validated = $request->validate([
             'patient_id' => 'required|exists:patients,id',
-            'professional_id' => 'required|exists:users,id',
+            'professional_id' => ['required', Rule::exists('clinic_user', 'user_id')->where('clinic_id', $clinicId)],
             // Tratamento deixou de ser exigido pra reservar um horário —
             // Agendamento != Procedimento (o procedimento acontece depois,
             // no atendimento/prontuário). Continua aceito quando enviado
@@ -608,7 +608,7 @@ class AppointmentController extends Controller
             'notes' => 'nullable|string|max:200',
             'confirmation_requested' => 'nullable|boolean',
             'tag_ids' => 'nullable|array',
-            'tag_ids.*' => PatientTag::markerExistsRule(),
+            'tag_ids.*' => PatientTag::markerExistsRule($clinicId),
             'return_option' => 'nullable|in:none,15d,1m,6m,12m,custom',
             'return_date' => 'nullable|date',
             'return_reason' => 'nullable|string|max:500',
@@ -768,7 +768,7 @@ class AppointmentController extends Controller
 
         $validated = $request->validate([
             'patient_id' => 'required|exists:patients,id',
-            'professional_id' => 'required|exists:users,id',
+            'professional_id' => ['required', Rule::exists('clinic_user', 'user_id')->where('clinic_id', $clinicId)],
             // Tratamento não é mais definido na Agenda (ver store()) — aceito
             // só por compatibilidade caso algo externo ainda envie, nunca
             // exigido nem mostrado nos formulários.
@@ -780,7 +780,7 @@ class AppointmentController extends Controller
             'notes' => 'nullable|string|max:200',
             'confirmation_requested' => 'nullable|boolean',
             'tag_ids' => 'nullable|array',
-            'tag_ids.*' => PatientTag::markerExistsRule(),
+            'tag_ids.*' => PatientTag::markerExistsRule($clinicId),
             'return_option' => 'nullable|in:none,15d,1m,6m,12m,custom',
             'return_date' => 'nullable|date',
             'return_reason' => 'nullable|string|max:500',

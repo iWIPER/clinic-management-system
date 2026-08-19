@@ -13,6 +13,7 @@ use App\Models\Treatment;
 use App\Services\Documents\DocumentPdfService;
 use App\Services\Documents\DocumentPlaceholderResolver;
 use App\Services\Documents\DocumentStatusService;
+use App\Services\HtmlSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -27,7 +28,13 @@ class PatientDocumentController extends Controller
     public function store(Request $request, Patient $patient)
     {
         $validated = $request->validate([
-            'template_id'  => 'required|exists:document_templates,id',
+            // DocumentTemplate não tem ClinicScope automático (clinic_id
+            // nulo = modelo global de sistema) — precisa da mesma checagem
+            // explícita de scopeForClinic() aqui, senão um template PRIVADO
+            // de outra clínica passaria.
+            'template_id'  => ['required', \Illuminate\Validation\Rule::exists('document_templates', 'id')->where(
+                fn ($q) => $q->whereNull('clinic_id')->orWhere('clinic_id', $patient->clinic_id)
+            )],
             'treatment_id' => 'nullable|exists:treatments,id',
             'budget_id'    => 'nullable|exists:budgets,id',
         ]);
@@ -52,6 +59,12 @@ class PatientDocumentController extends Controller
             'treatment'    => $treatment,
             'budget'       => $budget,
         ]);
+
+        // content_html do modelo já é sanitizado ao salvar (DocumentTemplate::
+        // createNewVersion) — esta segunda passada é defesa em profundidade
+        // contra o caso de um placeholder (ex.: nome do paciente) conter HTML,
+        // já que resolve() concatena valores de dados sem escapar.
+        $renderedHtml = HtmlSanitizer::richText($renderedHtml);
 
         $document = Document::create([
             'clinic_id'           => $patient->clinic_id,

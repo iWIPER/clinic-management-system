@@ -22,6 +22,13 @@ class ClinicScope implements Scope
 
         if ($clinicId) {
             $builder->where($model->getTable() . '.clinic_id', $clinicId);
+            return;
         }
+
+        // Fail-closed: sem clínica ativa em sessão, nenhum registro é
+        // retornado — nunca "sem filtro" (EnsureCurrentClinic já bloqueia a
+        // requisição antes de chegar aqui na maioria dos casos; esta é a
+        // segunda camada de defesa).
+        $builder->whereRaw('1 = 0');
     }
 }

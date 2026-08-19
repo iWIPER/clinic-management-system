@@ -46,9 +46,10 @@ Route::get('/', function () {
 // Rotas autenticadas
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    // Onboarding — 'clinic' aqui só serve para desviar contas Affiliate;
-    // para usuários normais sem clínica ainda, o middleware não faz nada.
-    Route::prefix('onboarding')->name('onboarding.')->middleware('clinic')->group(function () {
+    // Onboarding — 'clinic:onboarding' desvia contas Affiliate mas tolera
+    // usuário sem clínica ainda (é o próprio onboarding quem cria a
+    // primeira); fora daqui o modo default ('strict') bloqueia o acesso.
+    Route::prefix('onboarding')->name('onboarding.')->middleware('clinic:onboarding')->group(function () {
         Route::get('/choose-role', [\App\Http\Controllers\OnboardingController::class, 'showRoleChoice'])->name('choose-role');
         Route::post('/choose-role', [\App\Http\Controllers\OnboardingController::class, 'chooseRole']);
 
@@ -465,14 +466,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 // Convite público (aceite de convite de equipe — sem auth obrigatória)
-Route::get('/convites/{token}', [\App\Http\Controllers\InviteController::class, 'show'])->name('invites.show');
-Route::post('/convites/{token}/aceitar', [\App\Http\Controllers\InviteController::class, 'accept'])->name('invites.accept');
+Route::get('/convites/{token}', [\App\Http\Controllers\InviteController::class, 'show'])
+    ->middleware('throttle:20,1')
+    ->name('invites.show');
+Route::post('/convites/{token}/aceitar', [\App\Http\Controllers\InviteController::class, 'accept'])
+    ->middleware('throttle:20,1')
+    ->name('invites.accept');
 
 // Webhooks financeiros — sem auth de sessão; validação por assinatura HMAC
 Route::post('/webhooks/financial/{provider}/{connectionId}', [
     App\Http\Controllers\FinancialWebhookController::class,
     'receive',
-])->name('financial.webhooks.receive');
+])->middleware('throttle:20,1')->name('financial.webhooks.receive');
 
 // Webhook do Stripe (Cashier) — público, autenticado por assinatura do Stripe
 Route::post('/stripe/webhook', [\App\Http\Controllers\StripeWebhookController::class, 'handleWebhook'])->name('cashier.webhook');
