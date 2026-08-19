@@ -63,7 +63,12 @@ test('health check never returns generic error on unexpected failure', function 
 test('health check is forbidden for users outside patient clinic', function () {
     ['patient' => $patient] = setupDriveUploadContext();
 
-    $outsider = User::factory()->create(['email_verified_at' => now()]);
+    // Precisa de uma clínica PRÓPRIA (diferente da do paciente), não zero
+    // clínicas — um usuário sem nenhuma clínica é barrado antes disso pelo
+    // EnsureCurrentClinic (ver ClinicIsolationTest); aqui o alvo é o
+    // abort_unless(clinics()->where('clinics.id', $patient->clinic_id)...)
+    // dentro do próprio controller.
+    ['user' => $outsider] = setupDriveUploadContext();
 
     $this->actingAs($outsider)
         ->postJson(route('patients.drive.health-check', $patient))
