@@ -32,9 +32,9 @@ class ClinicUserPivot extends Pivot
 
     // Valor sugerido pra pré-preencher o formulário de configurações quando
     // o profissional nunca mexeu no horário — só isso, não é um valor que
-    // passa a restringir ninguém sozinho (ver workingHoursConfigured() /
-    // isWithinWorkingHours() abaixo: nulo = sem restrição, mesmo espírito
-    // de working_days nulo = todos os dias ligados).
+    // passa a restringir ninguém sozinho (ver workingHoursConfigured()
+    // abaixo: nulo = sem restrição, mesmo espírito de working_days nulo =
+    // todos os dias ligados).
     public const DEFAULT_WORKING_HOURS = ['start' => '09:00', 'end' => '18:00'];
 
     /**
@@ -47,13 +47,8 @@ class ClinicUserPivot extends Pivot
         return array_merge(self::DEFAULT_WORKING_DAYS, $this->working_days ?? []);
     }
 
-    public function worksOnDate(\DateTimeInterface $date): bool
-    {
-        return (bool) $this->workingDaysResolved()[self::dayKeyFor($date)];
-    }
-
     // ISO-8601 (1=segunda..7=domingo) -> chave de DAY_KEYS. Extraído aqui
-    // pra ser reaproveitado por worksOnDate() e effectiveWorksOnDate().
+    // pra ser reaproveitado por effectiveWorksOnDate().
     public static function dayKeyFor(\DateTimeInterface $date): string
     {
         return self::DAY_KEYS[((int) $date->format('N')) - 1];
@@ -94,27 +89,10 @@ class ClinicUserPivot extends Pivot
     }
 
     /**
-     * true se $start (e o fim do atendimento, $end) couberem dentro do
-     * horário de atendimento configurado — ou se não há restrição
-     * configurada. Compara só a parte HH:MM, sem nenhuma conversão de
-     * fuso — $start/$end já chegam no horário local da aplicação (ver
-     * AppointmentController).
-     */
-    public function isWithinWorkingHours(\DateTimeInterface $start, \DateTimeInterface $end): bool
-    {
-        $hours = $this->workingHoursConfigured();
-        if ($hours === null) {
-            return true;
-        }
-
-        return $start->format('H:i') >= $hours['start'] && $end->format('H:i') <= $hours['end'];
-    }
-
-    /**
-     * Igual a worksOnDate(), mas aplicando a regra administrativa da
-     * clínica por cima quando ela for obrigatória (ver
-     * Clinic::businessHoursEnforced). A clínica só pode FECHAR um dia que o
-     * profissional teria aberto — nunca abre um dia que ele mesmo fechou.
+     * Aplica workingDaysResolved() e, por cima, a regra administrativa da
+     * clínica quando ela for obrigatória (ver Clinic::businessHoursEnforced).
+     * A clínica só pode FECHAR um dia que o profissional teria aberto —
+     * nunca abre um dia que ele mesmo fechou.
      */
     public function effectiveWorkingDayEnabled(?Clinic $clinic, string $dayKey): bool
     {

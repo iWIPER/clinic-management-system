@@ -9,6 +9,7 @@ use App\Services\PatientStatusService;
 use App\Services\TreatmentCatalogService;
 use App\Services\TreatmentStatsService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class TreatmentController extends Controller
@@ -115,11 +116,13 @@ class TreatmentController extends Controller
 
     public function store(Request $request, TreatmentCatalogService $treatmentCatalogService)
     {
+        $clinicId = session('current_clinic_id');
+
         $validated = $request->validate([
             'nome'              => 'required|string|max:255',
             'categoria'         => 'nullable|string|max:100',
             'tipo'              => 'nullable|string|in:procedimento,variacao,grupo',
-            'parent_id'         => 'nullable|exists:treatments,id',
+            'parent_id'         => ['nullable', Rule::exists('treatments', 'id')->where('clinic_id', $clinicId)],
             'especialidade'     => 'nullable|string|max:100',
             'duracao_padrao'    => 'nullable|integer|min:0',
             'inatividade_meses' => 'nullable|integer|min:1|max:120',
@@ -165,7 +168,7 @@ class TreatmentController extends Controller
             'nome'              => 'required|string|max:255',
             'categoria'         => 'nullable|string|max:100',
             'tipo'              => 'nullable|string|in:procedimento,variacao,grupo',
-            'parent_id'         => 'nullable|exists:treatments,id',
+            'parent_id'         => ['nullable', Rule::exists('treatments', 'id')->where('clinic_id', $treatment->clinic_id)],
             'especialidade'     => 'nullable|string|max:100',
             'duracao_padrao'    => 'nullable|integer|min:0',
             'inatividade_meses' => 'nullable|integer|min:1|max:120',

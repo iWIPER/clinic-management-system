@@ -100,11 +100,6 @@ class PatientTreatment extends Model
         return $query->where('status', $status);
     }
 
-    public function scopeForTooth(Builder $query, string $tooth): Builder
-    {
-        return $query->where('tooth', $tooth);
-    }
-
     /**
      * Mapa dente (FDI) → tratamentos ativos, no formato consumido pelo
      * overlay do odontograma (cor/badge em `OdontogramChart.vue::visualStatus()`)

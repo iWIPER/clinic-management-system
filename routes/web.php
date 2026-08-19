@@ -446,7 +446,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/patients/{patient}/photos/{photo}', [App\Http\Controllers\GoogleDriveController::class, 'deletePhoto'])->name('patients.photos.delete');
         Route::post('/drive/confirm-disclaimer', [App\Http\Controllers\GoogleDriveController::class, 'confirmDisclaimer'])->name('drive.confirm-disclaimer');
         Route::post('/patients/{patient}/drive/health-check', [App\Http\Controllers\GoogleDriveController::class, 'healthCheck'])->name('patients.drive.health-check');
-        Route::post('/patients/{patient}/drive/verify', [App\Http\Controllers\GoogleDriveController::class, 'healthCheck'])->name('patients.drive.verify');
         Route::post('/patients/{patient}/drive/recover', [App\Http\Controllers\GoogleDriveController::class, 'recoverStructure'])->name('patients.drive.recover');
 
         // Checkout — assinatura paga via Stripe (Cashier)

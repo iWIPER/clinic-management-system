@@ -88,16 +88,23 @@ test('referral dashboard is accessible for authenticated clinic user', function 
     $response->assertOk();
 });
 
-test('super admin can access backoffice', function () {
-    $admin = User::factory()->create(['email' => 'lellis.joseanesl@gmail.com']);
+// Fase System Admin/Backoffice — o e-mail hardcoded (SuperAdmin::EMAIL) foi
+// substituído pela tabela system_admins (múltiplos administradores, sem
+// nenhum e-mail privilegiado por si só). Cobertura completa da matriz de
+// acesso (owner/admin/professional/staff/etc.) vive em
+// tests/Feature/Admin/SystemAdminAccessTest.php — aqui só a checagem
+// mínima de que o programa de indicações não quebrou essa integração.
+test('a system admin can access backoffice', function () {
+    $admin = User::factory()->create(['email_verified_at' => now()]);
+    \App\Models\SystemAdmin::create(['user_id' => $admin->id, 'granted_at' => now()]);
 
     $response = $this->actingAs($admin)->get(route('admin.index'));
 
     $response->assertOk();
 });
 
-test('non super admin cannot access backoffice', function () {
-    $user = User::factory()->create(['email' => 'other@example.com']);
+test('a user without the system admin privilege cannot access backoffice', function () {
+    $user = User::factory()->create(['email' => 'other@example.com', 'email_verified_at' => now()]);
 
     $response = $this->actingAs($user)->get(route('admin.index'));
 

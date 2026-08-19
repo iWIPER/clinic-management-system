@@ -49,7 +49,8 @@ const CATEGORY_META = {
     },
 }
 
-export const CATEGORY_ORDER = Object.keys(CATEGORY_META)
+// Não exportado — só usado internamente por sortCategories() abaixo.
+const CATEGORY_ORDER = Object.keys(CATEGORY_META)
 
 export function categoryMeta(name) {
     const key = (name || 'GERAL').toUpperCase()
@@ -78,17 +79,4 @@ export function sortCategories(categories) {
         const bi = order.indexOf(b.name?.toUpperCase?.() ?? '')
         return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
     })
-}
-
-export function groupQuestionsByCategory(questions) {
-    const groups = {}
-    for (const q of questions) {
-        const cat = q.category || 'GERAL'
-        if (!groups[cat]) groups[cat] = []
-        groups[cat].push(q)
-    }
-
-    return sortCategories(
-        Object.entries(groups).map(([name, items]) => ({ name, questions: items }))
-    )
 }

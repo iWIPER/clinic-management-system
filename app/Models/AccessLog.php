@@ -57,6 +57,13 @@ class AccessLog extends Model
     const ACTION_ADMIN_PLAN_UPDATED          = 'admin_plan_updated';
     const ACTION_ADMIN_CLINIC_BLOCKED        = 'admin_clinic_blocked';
     const ACTION_ADMIN_CLINIC_UNBLOCKED      = 'admin_clinic_unblocked';
+    const ACTION_SYSTEM_ADMIN_GRANTED        = 'system_admin_granted';
+    const ACTION_SYSTEM_ADMIN_REVOKED        = 'system_admin_revoked';
+    const ACTION_ADMIN_USER_BLOCKED          = 'admin_user_blocked';
+    const ACTION_ADMIN_USER_UNBLOCKED        = 'admin_user_unblocked';
+    const ACTION_ADMIN_USER_ANONYMIZED       = 'admin_user_anonymized';
+    const ACTION_ADMIN_USER_DELETED          = 'admin_user_deleted';
+    const ACTION_ADMIN_EXPORT_DOWNLOADED     = 'admin_export_downloaded';
 
     // Labels em PT-BR
     const LABELS = [
@@ -96,6 +103,13 @@ class AccessLog extends Model
         'admin_plan_updated'                => 'Plano atualizado',
         'admin_clinic_blocked'              => 'Clínica bloqueada',
         'admin_clinic_unblocked'            => 'Clínica desbloqueada',
+        'system_admin_granted'              => 'System Admin concedido',
+        'system_admin_revoked'              => 'System Admin removido',
+        'admin_user_blocked'                => 'Usuário bloqueado',
+        'admin_user_unblocked'              => 'Usuário desbloqueado',
+        'admin_user_anonymized'             => 'Conta de usuário anonimizada',
+        'admin_user_deleted'                => 'Conta de usuário excluída',
+        'admin_export_downloaded'           => 'Exportação administrativa',
     ];
 
     // ── Relações ───────────────────────────────────────────────────────────
