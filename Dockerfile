@@ -20,15 +20,37 @@ RUN composer dump-autoload --optimize --no-dev --classmap-authoritative
 FROM node:20-alpine AS assets
 WORKDIR /app
 COPY package.json package-lock.json ./
+# Copiado aqui, antes do npm ci, de proposito: forca o BuildKit a esperar o
+# estagio vendor terminar antes de comecar a instalar pacotes npm (ver
+# comentario equivalente no estagio runtime, mesma razao). O conteudo em si
+# so e usado mais abaixo, mas a dependencia de build precisa comecar aqui
+# pra impedir vendor/assets de competirem por CPU/RAM em paralelo.
+COPY --from=vendor /app/vendor/tightenco/ziggy ./vendor/tightenco/ziggy
 RUN npm ci
 COPY . .
-COPY --from=vendor /app/vendor/tightenco/ziggy ./vendor/tightenco/ziggy
 RUN npm run build
 
 ########################################
 # Stage 3: runtime image (php-fpm + nginx)
 ########################################
 FROM php:8.3-fpm-alpine AS runtime
+
+WORKDIR /var/www/html
+
+# Copiado aqui, antes do apk add/gcc pesado abaixo, de proposito: forca o
+# BuildKit a esperar os estagios vendor e assets terminarem antes de comecar
+# a compilar extensoes PHP, completando a cadeia vendor -> assets -> runtime.
+# Sem essa dependencia explicita, os tres estagios rodam em paralelo por
+# padrao, competindo por CPU/RAM. Achado real (nao hipotetico): com o Docker
+# Desktop local em 4 CPU/3.77GB, essa contencao (gcc compilando extensoes
+# PHP ao mesmo tempo que npm baixa/extrai pacotes) dispara de forma
+# intermitente um bug conhecido do npm ("Exit handler never called!") que
+# deixa node_modules incompleto sem quebrar o layer (vite ausente depois).
+# Comportamento final da imagem e identico — so a ORDEM de build muda; o
+# .dockerignore ja exclui vendor/ e public/build do COPY . . mais abaixo,
+# entao nao ha conflito de sobrescrita entre essas copias e aquela.
+COPY --from=vendor --chown=www-data:www-data /app/vendor ./vendor
+COPY --from=assets --chown=www-data:www-data /app/public/build ./public/build
 
 RUN apk add --no-cache \
         nginx \
@@ -62,8 +84,6 @@ RUN apk add --no-cache \
     && apk del .build-deps \
     && rm -rf /var/cache/apk/* /tmp/*
 
-WORKDIR /var/www/html
-
 COPY docker/php.ini /usr/local/etc/php/conf.d/zz-app.ini
 COPY docker/php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
 COPY docker/nginx.conf /etc/nginx/nginx.conf
@@ -72,8 +92,6 @@ COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 COPY --chown=www-data:www-data . .
-COPY --from=vendor --chown=www-data:www-data /app/vendor ./vendor
-COPY --from=assets --chown=www-data:www-data /app/public/build ./public/build
 
 RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache \
