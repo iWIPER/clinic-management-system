@@ -23,16 +23,28 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
                 'isSystemAdmin' => fn () => (bool) $request->user()?->isSystemAdmin(),
                 'isAffiliate' => fn () => (bool) $request->user()?->isAffiliate(),
-                // Só usado pelo Backoffice pra decidir se mostra "Acessar
-                // clínica" (ver Topbar.vue mode="admin") — indica que a
-                // conta tem um vínculo clínico real pra entrar, não que
-                // esteja "dentro" dele agora (isso é currentClinic).
-                'hasClinicAccess' => fn () => (bool) $request->user()?->clinics()->exists(),
+                // Clínicas onde o próprio System Admin é membro real
+                // (clinic_user) — só essas podem virar "Entrar na clínica"
+                // no Backoffice (ver Admin\ClinicController::enter()).
+                // Vazio pra quem não é System Admin, sem custo extra de
+                // query pro caso comum.
+                'myClinics' => function () use ($request) {
+                    $user = $request->user();
+
+                    if (! $user?->isSystemAdmin()) {
+                        return [];
+                    }
+
+                    return $user->clinics()
+                        ->select('clinics.id', 'clinics.name')
+                        ->get()
+                        ->map(fn ($clinic) => ['id' => $clinic->id, 'name' => $clinic->name]);
+                },
                 // Aviso de acesso privilegiado ao /admin (puramente informativo,
-                // nunca autorização) — sessão do Laravel porque precisa
-                // reaparecer numa sessão de login nova e não reaparecer só por
-                // causa de navegação/refresh dentro do mesmo login.
-                'hasAcknowledgedAdminAccess' => fn () => (bool) $request->session()->get('admin_access_acknowledged'),
+                // nunca autorização) — persistido em users.preferences (não
+                // sessão/localStorage) porque deve aparecer só uma vez por
+                // usuário, nunca de novo em logout/login ou sessão nova.
+                'hasAcknowledgedAdminAccess' => fn () => (bool) ($request->user()?->preferences['admin_notice_acknowledged_at'] ?? null),
             ],
             'flash' => [
                 'success'                    => fn () => $request->session()->get('success'),

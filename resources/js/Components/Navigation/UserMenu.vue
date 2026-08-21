@@ -6,10 +6,10 @@ import NavbarDropdown from '@/Components/Navbar/NavbarDropdown.vue'
 import NavbarDropdownItem from '@/Components/Navbar/NavbarDropdownItem.vue'
 
 // mode="clinic" (usado pela TopIsland): Meu perfil, Logs de acesso,
-// Voltar ao Backoffice (se system admin em visita explícita à clínica,
-// ver EnsureCurrentClinic), Sair.
-// mode="admin" (usado pela Topbar do Backoffice): Meu perfil, Sair — sem
-// esse item (redundante, já se está no Backoffice) nem Logs.
+// Voltar ao Backoffice (só quando é um System Admin em visita explícita à
+// clínica, ver EnsureCurrentClinic/Admin\ClinicController::enter()), Sair.
+// mode="admin" (usado pela AdminTopIsland do Backoffice): Meu perfil,
+// Sair — sem esses itens (específicos do shell clínico).
 const props = defineProps({
     mode: { type: String, default: 'clinic', validator: (v) => ['clinic', 'admin'].includes(v) },
 })

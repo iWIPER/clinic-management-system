@@ -193,46 +193,20 @@ class DashboardController extends Controller
     }
 
     /**
-     * Marca que o admin já viu o aviso de acesso privilegiado nesta sessão
-     * de login — puramente informativo (ver HandleInertiaRequests). Nunca
-     * usado por nenhuma checagem de autorização.
+     * Marca que o admin já viu o aviso de acesso privilegiado — persistido
+     * no usuário (não na sessão), pra nunca reaparecer de novo depois de
+     * reconhecido uma vez, em nenhum login futuro. Puramente informativo
+     * (ver HandleInertiaRequests); nunca usado por nenhuma checagem de
+     * autorização.
      */
     public function acknowledgeAccess(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
     {
-        $request->session()->put('admin_access_acknowledged', true);
+        $user = $request->user();
+        $user->forceFill([
+            'preferences' => [...($user->preferences ?? []), 'admin_notice_acknowledged_at' => now()->toIso8601String()],
+        ])->save();
 
         return response()->json(['ok' => true]);
-    }
-
-    /**
-     * Entrada EXPLÍCITA no contexto de clínica — só assim um System Admin
-     * ganha acesso às rotas clínicas (ver EnsureCurrentClinic). Usa a
-     * própria clínica a que o usuário já pertence de verdade (clinic_user
-     * real) — nunca fabrica acesso a uma clínica arbitrária.
-     */
-    public function enterClinicContext(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
-    {
-        $clinic = $request->user()->clinics()->first();
-
-        abort_unless($clinic, 404, 'Esta conta não possui vínculo com nenhuma clínica.');
-
-        $request->session()->put('admin_clinic_context', true);
-        $request->session()->put('current_clinic_id', $clinic->id);
-        $request->session()->put('current_clinic', $clinic->toSessionPayload());
-
-        return redirect()->route('dashboard');
-    }
-
-    /**
-     * Sai do contexto de clínica de volta pro Backoffice — encerra só a
-     * "visita" desta sessão (flag + clínica ativa), nunca o vínculo real
-     * do usuário com a clínica (clinic_user continua intacto).
-     */
-    public function exitClinicContext(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
-    {
-        $request->session()->forget(['admin_clinic_context', 'current_clinic_id', 'current_clinic']);
-
-        return redirect()->route('admin.index');
     }
 
     public function updateSettings(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse

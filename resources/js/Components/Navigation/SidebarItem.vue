@@ -24,6 +24,11 @@ const page = usePage()
 const isActive = computed(() => {
     if (!props.match) return false
     const url = page.url.split('?')[0]
+    // Sufixo '$' força igualdade exata em vez de prefixo — precisa pro
+    // Dashboard do Backoffice ('/admin'), que senão ficaria sempre ativo
+    // junto com qualquer outra rota /admin/* (todas começam com o mesmo
+    // prefixo). Nenhum item da sidebar clínica usa esse sufixo hoje.
+    if (props.match.endsWith('$')) return url === props.match.slice(0, -1)
     return url.startsWith(props.match)
 })
 </script>

@@ -72,6 +72,20 @@ test('a normal user cannot approve or reject payments', function () {
     $this->actingAs($normal)->postJson(route('admin.payments.reject', $payment->id))->assertForbidden();
 });
 
+test('the plans index page loads and lists each plan feature label', function () {
+    ['admin' => $admin] = setupBillingAdminContext();
+    $plan = Plan::first();
+    $plan->features()->create(['feature_key' => 'agendamento', 'feature_label' => 'Agendamento', 'included' => true, 'sort_order' => 1]);
+
+    $this->actingAs($admin)->get(route('admin.plans'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Admin/Plans/Index')
+            ->where('plans.0.features.0.label', 'Agendamento')
+            ->where('plans.0.features.0.included', true)
+        );
+});
+
 test('plan update preserves existing behavior and is audited', function () {
     ['admin' => $admin] = setupBillingAdminContext();
     $plan = Plan::first();

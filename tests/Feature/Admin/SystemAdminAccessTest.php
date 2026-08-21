@@ -91,7 +91,7 @@ test('system admin access does not depend on current_clinic_id — works with ze
         ->assertOk();
 });
 
-test('a system admin who also belongs to a clinic keeps access even with a stale/foreign current_clinic_id in session', function () {
+test('system admin access is not affected by a stale/foreign current_clinic_id planted in session', function () {
     ['clinic' => $clinic] = setupAdminAccessContext();
     $admin = User::factory()->create(['email_verified_at' => now()]);
     SystemAdmin::create(['user_id' => $admin->id, 'granted_at' => now()]);

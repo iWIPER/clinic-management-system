@@ -34,13 +34,12 @@ class EnsureCurrentClinic
 
         // System Admin nunca entra automaticamente no contexto de clínica,
         // mesmo tendo vínculo real com uma — só mediante ação explícita
-        // ("Acessar clínica" no Backoffice, ver
-        // Admin\DashboardController::enterClinicContext). Sem isso, um
-        // acesso direto por URL a qualquer rota clínica volta pro
-        // Backoffice em vez de misturar os dois contextos. 'onboarding'
-        // não é afetado — um System Admin nunca passa por onboarding de
-        // verdade (já tem clínica e privilégio concedidos antes).
-        if ($mode === 'strict' && $user->isSystemAdmin() && ! session('admin_clinic_context')) {
+        // ("Entrar na clínica" no Backoffice, ver
+        // Admin\ClinicController::enter()). Sem o flag admin_clinic_context
+        // na sessão, qualquer rota clínica (inclusive onboarding — System
+        // Admin nunca deveria ver as perguntas de configuração inicial)
+        // volta pro Backoffice em vez de misturar os dois contextos.
+        if ($user->isSystemAdmin() && !session('admin_clinic_context')) {
             return redirect()->route('admin.index');
         }
 
@@ -55,13 +54,11 @@ class EnsureCurrentClinic
             $clinicId = null;
         }
 
-        // Auto-pick nunca roda pra System Admin, nem sob mode 'onboarding'
-        // (o gate lá em cima já cobre 'strict', mas 'onboarding' chega até
-        // aqui sem passar por ele) — sem isso, um System Admin visitando
-        // /onboarding/* por URL ganharia current_clinic_id/current_clinic
-        // na sessão silenciosamente, fora do fluxo explícito
-        // "Acessar clínica". Continua tolerando a rota de onboarding em
-        // si (não bloqueia o acesso), só nunca seleciona clínica sozinho.
+        // Auto-pick nunca roda pra System Admin, mesmo em contexto de
+        // clínica explicitamente aberto (admin_clinic_context) — a única
+        // forma de um System Admin ganhar current_clinic_id é a ação
+        // explícita em Admin\ClinicController::enter(), nunca um fallback
+        // automático aqui.
         if (!$clinicId && !$user->isSystemAdmin()) {
             // Tenta pegar a primeira clínica do usuário
             $firstClinic = $user->clinics()->first();

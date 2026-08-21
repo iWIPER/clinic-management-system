@@ -1,50 +1,55 @@
 <?php
 
+use App\Models\AccessLog;
 use App\Models\Clinic;
 use App\Models\Patient;
 use App\Models\Plan;
 use App\Models\SystemAdmin;
 use App\Models\User;
 
-// Fase "Separação de contexto System Admin x Clínica" — antes desta fase,
-// login sempre montava a sessão de clínica e mandava pro /dashboard, mesmo
-// pra quem também é System Admin (AuthenticatedSessionController::store()
-// nunca checava isSystemAdmin()). Como o usuário já tinha vínculo real com
-// uma clínica, EnsureCurrentClinic deixava passar normalmente — o
-// resultado era entrar direto no shell clínico (sidebar completa) tendo
-// que navegar manualmente até o Backoffice depois. As rotas /admin/* já
-// eram corretamente protegidas só por 'system-admin' (não dependiam de
-// clinic middleware) — o problema real era o destino padrão pós-login e a
-// ausência de um gate explícito nas rotas clínicas.
+// Fase "Separação de contexto System Admin x Clínica" — a regra é: login
+// de System Admin sempre vai pro Backoffice, current_clinic_id nunca é
+// setado automaticamente (login, onboarding, auto-pick), mesmo quando o
+// admin tem vínculo real com uma clínica. Isso não significa que ele nunca
+// possa acessar uma clínica: um System Admin que também é membro real
+// (clinic_user) de uma clínica pode ENTRAR nela explicitamente
+// (Admin\ClinicController::enter()) — nunca automaticamente, nunca numa
+// clínica da qual não é membro. Ver EnsureCurrentClinic pro gate.
 
-function setupContextTestClinic(string $suffix = ''): array
+function setupContextTestClinic(string $suffix = '', string $status = 'active'): array
 {
     $plan = Plan::create([
         'name' => 'Test Plan', 'slug' => 'test-plan-ctx' . $suffix . '-' . uniqid(), 'is_free' => true,
         'price_monthly_cents' => 0, 'price_yearly_cents' => 0,
-        'max_clinics' => 1, 'max_patients' => 100, 'max_users' => 5, 'storage_gb' => 1, 'features' => [],
+        'max_clinics' => 1, 'max_patients' => 100, 'max_users' => 5, 'storage_gb' => 1,
     ]);
     $clinic = Clinic::create([
         'name' => 'Clínica Contexto' . $suffix, 'slug' => 'clinica-contexto' . $suffix . '-' . uniqid(),
-        'type' => 'odontologia', 'status' => 'active', 'plan_id' => $plan->id,
+        'type' => 'odontologia', 'status' => $status, 'plan_id' => $plan->id,
     ]);
 
     return compact('plan', 'clinic');
 }
 
-function makeSystemAdminWithClinic(): array
+// makeSystemAdmin() já existe globalmente (Pest compartilha funções entre
+// arquivos de teste) — ver tests/Feature/Admin/SystemAdminManagementTest.php.
+
+// System Admin com vínculo REAL em clinic_user — cenário central desta
+// fase: o vínculo existe de verdade, mas só vira contexto ativo mediante
+// entrada explícita.
+function makeSystemAdminWithClinic(string $suffix = '', string $role = 'owner'): array
 {
-    ['clinic' => $clinic] = setupContextTestClinic('-sa');
+    ['clinic' => $clinic, 'plan' => $plan] = setupContextTestClinic($suffix);
     $admin = User::factory()->create(['email_verified_at' => now(), 'job_title' => 'Dentista']);
-    $clinic->users()->attach($admin->id, ['role' => 'owner']);
+    $clinic->users()->attach($admin->id, ['role' => $role]);
     SystemAdmin::create(['user_id' => $admin->id, 'granted_at' => now()]);
 
-    return compact('admin', 'clinic');
+    return compact('admin', 'clinic', 'plan');
 }
 
-// 1/3. System Admin entra no Backoffice ao logar (não no /dashboard).
-test('logging in as a system admin redirects to the backoffice, not the clinic dashboard', function () {
-    ['admin' => $admin] = makeSystemAdminWithClinic();
+// 1. System Admin sem clínica nenhuma entra no Backoffice ao logar.
+test('logging in as a system admin with no clinic redirects to the backoffice, not the clinic dashboard', function () {
+    $admin = makeSystemAdmin();
 
     $response = $this->post('/login', ['email' => $admin->email, 'password' => 'password']);
 
@@ -52,11 +57,21 @@ test('logging in as a system admin redirects to the backoffice, not the clinic d
     expect(session('current_clinic_id'))->toBeNull();
 });
 
-// 2. Sidebar clínica não aparece no Backoffice — proxy no backend:
-// currentClinic (prop que dirige a UI clínica) vem nulo enquanto não há
-// entrada explícita, mesmo o admin tendo clínica de verdade.
-test('the backoffice page never carries a currentClinic prop for a system admin who has not explicitly entered a clinic', function () {
-    ['admin' => $admin] = makeSystemAdminWithClinic();
+// 2. System Admin COM vínculo real também vai pro Backoffice — a clínica
+// nunca é selecionada sozinha, nem tendo pra onde ir.
+test('logging in as a system admin who is also a real clinic member still redirects to the backoffice and never auto-selects the clinic', function () {
+    ['admin' => $admin] = makeSystemAdminWithClinic('-login-member');
+
+    $response = $this->post('/login', ['email' => $admin->email, 'password' => 'password']);
+
+    $response->assertRedirect(route('admin.index'));
+    expect(session('current_clinic_id'))->toBeNull();
+    expect(session('current_clinic'))->toBeNull();
+});
+
+// 3. currentClinic nunca vem populado no Backoffice, mesmo com vínculo real.
+test('the backoffice page never carries a currentClinic prop for a system admin, even one with clinic membership', function () {
+    ['admin' => $admin] = makeSystemAdminWithClinic('-props');
 
     $response = $this->actingAs($admin)->get(route('admin.index'));
 
@@ -65,6 +80,26 @@ test('the backoffice page never carries a currentClinic prop for a system admin 
         ->component('Admin/Index')
         ->where('currentClinic', null)
     );
+});
+
+// 3b. System Admin consegue listar as clínicas às quais realmente
+// pertence (auth.myClinics) — vazio sem vínculo, preenchido com vínculo,
+// nunca inclui clínicas de terceiros.
+test('a system admin can list the clinics they are a real member of via auth.myClinics', function () {
+    $adminNoClinic = makeSystemAdmin();
+
+    $this->actingAs($adminNoClinic)->get(route('admin.index'))
+        ->assertInertia(fn ($page) => $page->where('auth.myClinics', []));
+
+    ['admin' => $adminWithClinic, 'clinic' => $clinic] = makeSystemAdminWithClinic('-mylist');
+    setupContextTestClinic('-mylist-other'); // clínica de terceiro, não deve aparecer
+
+    $this->actingAs($adminWithClinic)->get(route('admin.index'))
+        ->assertInertia(fn ($page) => $page
+            ->has('auth.myClinics', 1)
+            ->where('auth.myClinics.0.id', $clinic->id)
+            ->where('auth.myClinics.0.name', $clinic->name)
+        );
 });
 
 // 4. Usuário normal (não System Admin) continua entrando no contexto clínico.
@@ -79,146 +114,62 @@ test('logging in as a regular clinic user still redirects to the clinic dashboar
     expect(session('current_clinic_id'))->toBe($clinic->id);
 });
 
-// A System Admin sem nenhum vínculo de clínica também vai pro Backoffice
-// (não quebra o fluxo já coberto por SystemAdminAccessTest.php).
-test('logging in as a system admin with no clinic at all still redirects to the backoffice', function () {
-    $admin = User::factory()->create(['email_verified_at' => now()]);
-    SystemAdmin::create(['user_id' => $admin->id, 'granted_at' => now()]);
-
-    $response = $this->post('/login', ['email' => $admin->email, 'password' => 'password']);
-
-    $response->assertRedirect(route('admin.index'));
-});
-
-// System Admin tentando acessar uma rota clínica direto por URL, sem
-// nunca ter passado por "Acessar clínica", é mandado de volta pro
-// Backoffice — não é só esconder a sidebar, é um gate real de middleware.
-test('a system admin hitting a clinic route directly by URL, without explicit access, is redirected to the backoffice', function () {
-    ['admin' => $admin] = makeSystemAdminWithClinic();
+// 5. Acessar rota clínica direto por URL, sem ter entrado explicitamente,
+// ainda volta pro Backoffice — mesmo tendo vínculo real com a clínica.
+test('a system admin hitting a clinic route directly by URL without entering explicitly is redirected to the backoffice', function () {
+    ['admin' => $admin] = makeSystemAdminWithClinic('-directurl');
 
     $this->actingAs($admin)
         ->get(route('patients.index'))
         ->assertRedirect(route('admin.index'));
-});
 
-// 5. System Admin com clínica continua tendo o vínculo real — nada nesta
-// fase mexe em clinic_user.
-test('a system admin who owns a clinic keeps that real clinic membership untouched throughout', function () {
-    ['admin' => $admin, 'clinic' => $clinic] = makeSystemAdminWithClinic();
-
-    $this->actingAs($admin)->post(route('admin.enter-clinic'));
-    $this->actingAs($admin)->post(route('admin.exit-clinic'));
-
-    expect($admin->clinics()->where('clinics.id', $clinic->id)->exists())->toBeTrue();
-    expect($admin->fresh()->clinics()->wherePivot('role', 'owner')->where('clinics.id', $clinic->id)->exists())->toBeTrue();
-});
-
-// 6. Acesso explícito à clínica funciona: "Acessar clínica" monta a
-// sessão de clínica e libera as rotas clínicas de verdade.
-test('explicitly entering the clinic context via "Acessar clínica" grants access to clinic routes', function () {
-    ['admin' => $admin, 'clinic' => $clinic] = makeSystemAdminWithClinic();
-
-    $this->actingAs($admin)
-        ->post(route('admin.enter-clinic'))
-        ->assertRedirect(route('dashboard'));
-
-    expect(session('admin_clinic_context'))->toBeTrue();
-    expect(session('current_clinic_id'))->toBe($clinic->id);
-
-    $this->actingAs($admin)
-        ->get(route('patients.index'))
-        ->assertOk();
-});
-
-// Sem nenhuma clínica vinculada, "Acessar clínica" não fabrica acesso a
-// nenhuma clínica arbitrária — 404 explícito.
-test('"Acessar clínica" fails clearly for a system admin with no clinic membership at all', function () {
-    $admin = User::factory()->create(['email_verified_at' => now()]);
-    SystemAdmin::create(['user_id' => $admin->id, 'granted_at' => now()]);
-
-    $this->actingAs($admin)->post(route('admin.enter-clinic'))->assertNotFound();
-});
-
-// 7. "Voltar ao Backoffice" funciona: limpa a sessão de clínica e o flag,
-// e uma rota clínica volta a exigir acesso explícito depois disso.
-test('"Voltar ao Backoffice" clears the clinic session and blocks clinic routes again until re-entered', function () {
-    ['admin' => $admin] = makeSystemAdminWithClinic();
-
-    $this->actingAs($admin)->post(route('admin.enter-clinic'));
-
-    $this->actingAs($admin)
-        ->post(route('admin.exit-clinic'))
-        ->assertRedirect(route('admin.index'));
-
-    expect(session('admin_clinic_context'))->toBeNull();
     expect(session('current_clinic_id'))->toBeNull();
+});
+
+// 6. /dashboard direto também vai pro Backoffice sem entrada explícita.
+test('a system admin cannot reach /dashboard directly without entering explicitly first', function () {
+    $admin = makeSystemAdmin();
 
     $this->actingAs($admin)
-        ->get(route('patients.index'))
+        ->get(route('dashboard'))
         ->assertRedirect(route('admin.index'));
 });
 
-// 8. /admin continua protegido contra usuário normal — regressão rápida
-// (cobertura completa já existe em Admin/SystemAdminAccessTest.php).
-test('a regular user still cannot reach the backoffice nor the clinic-context switch endpoints', function () {
+// 7. Nenhuma rota de onboarding clínico fica acessível por URL direta.
+test('a system admin is redirected to the backoffice from every clinic onboarding route, even by direct URL', function (string $routeName) {
+    $admin = makeSystemAdmin();
+
+    $this->actingAs($admin)
+        ->get(route($routeName))
+        ->assertRedirect(route('admin.index'));
+})->with([
+    'onboarding.choose-role',
+    'onboarding.create-clinic',
+    'onboarding.complete',
+    'onboarding.invite-team',
+    'onboarding.join-invite',
+]);
+
+// 8. Visitar onboarding por URL direta não planta current_clinic_id sozinho.
+test('a system admin never gets current_clinic_id in session just from visiting onboarding routes', function () {
+    $admin = makeSystemAdmin();
+
+    $this->actingAs($admin)->get(route('onboarding.create-clinic'));
+
+    expect(session('current_clinic_id'))->toBeNull();
+    expect(session('current_clinic'))->toBeNull();
+});
+
+// 9. /admin continua protegido contra usuário normal.
+test('a regular user cannot reach the backoffice', function () {
     ['clinic' => $clinic] = setupContextTestClinic('-reg');
     $user = User::factory()->create(['email_verified_at' => now(), 'job_title' => 'Dentista']);
     $clinic->users()->attach($user->id, ['role' => 'owner']);
 
     $this->actingAs($user)->get(route('admin.index'))->assertForbidden();
-    $this->actingAs($user)->post(route('admin.enter-clinic'))->assertForbidden();
-    $this->actingAs($user)->post(route('admin.exit-clinic'))->assertForbidden();
 });
 
-// 9. Tenant isolation permanece intacto: um System Admin em visita
-// explícita à Clínica A continua sem enxergar dados da Clínica B — o
-// acesso explícito não vira acesso cross-tenant irrestrito.
-test('a system admin who explicitly entered clinic A still cannot see a patient belonging to clinic B', function () {
-    ['admin' => $admin] = makeSystemAdminWithClinic();
-    ['clinic' => $clinicB] = setupContextTestClinic('-other');
-
-    $patientB = Patient::create([
-        'clinic_id' => $clinicB->id, 'nome' => 'Paciente', 'sobrenome' => 'DaClinicaB', 'status' => 'ativo',
-    ]);
-
-    $this->actingAs($admin)->post(route('admin.enter-clinic'));
-
-    $this->actingAs($admin)
-        ->get(route('patients.show', $patientB))
-        ->assertStatus(404);
-});
-
-// Gap encontrado na auditoria: o gate de EnsureCurrentClinic só cobria
-// mode 'strict' — rotas 'clinic:onboarding' passavam direto pro bloco de
-// auto-pick (incondicional a mode), gravando current_clinic_id/
-// current_clinic na sessão de um System Admin só por ele visitar
-// /onboarding/* por URL, sem nenhuma ação explícita. Corrigido: o
-// auto-pick agora nunca roda pra System Admin, em nenhum mode.
-test('visiting an onboarding-mode route never auto-picks a clinic into session for a system admin, even with a real clinic membership', function () {
-    ['admin' => $admin, 'clinic' => $clinic] = makeSystemAdminWithClinic();
-
-    $response = $this->actingAs($admin)->get(route('onboarding.choose-role'));
-
-    // A rota de onboarding em si continua acessível (não é bloqueada) —
-    // só não pode selecionar clínica sozinha.
-    $response->assertOk();
-
-    expect(session('current_clinic_id'))->toBeNull();
-    expect(session('current_clinic'))->toBeNull();
-    expect(session('admin_clinic_context'))->toBeNull();
-
-    // O fluxo explícito continua funcionando normalmente depois disso —
-    // a visita ao onboarding não deixou nenhum estado que atrapalhe.
-    $this->actingAs($admin)
-        ->post(route('admin.enter-clinic'))
-        ->assertRedirect(route('dashboard'));
-
-    expect(session('current_clinic_id'))->toBe($clinic->id);
-    expect(session('admin_clinic_context'))->toBeTrue();
-});
-
-// Usuário normal continua com o comportamento de sempre no onboarding —
-// o auto-pick para ele é exatamente o mesmo de antes desta correção.
+// 10. Usuário normal continua com o auto-pick de sempre no onboarding.
 test('a regular user visiting an onboarding-mode route keeps auto-picking their clinic into session as before', function () {
     ['clinic' => $clinic] = setupContextTestClinic('-onboard-normal');
     $user = User::factory()->create(['email_verified_at' => now(), 'job_title' => 'Dentista']);
@@ -231,4 +182,218 @@ test('a regular user visiting an onboarding-mode route keeps auto-picking their 
     $response->assertOk();
     expect(session('current_clinic_id'))->toBe($clinic->id);
     expect(session('current_clinic'))->not->toBeNull();
+});
+
+// 11. Entrada explícita: System Admin membro real consegue entrar, e
+// current_clinic_id/current_clinic ficam corretos.
+test('a system admin who is a real member of a clinic can enter it explicitly and current_clinic_id becomes correct', function () {
+    ['admin' => $admin, 'clinic' => $clinic] = makeSystemAdminWithClinic('-enter');
+
+    $response = $this->actingAs($admin)->post(route('admin.clinics.enter', $clinic));
+
+    $response->assertRedirect(route('dashboard'));
+    expect(session('admin_clinic_context'))->toBeTrue();
+    expect(session('current_clinic_id'))->toBe($clinic->id);
+    expect(session('current_clinic'))->not->toBeNull();
+});
+
+// 12. Depois de entrar, as rotas clínicas funcionam normalmente dentro
+// desse contexto.
+test('clinic routes work normally after a system admin has explicitly entered that clinic context', function () {
+    ['admin' => $admin, 'clinic' => $clinic] = makeSystemAdminWithClinic('-workroutes');
+
+    $this->actingAs($admin)->post(route('admin.clinics.enter', $clinic));
+
+    $this->actingAs($admin)->get(route('dashboard'))->assertOk();
+    $this->actingAs($admin)->get(route('patients.index'))->assertOk();
+});
+
+// 13. Sem clínica nenhuma vinculada, a tentativa de entrar em qualquer
+// clínica existente é bloqueada.
+test('a system admin with no clinic membership at all is blocked from entering any clinic', function () {
+    $admin = makeSystemAdmin();
+    ['clinic' => $clinic] = setupContextTestClinic('-noaccess');
+
+    $this->actingAs($admin)
+        ->post(route('admin.clinics.enter', $clinic))
+        ->assertForbidden();
+
+    expect(session('current_clinic_id'))->toBeNull();
+});
+
+// 14. Membro da Clínica A não consegue entrar na Clínica B — nunca fabrica
+// acesso a partir só do privilégio de System Admin.
+test('a system admin who belongs only to clinic A is blocked from entering clinic B', function () {
+    ['admin' => $admin] = makeSystemAdminWithClinic('-onlyA');
+    ['clinic' => $clinicB] = setupContextTestClinic('-onlyB');
+
+    $this->actingAs($admin)
+        ->post(route('admin.clinics.enter', $clinicB))
+        ->assertForbidden();
+
+    expect(session('current_clinic_id'))->toBeNull();
+});
+
+// 15. clinic_id arbitrário/inexistente é bloqueado pelo próprio route
+// model binding, antes de qualquer lógica de negócio.
+test('a system admin cannot enter a non-existent clinic id', function () {
+    $admin = makeSystemAdmin();
+
+    $this->actingAs($admin)
+        ->post('/admin/clinicas/999999/entrar')
+        ->assertNotFound();
+});
+
+// 16. Sair do contexto limpa a sessão e volta pro Backoffice.
+test('exiting the clinic context clears the session and returns to the backoffice', function () {
+    ['admin' => $admin, 'clinic' => $clinic] = makeSystemAdminWithClinic('-exit');
+    $this->actingAs($admin)->post(route('admin.clinics.enter', $clinic));
+
+    $response = $this->actingAs($admin)->post(route('admin.exit-clinic'));
+
+    $response->assertRedirect(route('admin.index'));
+    expect(session('admin_clinic_context'))->toBeNull();
+    expect(session('current_clinic_id'))->toBeNull();
+    expect(session('current_clinic'))->toBeNull();
+
+    // E o Backoffice volta a funcionar sem contexto de clínica nenhum.
+    $this->actingAs($admin)->get(route('patients.index'))->assertRedirect(route('admin.index'));
+});
+
+// 17. Logout/login não recupera a clínica que o admin tinha entrado antes
+// — cada sessão de login começa neutra no Backoffice.
+test('after logging out and back in, a system admin does not automatically recover the previously entered clinic', function () {
+    ['admin' => $admin, 'clinic' => $clinic] = makeSystemAdminWithClinic('-relogin');
+    $this->actingAs($admin)->post(route('admin.clinics.enter', $clinic));
+    expect(session('current_clinic_id'))->toBe($clinic->id);
+
+    $this->post('/logout');
+
+    $response = $this->post('/login', ['email' => $admin->email, 'password' => 'password']);
+
+    $response->assertRedirect(route('admin.index'));
+    expect(session('current_clinic_id'))->toBeNull();
+    expect(session('admin_clinic_context'))->toBeNull();
+});
+
+// 18. Tenant isolation continua valendo mesmo depois de uma entrada
+// explícita — um paciente de outra clínica continua invisível (404).
+test('tenant isolation still holds after a system admin explicitly enters a clinic', function () {
+    ['admin' => $admin, 'clinic' => $clinicA] = makeSystemAdminWithClinic('-isoA');
+    ['clinic' => $clinicB] = setupContextTestClinic('-isoB');
+    $patientB = Patient::create([
+        'clinic_id' => $clinicB->id, 'nome' => 'Paciente', 'sobrenome' => 'DaOutraClinica', 'status' => 'ativo',
+    ]);
+
+    $this->actingAs($admin)->post(route('admin.clinics.enter', $clinicA));
+
+    $this->actingAs($admin)
+        ->get(route('patients.show', $patientB))
+        ->assertNotFound();
+});
+
+// 19. Policy/RBAC reflete o papel real do admin na clínica escolhida —
+// aqui, dono (owner), então manageTeam é permitido.
+test('policies respect the admin real pivot role in the clinic entered explicitly', function () {
+    ['admin' => $admin, 'clinic' => $clinic] = makeSystemAdminWithClinic('-rbac-owner', 'owner');
+
+    $this->actingAs($admin)->post(route('admin.clinics.enter', $clinic));
+
+    expect($admin->roleInCurrentClinic())->toBe('owner');
+    expect($admin->can('manageTeam', $clinic))->toBeTrue();
+});
+
+// 19b. Papel menor (staff) na clínica entrada não ganha permissões de
+// gestão — o contexto de clínica não eleva privilégio, só abre acesso.
+test('a system admin who enters a clinic as staff does not get manageTeam permission', function () {
+    ['admin' => $admin, 'clinic' => $clinic] = makeSystemAdminWithClinic('-rbac-staff', 'staff');
+
+    $this->actingAs($admin)->post(route('admin.clinics.enter', $clinic));
+
+    expect($admin->can('manageTeam', $clinic))->toBeFalse();
+});
+
+// 20. Entrar e sair ficam registrados em AccessLog, pra auditoria.
+test('entering and exiting a clinic context are recorded in the access log', function () {
+    ['admin' => $admin, 'clinic' => $clinic] = makeSystemAdminWithClinic('-audit');
+
+    $this->actingAs($admin)->post(route('admin.clinics.enter', $clinic));
+    expect(AccessLog::where('action', 'admin_clinic_context_entered')->where('clinic_id', $clinic->id)->exists())->toBeTrue();
+
+    $this->actingAs($admin)->post(route('admin.exit-clinic'));
+    expect(AccessLog::where('action', 'admin_clinic_context_exited')->where('clinic_id', $clinic->id)->exists())->toBeTrue();
+});
+
+// 21. Entrar e sair do contexto de clínica não faz o aviso de acesso
+// privilegiado reaparecer — ele é uma marca no usuário, não algo ligado à
+// navegação entre Backoffice e clínica.
+test('the admin access notice does not reappear after entering and exiting a clinic context', function () {
+    ['admin' => $admin, 'clinic' => $clinic] = makeSystemAdminWithClinic('-notice-clinic');
+    $this->actingAs($admin)->post(route('admin.acknowledge-access'))->assertOk();
+
+    $this->actingAs($admin)->post(route('admin.clinics.enter', $clinic));
+    $this->actingAs($admin)->post(route('admin.exit-clinic'));
+
+    $this->actingAs($admin)->get(route('admin.index'))
+        ->assertInertia(fn ($page) => $page->where('auth.hasAcknowledgedAdminAccess', true));
+});
+
+// O aviso de acesso privilegiado aparece (prop hasAcknowledgedAdminAccess
+// = false) no primeiro acesso de um System Admin que nunca reconheceu.
+test('the admin access notice is shown on the first visit for a system admin who has not acknowledged it yet', function () {
+    $admin = makeSystemAdmin();
+
+    $this->actingAs($admin)
+        ->get(route('admin.index'))
+        ->assertInertia(fn ($page) => $page->where('auth.hasAcknowledgedAdminAccess', false));
+});
+
+// Reconhecer o aviso persiste em users.preferences (backend), não em
+// sessão — e a mesma requisição seguinte já reflete o estado sem depender
+// de nada no client (localStorage/sessionStorage).
+test('acknowledging the admin access notice persists it on the user record, not the session', function () {
+    $admin = User::factory()->create(['email_verified_at' => now(), 'preferences' => null]);
+    SystemAdmin::create(['user_id' => $admin->id, 'granted_at' => now()]);
+
+    $this->actingAs($admin)
+        ->post(route('admin.acknowledge-access'))
+        ->assertOk();
+
+    expect($admin->fresh()->preferences['admin_notice_acknowledged_at'] ?? null)->not->toBeNull();
+
+    $this->actingAs($admin)
+        ->get(route('admin.index'))
+        ->assertInertia(fn ($page) => $page->where('auth.hasAcknowledgedAdminAccess', true));
+});
+
+// A prova real de que não é sessão: destruir a sessão (logout) e logar de
+// novo não traz o aviso de volta — só reaparece se preferences não tiver
+// o registro, o que não é mais o caso depois de reconhecido uma vez.
+test('the admin access notice never reappears after logging out and logging back in', function () {
+    $admin = User::factory()->create(['email_verified_at' => now(), 'preferences' => null]);
+    SystemAdmin::create(['user_id' => $admin->id, 'granted_at' => now()]);
+
+    $this->actingAs($admin)->post(route('admin.acknowledge-access'))->assertOk();
+
+    $this->post('/logout');
+
+    $this->post('/login', ['email' => $admin->email, 'password' => 'password'])
+        ->assertRedirect(route('admin.index'));
+
+    $this->get(route('admin.index'))
+        ->assertInertia(fn ($page) => $page->where('auth.hasAcknowledgedAdminAccess', true));
+});
+
+// Um simples refresh (nova requisição GET, mesma sessão) também não deve
+// mostrar de novo depois de reconhecido.
+test('the admin access notice does not reappear on a simple refresh after being acknowledged', function () {
+    $admin = User::factory()->create(['email_verified_at' => now(), 'preferences' => null]);
+    SystemAdmin::create(['user_id' => $admin->id, 'granted_at' => now()]);
+
+    $this->actingAs($admin)->post(route('admin.acknowledge-access'))->assertOk();
+
+    $this->actingAs($admin)->get(route('admin.index'))
+        ->assertInertia(fn ($page) => $page->where('auth.hasAcknowledgedAdminAccess', true));
+    $this->actingAs($admin)->get(route('admin.index'))
+        ->assertInertia(fn ($page) => $page->where('auth.hasAcknowledgedAdminAccess', true));
 });

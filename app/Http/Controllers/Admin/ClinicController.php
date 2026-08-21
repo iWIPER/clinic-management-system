@@ -104,6 +104,56 @@ class ClinicController extends Controller
         ]);
     }
 
+    /**
+     * Entrada EXPLÍCITA no contexto de clínica — só assim um System Admin
+     * ganha acesso às rotas clínicas (ver EnsureCurrentClinic). Exige
+     * vínculo real em clinic_user; nunca fabrica acesso a uma clínica da
+     * qual o admin não é membro de verdade.
+     */
+    public function enter(Request $request, Clinic $clinic): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless(
+            $request->user()->clinics()->where('clinics.id', $clinic->id)->exists(),
+            403,
+            'Você não é membro desta clínica.',
+        );
+
+        $request->session()->put('admin_clinic_context', true);
+        $request->session()->put('current_clinic_id', $clinic->id);
+        $request->session()->put('current_clinic', $clinic->toSessionPayload());
+
+        AccessLog::record(
+            action: 'admin_clinic_context_entered',
+            description: "Administrador entrou no contexto da clínica {$clinic->displayName()}",
+            metadata: ['clinic_id' => $clinic->id],
+        );
+
+        return redirect()->route('dashboard');
+    }
+
+    /**
+     * Sai do contexto de clínica de volta pro Backoffice — encerra só a
+     * "visita" desta sessão (flag + clínica ativa), nunca o vínculo real
+     * do usuário com a clínica (clinic_user continua intacto).
+     */
+    public function exit(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $clinicId = $request->session()->get('current_clinic_id');
+
+        if ($clinicId) {
+            AccessLog::record(
+                action: 'admin_clinic_context_exited',
+                description: 'Administrador voltou ao Backoffice',
+                metadata: ['clinic_id' => $clinicId],
+                clinicId: $clinicId,
+            );
+        }
+
+        $request->session()->forget(['admin_clinic_context', 'current_clinic_id', 'current_clinic']);
+
+        return redirect()->route('admin.index');
+    }
+
     public function block(Clinic $clinic): \Illuminate\Http\JsonResponse
     {
         $clinic->update(['status' => 'suspended']);
