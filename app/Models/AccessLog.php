@@ -57,6 +57,8 @@ class AccessLog extends Model
     const ACTION_ADMIN_PLAN_UPDATED          = 'admin_plan_updated';
     const ACTION_ADMIN_CLINIC_BLOCKED        = 'admin_clinic_blocked';
     const ACTION_ADMIN_CLINIC_UNBLOCKED      = 'admin_clinic_unblocked';
+    const ACTION_ADMIN_CLINIC_CONTEXT_ENTERED = 'admin_clinic_context_entered';
+    const ACTION_ADMIN_CLINIC_CONTEXT_EXITED  = 'admin_clinic_context_exited';
     const ACTION_SYSTEM_ADMIN_GRANTED        = 'system_admin_granted';
     const ACTION_SYSTEM_ADMIN_REVOKED        = 'system_admin_revoked';
     const ACTION_ADMIN_USER_BLOCKED          = 'admin_user_blocked';
@@ -103,6 +105,8 @@ class AccessLog extends Model
         'admin_plan_updated'                => 'Plano atualizado',
         'admin_clinic_blocked'              => 'Clínica bloqueada',
         'admin_clinic_unblocked'            => 'Clínica desbloqueada',
+        'admin_clinic_context_entered'      => 'Administrador entrou na clínica',
+        'admin_clinic_context_exited'       => 'Administrador voltou ao Backoffice',
         'system_admin_granted'              => 'System Admin concedido',
         'system_admin_revoked'              => 'System Admin removido',
         'admin_user_blocked'                => 'Usuário bloqueado',

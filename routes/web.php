@@ -475,6 +475,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/clinicas/{clinic}', [\App\Http\Controllers\Admin\ClinicController::class, 'show'])->name('clinics.show');
         Route::post('/clinicas/{clinic}/bloquear', [\App\Http\Controllers\Admin\ClinicController::class, 'block'])->name('clinics.block');
         Route::post('/clinicas/{clinic}/desbloquear', [\App\Http\Controllers\Admin\ClinicController::class, 'unblock'])->name('clinics.unblock');
+        Route::post('/clinicas/{clinic}/entrar', [\App\Http\Controllers\Admin\ClinicController::class, 'enter'])->name('clinics.enter');
+        Route::post('/sair-clinica', [\App\Http\Controllers\Admin\ClinicController::class, 'exit'])->name('exit-clinic');
 
         Route::get('/usuarios', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('users');
         Route::get('/usuarios/{user}', [\App\Http\Controllers\Admin\UserController::class, 'show'])->name('users.show');

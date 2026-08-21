@@ -32,6 +32,17 @@ class EnsureCurrentClinic
             return redirect()->route('affiliate.dashboard');
         }
 
+        // System Admin nunca entra automaticamente no contexto de clínica,
+        // mesmo tendo vínculo real com uma — só mediante ação explícita
+        // ("Entrar na clínica" no Backoffice, ver
+        // Admin\ClinicController::enter()). Sem o flag admin_clinic_context
+        // na sessão, qualquer rota clínica (inclusive onboarding — System
+        // Admin nunca deveria ver as perguntas de configuração inicial)
+        // volta pro Backoffice em vez de misturar os dois contextos.
+        if ($user->isSystemAdmin() && !session('admin_clinic_context')) {
+            return redirect()->route('admin.index');
+        }
+
         $clinicId = session('current_clinic_id');
 
         // Nunca confiar cegamente no valor da sessão — reconfirma contra o
@@ -43,7 +54,12 @@ class EnsureCurrentClinic
             $clinicId = null;
         }
 
-        if (!$clinicId) {
+        // Auto-pick nunca roda pra System Admin, mesmo em contexto de
+        // clínica explicitamente aberto (admin_clinic_context) — a única
+        // forma de um System Admin ganhar current_clinic_id é a ação
+        // explícita em Admin\ClinicController::enter(), nunca um fallback
+        // automático aqui.
+        if (!$clinicId && !$user->isSystemAdmin()) {
             // Tenta pegar a primeira clínica do usuário
             $firstClinic = $user->clinics()->first();
             if ($firstClinic) {

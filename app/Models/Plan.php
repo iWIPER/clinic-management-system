@@ -21,7 +21,6 @@ class Plan extends Model
         'price_monthly',
         'price_yearly',
         'trial_days',
-        'features',
         'max_clinics',
         'max_patients',
         'max_users',
@@ -33,7 +32,6 @@ class Plan extends Model
     ];
 
     protected $casts = [
-        'features'            => 'array',
         'is_free'             => 'boolean',
         'is_active'           => 'boolean',
         'is_featured'         => 'boolean',
@@ -54,6 +52,10 @@ class Plan extends Model
         return $this->hasMany(Clinic::class);
     }
 
+    // Não adicionar 'features' de volta a $casts/$fillable: a coluna JSON
+    // legada `plans.features` foi substituída pela tabela relacional
+    // plan_features, e um cast com o mesmo nome do método abaixo faz o
+    // Eloquent resolver o atributo em vez de chamar a relação.
     public function features(): HasMany
     {
         return $this->hasMany(PlanFeature::class)->orderBy('sort_order');

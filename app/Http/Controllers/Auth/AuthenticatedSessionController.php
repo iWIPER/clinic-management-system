@@ -29,6 +29,13 @@ class AuthenticatedSessionController extends Controller
 
         $user = Auth::user();
         $user->forceFill(['last_login_at' => now()])->save();
+
+        // System Admin entra direto no Backoffice — contexto completamente
+        // isolado de clínica, sem exceção (ver EnsureCurrentClinic).
+        if ($user->isSystemAdmin()) {
+            return redirect()->intended(route('admin.index'));
+        }
+
         $clinic = $user->clinics()->first();
 
         if ($clinic) {

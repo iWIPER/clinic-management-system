@@ -193,13 +193,18 @@ class DashboardController extends Controller
     }
 
     /**
-     * Marca que o admin já viu o aviso de acesso privilegiado nesta sessão
-     * de login — puramente informativo (ver HandleInertiaRequests). Nunca
-     * usado por nenhuma checagem de autorização.
+     * Marca que o admin já viu o aviso de acesso privilegiado — persistido
+     * no usuário (não na sessão), pra nunca reaparecer de novo depois de
+     * reconhecido uma vez, em nenhum login futuro. Puramente informativo
+     * (ver HandleInertiaRequests); nunca usado por nenhuma checagem de
+     * autorização.
      */
     public function acknowledgeAccess(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
     {
-        $request->session()->put('admin_access_acknowledged', true);
+        $user = $request->user();
+        $user->forceFill([
+            'preferences' => [...($user->preferences ?? []), 'admin_notice_acknowledged_at' => now()->toIso8601String()],
+        ])->save();
 
         return response()->json(['ok' => true]);
     }
