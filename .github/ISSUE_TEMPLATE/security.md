@@ -1,33 +1,46 @@
 ---
-name: Segurança
-about: Reportar uma vulnerabilidade ou preocupação de segurança
+name: Security
+about: Report a security vulnerability or security concern
+title: "[Security]:"
 labels: security
+assignees: ''
+
 ---
 
-> **Nunca inclua secrets, tokens, senhas, hashes ou credenciais nesta
-> Issue.** Se a reprodução exigir um dado sensível, descreva o dado sem
-> colar o valor real, ou combine um canal privado com o mantenedor.
+## Security concern
 
-## Descrição
+Clearly describe the security vulnerability or security concern.
 
-<!-- O que foi encontrado. -->
+## Impact
 
-## Impacto
+What could an attacker or unauthorized user potentially do?
 
-<!-- O que um atacante conseguiria fazer com isso. -->
+## Affected area
 
-## Área afetada
+Which part of the system is affected?
 
-<!-- Módulo, controller, rota, tela. -->
+## Reproduction
 
-## Severidade (percepção inicial)
+Provide the steps required to reproduce the issue, if applicable.
 
-<!-- crítica / alta / média / baixa -->
+## Environment
 
-## Reprodução (quando seguro descrever)
+- [ ] Local
+- [ ] Staging
+- [ ] Production
 
-<!-- Passos, sem dados sensíveis reais. -->
+## Evidence
 
-## Recomendação
+Screenshots, logs, or other relevant evidence.
 
-<!-- Se já tiver uma sugestão de correção. -->
+## Remediation
+
+What should be changed to address the security concern?
+
+## Acceptance criteria
+
+- [ ] Security issue reproduced or validated
+- [ ] Fix implemented
+- [ ] Security tests added/updated, if applicable
+- [ ] CI passed
+- [ ] QA completed
