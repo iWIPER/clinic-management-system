@@ -32,6 +32,18 @@ class EnsureCurrentClinic
             return redirect()->route('affiliate.dashboard');
         }
 
+        // System Admin nunca entra automaticamente no contexto de clínica,
+        // mesmo tendo vínculo real com uma — só mediante ação explícita
+        // ("Acessar clínica" no Backoffice, ver
+        // Admin\DashboardController::enterClinicContext). Sem isso, um
+        // acesso direto por URL a qualquer rota clínica volta pro
+        // Backoffice em vez de misturar os dois contextos. 'onboarding'
+        // não é afetado — um System Admin nunca passa por onboarding de
+        // verdade (já tem clínica e privilégio concedidos antes).
+        if ($mode === 'strict' && $user->isSystemAdmin() && ! session('admin_clinic_context')) {
+            return redirect()->route('admin.index');
+        }
+
         $clinicId = session('current_clinic_id');
 
         // Nunca confiar cegamente no valor da sessão — reconfirma contra o
@@ -43,7 +55,14 @@ class EnsureCurrentClinic
             $clinicId = null;
         }
 
-        if (!$clinicId) {
+        // Auto-pick nunca roda pra System Admin, nem sob mode 'onboarding'
+        // (o gate lá em cima já cobre 'strict', mas 'onboarding' chega até
+        // aqui sem passar por ele) — sem isso, um System Admin visitando
+        // /onboarding/* por URL ganharia current_clinic_id/current_clinic
+        // na sessão silenciosamente, fora do fluxo explícito
+        // "Acessar clínica". Continua tolerando a rota de onboarding em
+        // si (não bloqueia o acesso), só nunca seleciona clínica sozinho.
+        if (!$clinicId && !$user->isSystemAdmin()) {
             // Tenta pegar a primeira clínica do usuário
             $firstClinic = $user->clinics()->first();
             if ($firstClinic) {

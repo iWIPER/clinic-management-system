@@ -470,6 +470,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('index');
         Route::post('/settings', [\App\Http\Controllers\Admin\DashboardController::class, 'updateSettings'])->name('settings');
         Route::post('/acknowledge-access', [\App\Http\Controllers\Admin\DashboardController::class, 'acknowledgeAccess'])->name('acknowledge-access');
+        Route::post('/entrar-clinica', [\App\Http\Controllers\Admin\DashboardController::class, 'enterClinicContext'])->name('enter-clinic');
+        Route::post('/sair-clinica', [\App\Http\Controllers\Admin\DashboardController::class, 'exitClinicContext'])->name('exit-clinic');
 
         Route::get('/clinicas', [\App\Http\Controllers\Admin\ClinicController::class, 'index'])->name('clinics');
         Route::get('/clinicas/{clinic}', [\App\Http\Controllers\Admin\ClinicController::class, 'show'])->name('clinics.show');

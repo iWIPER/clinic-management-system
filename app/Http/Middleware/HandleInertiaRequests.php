@@ -23,6 +23,11 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
                 'isSystemAdmin' => fn () => (bool) $request->user()?->isSystemAdmin(),
                 'isAffiliate' => fn () => (bool) $request->user()?->isAffiliate(),
+                // Só usado pelo Backoffice pra decidir se mostra "Acessar
+                // clínica" (ver Topbar.vue mode="admin") — indica que a
+                // conta tem um vínculo clínico real pra entrar, não que
+                // esteja "dentro" dele agora (isso é currentClinic).
+                'hasClinicAccess' => fn () => (bool) $request->user()?->clinics()->exists(),
                 // Aviso de acesso privilegiado ao /admin (puramente informativo,
                 // nunca autorização) — sessão do Laravel porque precisa
                 // reaparecer numa sessão de login nova e não reaparecer só por

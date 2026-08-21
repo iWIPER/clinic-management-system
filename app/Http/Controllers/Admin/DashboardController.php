@@ -204,6 +204,37 @@ class DashboardController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    /**
+     * Entrada EXPLÍCITA no contexto de clínica — só assim um System Admin
+     * ganha acesso às rotas clínicas (ver EnsureCurrentClinic). Usa a
+     * própria clínica a que o usuário já pertence de verdade (clinic_user
+     * real) — nunca fabrica acesso a uma clínica arbitrária.
+     */
+    public function enterClinicContext(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $clinic = $request->user()->clinics()->first();
+
+        abort_unless($clinic, 404, 'Esta conta não possui vínculo com nenhuma clínica.');
+
+        $request->session()->put('admin_clinic_context', true);
+        $request->session()->put('current_clinic_id', $clinic->id);
+        $request->session()->put('current_clinic', $clinic->toSessionPayload());
+
+        return redirect()->route('dashboard');
+    }
+
+    /**
+     * Sai do contexto de clínica de volta pro Backoffice — encerra só a
+     * "visita" desta sessão (flag + clínica ativa), nunca o vínculo real
+     * do usuário com a clínica (clinic_user continua intacto).
+     */
+    public function exitClinicContext(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $request->session()->forget(['admin_clinic_context', 'current_clinic_id', 'current_clinic']);
+
+        return redirect()->route('admin.index');
+    }
+
     public function updateSettings(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
     {
         $validated = $request->validate([

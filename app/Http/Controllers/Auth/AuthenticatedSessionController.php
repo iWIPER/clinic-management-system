@@ -29,6 +29,15 @@ class AuthenticatedSessionController extends Controller
 
         $user = Auth::user();
         $user->forceFill(['last_login_at' => now()])->save();
+
+        // System Admin entra direto no Backoffice, nunca no contexto de
+        // clínica — mesmo já tendo um vínculo real com uma. Acesso à
+        // clínica continua disponível, mas só de forma explícita (ver
+        // EnsureCurrentClinic + Admin\DashboardController::enterClinicContext).
+        if ($user->isSystemAdmin()) {
+            return redirect()->intended(route('admin.index'));
+        }
+
         $clinic = $user->clinics()->first();
 
         if ($clinic) {

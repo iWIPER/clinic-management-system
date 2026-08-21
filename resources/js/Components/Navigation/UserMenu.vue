@@ -6,9 +6,10 @@ import NavbarDropdown from '@/Components/Navbar/NavbarDropdown.vue'
 import NavbarDropdownItem from '@/Components/Navbar/NavbarDropdownItem.vue'
 
 // mode="clinic" (usado pela TopIsland): Meu perfil, Logs de acesso,
-// Backoffice (se super admin), Sair.
+// Voltar ao Backoffice (se system admin em visita explícita à clínica,
+// ver EnsureCurrentClinic), Sair.
 // mode="admin" (usado pela Topbar do Backoffice): Meu perfil, Sair — sem
-// Backoffice (redundante, já se está nele) nem Logs.
+// esse item (redundante, já se está no Backoffice) nem Logs.
 const props = defineProps({
     mode: { type: String, default: 'clinic', validator: (v) => ['clinic', 'admin'].includes(v) },
 })
@@ -47,7 +48,7 @@ const isSystemAdmin = computed(() => page.props.auth?.isSystemAdmin ?? false)
                 <NavbarDropdownItem :href="route('profile.edit')" @click="close">Meu perfil</NavbarDropdownItem>
                 <template v-if="mode === 'clinic'">
                     <NavbarDropdownItem :href="route('access-logs.index')" @click="close">Logs de acesso</NavbarDropdownItem>
-                    <NavbarDropdownItem v-if="isSystemAdmin" :href="route('admin.index')" @click="close">Backoffice</NavbarDropdownItem>
+                    <NavbarDropdownItem v-if="isSystemAdmin" :href="route('admin.exit-clinic')" method="post" @click="close">Voltar ao Backoffice</NavbarDropdownItem>
                 </template>
                 <div class="my-1 border-t border-slate-100" />
                 <NavbarDropdownItem :href="route('logout')" method="post" danger @click="close">Sair</NavbarDropdownItem>

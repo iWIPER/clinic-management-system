@@ -1,11 +1,21 @@
 <script setup>
-import { Link } from '@inertiajs/vue3'
+import { computed } from 'vue'
+import { Link, usePage } from '@inertiajs/vue3'
 import TopProgress from '@/Components/Navbar/TopProgress.vue'
 import NavbarBrand from '@/Components/Navbar/NavbarBrand.vue'
 import UserMenu from './UserMenu.vue'
 
 // Uso exclusivo do Backoffice (AdminLayout) — o modo clínica não usa mais
 // uma topbar global; a sidebar (Sidebar.vue) é a âncora visual lá.
+
+// "Acessar clínica" é a ÚNICA porta pro contexto clínico a partir daqui —
+// entrada automática foi removida de propósito (ver EnsureCurrentClinic +
+// AuthenticatedSessionController). Só aparece se a conta realmente tem
+// vínculo com alguma clínica (hasClinicAccess, ver HandleInertiaRequests);
+// sem isso, não há pra onde "acessar". POST porque muda sessão (marca
+// admin_clinic_context) — não é só navegação.
+const page = usePage()
+const hasClinicAccess = computed(() => page.props.auth?.hasClinicAccess ?? false)
 </script>
 
 <template>
@@ -24,8 +34,9 @@ import UserMenu from './UserMenu.vue'
                 </div>
 
                 <div class="flex shrink-0 items-center gap-2">
-                    <Link :href="route('dashboard')" class="text-sm font-medium text-emerald-600 hover:text-emerald-700">
-                        ← Voltar ao sistema
+                    <Link v-if="hasClinicAccess" :href="route('admin.enter-clinic')" method="post"
+                          class="text-sm font-medium text-emerald-600 hover:text-emerald-700">
+                        Acessar clínica →
                     </Link>
 
                     <div class="flex items-center border-l border-slate-200 pl-3">
