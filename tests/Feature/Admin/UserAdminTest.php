@@ -56,8 +56,15 @@ test('show renders user detail with clinics and role per clinic', function () {
 });
 
 // ── Bloqueio real (achado crítico: status não era enforced antes) ─────────
+//
+// Comportamento atual: o login em si não é recusado (senha correta
+// autentica normalmente) — o bloqueio acontece depois, em toda rota
+// autenticada, via middleware EnsureAccountIsActive (ver routes/web.php e
+// tests/Feature/EnsureAccountIsActiveTest.php para a cobertura completa do
+// middleware). Aqui cobrimos só o texto: block() muda o status e o login
+// deixa de recusar a credencial válida.
 
-test('blocking a user actually prevents login, not just a cosmetic flag', function () {
+test('blocking a user does not prevent authentication — the block is enforced after login', function () {
     ['sysAdmin' => $admin] = setupUserAdminContext();
     $target = User::factory()->create(['email_verified_at' => now(), 'password' => bcrypt('senha-correta-123')]);
 
@@ -70,8 +77,8 @@ test('blocking a user actually prevents login, not just a cosmetic flag', functi
     $this->post(route('logout'));
 
     $this->post(route('login'), ['email' => $target->email, 'password' => 'senha-correta-123'])
-        ->assertSessionHasErrors('email');
-    $this->assertGuest();
+        ->assertSessionDoesntHaveErrors('email');
+    $this->assertAuthenticatedAs($target->fresh());
 });
 
 test('unblocking a user restores real login', function () {

@@ -57,7 +57,7 @@ Route::get('/', function () {
 });
 
 // Rotas autenticadas
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'account-active'])->group(function () {
 
     // Onboarding — 'clinic:onboarding' desvia contas Affiliate mas tolera
     // usuário sem clínica ainda (é o próprio onboarding quem cria a

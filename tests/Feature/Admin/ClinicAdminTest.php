@@ -64,15 +64,20 @@ test('a system admin can block and then unblock a clinic, both audited', functio
     expect(\App\Models\AccessLog::where('action', 'admin_clinic_unblocked')->exists())->toBeTrue();
 });
 
-test('a blocked clinic actually loses access — its own owner is refused entry, not just cosmetically flagged', function () {
+test('a blocked clinic actually loses access — its own owner never reaches the real page, not just cosmetically flagged', function () {
     ['clinic' => $clinic, 'owner' => $owner, 'admin' => $admin] = setupClinicAdminContext();
 
     $this->actingAs($admin)->postJson(route('admin.clinics.block', $clinic->id))->assertOk();
 
+    // GET normal (navegação Inertia) mostra a tela de aviso em vez do
+    // dashboard real — ver EnsureCurrentClinic e
+    // tests/Feature/ClinicSuspendedTest.php pra cobertura completa do
+    // middleware (inclui write actions recusadas com 403).
     $this->actingAs($owner)
         ->withSession(['current_clinic_id' => $clinic->id])
         ->get(route('dashboard'))
-        ->assertForbidden();
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('Auth/ClinicSuspended'));
 });
 
 test('unblocking restores real access for the clinic owner', function () {

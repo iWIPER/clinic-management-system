@@ -6,6 +6,7 @@ use App\Models\Clinic;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureCurrentClinic
@@ -79,7 +80,16 @@ class EnsureCurrentClinic
         if ($clinicId && ($clinic = Clinic::find($clinicId)) && $clinic->status === 'suspended') {
             session()->forget(['current_clinic_id', 'current_clinic']);
 
-            abort(403, 'Esta clínica está temporariamente suspensa. Entre em contato com o suporte.');
+            // Mesmo princípio do bloqueio de usuário (ver
+            // EnsureAccountIsActive): GET normal (navegação Inertia) mostra
+            // a tela de aviso; qualquer outro método, ou uma chamada que
+            // espera JSON puro, é recusado com 403 puro — sem depender do
+            // front pra não mostrar nada.
+            if (! $request->isMethod('GET') || $request->wantsJson()) {
+                abort(403);
+            }
+
+            return Inertia::render('Auth/ClinicSuspended')->toResponse($request);
         }
 
         // Fail-closed: sem clínica válida, o contexto clínico não pode ser
