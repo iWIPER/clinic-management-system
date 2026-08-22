@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\EmailVerificationPromptController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\Auth\SocialiteController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
@@ -16,6 +17,19 @@ Route::middleware('guest')->group(function () {
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
+
+    // Prefixo login/ (não auth/google/*) de propósito: /auth/google/* já é
+    // usado pelo OAuth de Google Drive das clínicas (ver routes/web.php,
+    // GoogleDriveController) — um app OAuth completamente diferente, e
+    // colidiria em cima das mesmas URLs.
+    Route::get('login/google/redirect', [SocialiteController::class, 'redirectToGoogle'])->name('oauth.google.redirect');
+    Route::get('login/google/callback', [SocialiteController::class, 'handleGoogleCallback'])->name('oauth.google.callback');
+
+    Route::get('login/apple/redirect', [SocialiteController::class, 'redirectToApple'])->name('oauth.apple.redirect');
+    // Sign in with Apple usa response_mode=form_post: a Apple envia o
+    // callback como POST direto ao navegador do usuário, sem o token CSRF
+    // da nossa sessão — por isso a exceção em bootstrap/app.php.
+    Route::post('login/apple/callback', [SocialiteController::class, 'handleAppleCallback'])->name('oauth.apple.callback');
 
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])->name('password.request');
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])->name('password.email');

@@ -12,6 +12,9 @@ use Illuminate\Auth\Events\Logout;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Cashier\Cashier;
+use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\GoogleProvider;
+use SocialiteProviders\Apple\Provider as AppleProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -32,11 +35,23 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        Event::listen(Login::class,  [LogAuthEvents::class, 'handleLogin']);
+        Event::listen(Login::class, [LogAuthEvents::class, 'handleLogin']);
         Event::listen(Logout::class, [LogAuthEvents::class, 'handleLogout']);
         Event::listen(Failed::class, [LogAuthEvents::class, 'handleFailed']);
 
         Cashier::useSubscriptionModel(StripeSubscription::class);
         Cashier::useSubscriptionItemModel(StripeSubscriptionItem::class);
+
+        // Drivers registrados sob nomes próprios ('google_login'/'apple_login'),
+        // lendo config('services.google_login'|'apple_login') — não o driver
+        // padrão 'google' do Socialite, que colidiria com o app OAuth do
+        // Google Drive já configurado em config('services.google').
+        Socialite::extend('google_login', function ($app) {
+            return Socialite::buildProvider(GoogleProvider::class, $app['config']['services.google_login']);
+        });
+
+        Socialite::extend('apple_login', function ($app) {
+            return Socialite::buildProvider(AppleProvider::class, $app['config']['services.apple_login']);
+        });
     }
 }

@@ -33,25 +33,13 @@
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Senha</label>
-                    <input
-                        v-model="form.password"
-                        type="password"
-                        autocomplete="new-password"
-                        required
-                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <PasswordInput v-model="form.password" autocomplete="new-password" required />
                     <InputError :message="form.errors.password" />
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Confirmar senha</label>
-                    <input
-                        v-model="form.password_confirmation"
-                        type="password"
-                        autocomplete="new-password"
-                        required
-                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <PasswordInput v-model="form.password_confirmation" autocomplete="new-password" required />
                     <InputError :message="form.errors.password_confirmation" />
                 </div>
 
@@ -77,6 +65,7 @@ import { onMounted } from 'vue'
 import { useForm } from '@inertiajs/vue3'
 import { trackEvent } from '@/lib/analytics'
 import InputError from '@/Components/InputError.vue'
+import PasswordInput from '@/Components/PasswordInput.vue'
 
 const form = useForm({
     name: '',

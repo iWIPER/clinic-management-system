@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Http\Controllers\Auth\Concerns\RedirectsAfterAuthentication;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
@@ -13,11 +14,15 @@ use Inertia\Response;
 
 class AuthenticatedSessionController extends Controller
 {
+    use RedirectsAfterAuthentication;
+
     public function create(): Response
     {
         return Inertia::render('Auth/Login', [
             'canResetPassword' => Route::has('password.request'),
-            'status'           => session('status'),
+            'status' => session('status'),
+            'canUseGoogle' => (bool) config('services.google_login.client_id'),
+            'canUseApple' => (bool) config('services.apple_login.client_id'),
         ]);
     }
 
@@ -30,21 +35,7 @@ class AuthenticatedSessionController extends Controller
         $user = Auth::user();
         $user->forceFill(['last_login_at' => now()])->save();
 
-        // System Admin entra direto no Backoffice — contexto completamente
-        // isolado de clínica, sem exceção (ver EnsureCurrentClinic).
-        if ($user->isSystemAdmin()) {
-            return redirect()->intended(route('admin.index'));
-        }
-
-        $clinic = $user->clinics()->first();
-
-        if ($clinic) {
-            session(['current_clinic_id' => $clinic->id]);
-            session(['current_clinic' => $clinic->toSessionPayload()]);
-            return redirect()->intended(route('dashboard'));
-        }
-
-        return redirect()->route('onboarding.choose-role');
+        return $this->redirectAfterAuthentication($user);
     }
 
     public function destroy(Request $request): RedirectResponse

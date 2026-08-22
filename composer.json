@@ -14,9 +14,11 @@
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/cashier": "^15.0",
         "laravel/framework": "^11.0",
+        "laravel/socialite": "^5.30",
         "laravel/tinker": "^2.9",
         "league/flysystem-aws-s3-v3": "^3.0",
         "maatwebsite/excel": "^3.1",
+        "socialiteproviders/apple": "^5.10",
         "spatie/laravel-permission": "^6.9",
         "tightenco/ziggy": "^2.0"
     },

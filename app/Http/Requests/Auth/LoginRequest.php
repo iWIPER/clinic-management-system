@@ -38,19 +38,16 @@ class LoginRequest extends FormRequest
 
         RateLimiter::clear($this->throttleKey());
 
-        // Achado da fase System Admin/Backoffice: users.status='inativo' já
-        // existia (TeamController::deactivate) mas nunca era checado aqui —
-        // uma conta "desativada" continuava logando normalmente. A senha já
-        // foi provada correta acima, então isto não é força bruta — é
-        // credencial válida de uma conta que a própria clínica ou a
-        // plataforma bloqueou.
-        if (Auth::user()->status === 'inativo') {
-            Auth::logout();
-
-            throw ValidationException::withMessages([
-                'email' => 'Esta conta está desativada. Entre em contato com o administrador da sua clínica.',
-            ]);
-        }
+        // Contas com status='inativo' (bloqueadas pela clínica via
+        // TeamController::deactivate, ou pelo Backoffice via
+        // Admin\UserController::block) têm login permitido normalmente — a
+        // senha já foi provada correta acima. O bloqueio real acontece
+        // depois, no middleware EnsureAccountIsActive, que intercepta toda
+        // rota autenticada e mostra a tela de "Acesso bloqueado" em vez do
+        // conteúdo real. Isso evita duplicar a UX de bloqueio (mensagem no
+        // formulário de login vs. modal dentro da conta) e permite ao
+        // usuário bloqueado pelo menos ver por que está impedido de usar o
+        // sistema, sem nunca chegar a ver dados reais.
     }
 
     public function ensureIsNotRateLimited(): void
