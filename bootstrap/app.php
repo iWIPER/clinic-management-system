@@ -42,6 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'stripe/webhook',
             'webhooks/financial/*',
+            'login/apple/callback',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

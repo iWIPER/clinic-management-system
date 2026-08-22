@@ -30,6 +30,8 @@ class User extends Authenticatable
         'last_login_at',
         'profile_updated_at',
         'preferences',
+        'google_id',
+        'apple_id',
     ];
 
     protected $hidden = [
