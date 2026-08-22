@@ -66,6 +66,8 @@ class AccessLog extends Model
     const ACTION_ADMIN_USER_ANONYMIZED       = 'admin_user_anonymized';
     const ACTION_ADMIN_USER_DELETED          = 'admin_user_deleted';
     const ACTION_ADMIN_EXPORT_DOWNLOADED     = 'admin_export_downloaded';
+    const ACTION_ADMIN_USER_DATA_EXPORTED    = 'admin_user_data_exported';
+    const ACTION_ADMIN_PATIENT_DATA_EXPORTED = 'admin_patient_data_exported';
 
     // Labels em PT-BR
     const LABELS = [
@@ -114,6 +116,8 @@ class AccessLog extends Model
         'admin_user_anonymized'             => 'Conta de usuário anonimizada',
         'admin_user_deleted'                => 'Conta de usuário excluída',
         'admin_export_downloaded'           => 'Exportação administrativa',
+        'admin_user_data_exported'          => 'Exportação de dados de titular (usuário)',
+        'admin_patient_data_exported'       => 'Exportação de dados de titular (paciente)',
     ];
 
     // ── Relações ───────────────────────────────────────────────────────────

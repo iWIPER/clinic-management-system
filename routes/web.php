@@ -491,6 +491,16 @@ Route::middleware(['auth', 'verified', 'account-active'])->group(function () {
         Route::get('/exportacoes', [\App\Http\Controllers\Admin\ExportController::class, 'index'])->name('exports');
         Route::post('/exportacoes/{dataset}', [\App\Http\Controllers\Admin\ExportController::class, 'download'])->name('exports.download');
 
+        // Atendimento de titulares (LGPD) — exportação individual por
+        // solicitação recebida via chat/suporte, nunca autoatendimento nem
+        // exportação em massa (ver ExportService::DATASETS).
+        Route::get('/exportacoes/titulares/usuarios/buscar', [\App\Http\Controllers\Admin\DataSubjectExportController::class, 'searchUsers'])->name('exports.subjects.users.search');
+        Route::post('/exportacoes/titulares/usuarios/{user}/exportar', [\App\Http\Controllers\Admin\DataSubjectExportController::class, 'exportUser'])->name('exports.subjects.users.export');
+        Route::get('/exportacoes/titulares/pacientes/buscar', [\App\Http\Controllers\Admin\DataSubjectExportController::class, 'searchPatients'])->name('exports.subjects.patients.search');
+        Route::post('/exportacoes/titulares/pacientes/{patient}/exportar', [\App\Http\Controllers\Admin\DataSubjectExportController::class, 'exportPatient'])->name('exports.subjects.patients.export');
+        Route::get('/exportacoes/titulares/{export}/status', [\App\Http\Controllers\Admin\DataSubjectExportController::class, 'status'])->name('exports.subjects.status');
+        Route::get('/exportacoes/titulares/{export}/baixar', [\App\Http\Controllers\Admin\DataSubjectExportController::class, 'download'])->name('exports.subjects.download');
+
         Route::get('/indicacoes', [\App\Http\Controllers\Admin\ReferralAdminController::class, 'index'])->name('referrals');
         Route::post('/afiliados/convidar', [\App\Http\Controllers\Admin\ReferralAdminController::class, 'inviteAffiliate'])->name('affiliates.invite');
         Route::post('/indicacoes/{conversion}/estornar', [\App\Http\Controllers\Admin\ReferralAdminController::class, 'refund'])->name('referrals.refund');
