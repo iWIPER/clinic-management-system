@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Auth\Concerns\RedirectsAfterAuthentication;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -67,7 +68,26 @@ class SocialiteController extends Controller
             ]);
         }
 
-        $user = $this->findOrCreateUser($socialiteUser, $providerColumn);
+        $email = trim((string) $socialiteUser->getEmail());
+
+        if ($email === '') {
+            Log::warning("Login social ({$driver}) sem e-mail retornado pelo provedor");
+            event(new Failed('web', null, ['email' => null]));
+
+            return redirect()->route('login')->withErrors([
+                'email' => 'Não foi possível concluir o login: não recebemos um e-mail válido do provedor.',
+            ]);
+        }
+
+        $user = $this->findOrCreateUser($socialiteUser, $providerColumn, $email);
+
+        if (! $user) {
+            event(new Failed('web', User::where('email', $email)->first(), ['email' => $email]));
+
+            return redirect()->route('login')->withErrors([
+                'email' => 'Já existe uma conta com este e-mail que ainda não foi verificada. Entre com e-mail e senha e verifique sua conta antes de usar este login.',
+            ]);
+        }
 
         Auth::login($user, remember: true);
 
@@ -76,7 +96,15 @@ class SocialiteController extends Controller
         return $this->redirectAfterAuthentication($user);
     }
 
-    private function findOrCreateUser(SocialiteUser $socialiteUser, string $providerColumn): User
+    /**
+     * Retorna null (nunca autentica, nunca cria/altera nada) quando o e-mail
+     * do provedor já pertence a uma conta local ainda não verificada — vincular
+     * automaticamente nesse caso permitiria account takeover: quem criou essa
+     * conta local sabe a senha dela e continuaria com acesso depois do vínculo.
+     * Contas já verificadas (dono comprovado do e-mail) podem ser vinculadas
+     * normalmente.
+     */
+    private function findOrCreateUser(SocialiteUser $socialiteUser, string $providerColumn, string $email): ?User
     {
         $user = User::where($providerColumn, $socialiteUser->getId())->first();
 
@@ -84,19 +112,21 @@ class SocialiteController extends Controller
             return $user;
         }
 
-        // E-mail já cadastrado (conta criada com senha) tentando entrar pelo
-        // provedor social pela primeira vez: vincula em vez de duplicar.
-        $user = User::where('email', $socialiteUser->getEmail())->first();
+        $existingByEmail = User::where('email', $email)->first();
 
-        if ($user) {
-            $user->forceFill([$providerColumn => $socialiteUser->getId()])->save();
+        if ($existingByEmail) {
+            if (! $existingByEmail->email_verified_at) {
+                return null;
+            }
 
-            return $user;
+            $existingByEmail->forceFill([$providerColumn => $socialiteUser->getId()])->save();
+
+            return $existingByEmail;
         }
 
         $user = User::create([
-            'name' => $socialiteUser->getName() ?: $socialiteUser->getEmail(),
-            'email' => $socialiteUser->getEmail(),
+            'name' => $socialiteUser->getName() ?: $email,
+            'email' => $email,
             'password' => Hash::make(Str::random(40)),
             'email_verified_at' => now(),
             $providerColumn => $socialiteUser->getId(),

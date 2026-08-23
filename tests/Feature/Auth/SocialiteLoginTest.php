@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Clinic;
+use App\Models\Plan;
 use App\Models\User;
 use Laravel\Socialite\Contracts\Provider as SocialiteProviderContract;
 use Laravel\Socialite\Contracts\User as SocialiteUserContract;
@@ -112,4 +114,115 @@ test('a first-time Apple sign-in via the form_post callback creates the account 
 
     $this->assertAuthenticated();
     $this->assertDatabaseHas('users', ['email' => 'apple-novo@example.com', 'apple_id' => 'apple-123']);
+});
+
+function setupSocialiteClinicContext(string $suffix = ''): array
+{
+    $plan = Plan::create([
+        'name' => 'Test Plan', 'slug' => 'test-plan-socialite' . $suffix . '-' . uniqid(), 'is_free' => true,
+        'price_monthly_cents' => 0, 'price_yearly_cents' => 0,
+        'max_clinics' => 1, 'max_patients' => 100, 'max_users' => 5, 'storage_gb' => 1, 'features' => [],
+    ]);
+    $clinic = Clinic::create([
+        'name' => 'Clínica Socialite' . $suffix, 'slug' => 'clinica-socialite' . $suffix . '-' . uniqid(),
+        'type' => 'odontologia', 'status' => 'active', 'plan_id' => $plan->id,
+    ]);
+
+    return compact('plan', 'clinic');
+}
+
+test('a Google login for an email that already has an unverified password account is refused, without linking or authenticating', function () {
+    $existing = User::factory()->create(['email' => 'nao-verificado@example.com', 'email_verified_at' => null]);
+
+    config(['services.google_login.client_id' => 'fake-google-id']);
+
+    $provider = Mockery::mock(SocialiteProviderContract::class);
+    $provider->shouldReceive('user')->andReturn(fakeSocialiteUser('google-777', 'nao-verificado@example.com'));
+    Socialite::shouldReceive('driver')->with('google_login')->andReturn($provider);
+
+    $this->get(route('oauth.google.callback'))
+        ->assertRedirect(route('login'))
+        ->assertSessionHasErrors('email');
+
+    $this->assertGuest();
+    expect($existing->fresh()->google_id)->toBeNull();
+    expect(User::where('email', 'nao-verificado@example.com')->count())->toBe(1);
+});
+
+test('a Google login with no email from the provider is refused, without creating or authenticating anyone', function () {
+    config(['services.google_login.client_id' => 'fake-google-id']);
+
+    $provider = Mockery::mock(SocialiteProviderContract::class);
+    $provider->shouldReceive('user')->andReturn(fakeSocialiteUser('google-no-email', ''));
+    Socialite::shouldReceive('driver')->with('google_login')->andReturn($provider);
+
+    $countBefore = User::count();
+
+    $this->get(route('oauth.google.callback'))
+        ->assertRedirect(route('login'))
+        ->assertSessionHasErrors('email');
+
+    $this->assertGuest();
+    expect(User::count())->toBe($countBefore);
+});
+
+test('a blocked user (status=inativo) can still log in via Google — the block is enforced after authentication, not at login', function () {
+    $existing = User::factory()->create([
+        'email' => 'bloqueado-google@example.com',
+        'email_verified_at' => now(),
+        'status' => 'inativo',
+    ]);
+
+    config(['services.google_login.client_id' => 'fake-google-id']);
+
+    $provider = Mockery::mock(SocialiteProviderContract::class);
+    $provider->shouldReceive('user')->andReturn(fakeSocialiteUser('google-blocked', 'bloqueado-google@example.com'));
+    Socialite::shouldReceive('driver')->with('google_login')->andReturn($provider);
+
+    $this->get(route('oauth.google.callback'));
+
+    $this->assertAuthenticatedAs($existing->fresh());
+
+    $this->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('Auth/AccountBlocked'));
+});
+
+test('a Google login for a member of a suspended clinic reaches the clinic-suspended screen on the next request', function () {
+    ['clinic' => $clinic] = setupSocialiteClinicContext();
+    $existing = User::factory()->create(['email' => 'clinica-suspensa-google@example.com', 'email_verified_at' => now()]);
+    $clinic->users()->attach($existing->id, ['role' => 'owner']);
+    $clinic->update(['status' => 'suspended']);
+
+    config(['services.google_login.client_id' => 'fake-google-id']);
+
+    $provider = Mockery::mock(SocialiteProviderContract::class);
+    $provider->shouldReceive('user')->andReturn(fakeSocialiteUser('google-suspended-clinic', 'clinica-suspensa-google@example.com'));
+    Socialite::shouldReceive('driver')->with('google_login')->andReturn($provider);
+
+    $this->get(route('oauth.google.callback'))->assertRedirect(route('dashboard'));
+
+    $this->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('Auth/ClinicSuspended'));
+});
+
+test('a Google login for a user with multiple clinics preserves the existing "first clinic" behavior', function () {
+    ['clinic' => $clinicA] = setupSocialiteClinicContext('-a');
+    ['clinic' => $clinicB] = setupSocialiteClinicContext('-b');
+    $existing = User::factory()->create(['email' => 'multi-clinica-google@example.com', 'email_verified_at' => now()]);
+    $clinicA->users()->attach($existing->id, ['role' => 'owner']);
+    $clinicB->users()->attach($existing->id, ['role' => 'professional']);
+
+    config(['services.google_login.client_id' => 'fake-google-id']);
+
+    $provider = Mockery::mock(SocialiteProviderContract::class);
+    $provider->shouldReceive('user')->andReturn(fakeSocialiteUser('google-multi-clinic', 'multi-clinica-google@example.com'));
+    Socialite::shouldReceive('driver')->with('google_login')->andReturn($provider);
+
+    $expectedClinicId = $existing->clinics()->first()->id;
+
+    $this->get(route('oauth.google.callback'))->assertRedirect(route('dashboard'));
+
+    expect(session('current_clinic_id'))->toBe($expectedClinicId);
 });
