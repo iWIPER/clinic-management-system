@@ -81,6 +81,11 @@ resource "aws_secretsmanager_secret_version" "google" {
   secret_string = jsonencode({
     GOOGLE_DRIVE_CLIENT_ID     = "CHANGE_ME"
     GOOGLE_DRIVE_CLIENT_SECRET = "CHANGE_ME"
+    # Login social (Socialite) - app OAuth separado do Drive acima, mesmo
+    # secret por conveniencia (ver config/services.php: 'google_login', com
+    # client_id/secret proprios, nao reaproveita os do Drive).
+    GOOGLE_LOGIN_CLIENT_ID     = "CHANGE_ME"
+    GOOGLE_LOGIN_CLIENT_SECRET = "CHANGE_ME"
   })
 
   lifecycle {

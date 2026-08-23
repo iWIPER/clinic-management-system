@@ -29,11 +29,17 @@ ECR_REPO_URL=$(terraform output -raw ecr_repository_url)
 ECS_CLUSTER=$(terraform output -raw ecs_cluster_name)
 WEB_SERVICE=$(terraform output -raw ecs_web_service_name)
 WORKER_SERVICE=$(terraform output -raw ecs_worker_service_name)
+GOOGLE_SECRET_ARN=$(terraform output -raw google_secret_arn)
 cd "${REPO_ROOT}"
 
 FAMILY_PREFIX="wildental-production"
 IMAGE_TAG="$(git -C "${REPO_ROOT}" rev-parse --short HEAD 2>/dev/null || echo nogit)-$(date +%Y%m%d%H%M%S)"
 IMAGE_URI="${ECR_REPO_URL}:${IMAGE_TAG}"
+
+# Login social com Google (Socialite) - nao-secreto, mesmo padrao do
+# FAMILY_PREFIX acima. Client ID/Secret vem do Secrets Manager via
+# GOOGLE_SECRET_ARN, nunca em texto aqui (ver register_new_revision).
+GOOGLE_LOGIN_REDIRECT_URI="https://www.wildental.com.br/login/google/callback"
 
 echo "==> Build da imagem: ${IMAGE_URI}"
 docker build -t "${IMAGE_URI}" "${REPO_ROOT}"
@@ -45,22 +51,48 @@ aws ecr get-login-password --region "${AWS_REGION}" \
 echo "==> Push da imagem"
 docker push "${IMAGE_URI}"
 
+# extra_env/extra_secrets sao arrays JSON opcionais (default "[]") de
+# {name,value} / {name,valueFrom} a fazer upsert na definicao atual - troca
+# qualquer entrada existente com o mesmo "name" e preserva todo o resto
+# (GOOGLE_DRIVE_*, DB_*, etc.) exatamente como veio da AWS. Sem extras
+# (worker/scheduler/migrate abaixo), o comportamento e identico ao de antes.
 register_new_revision() {
   local family="$1"
+  local extra_env="${2:-[]}"
+  local extra_secrets="${3:-[]}"
   local current_def
   current_def=$(aws ecs describe-task-definition --task-definition "${family}" --query 'taskDefinition' --output json)
 
   local new_def
-  new_def=$(echo "${current_def}" | jq --arg IMAGE "${IMAGE_URI}" '
+  new_def=$(echo "${current_def}" | jq \
+    --arg IMAGE "${IMAGE_URI}" \
+    --argjson EXTRA_ENV "${extra_env}" \
+    --argjson EXTRA_SECRETS "${extra_secrets}" '
     .containerDefinitions[0].image = $IMAGE
+    | .containerDefinitions[0].environment = (
+        ((.containerDefinitions[0].environment // []) | map(select(.name as $n | ($EXTRA_ENV | any(.name == $n)) | not)))
+        + $EXTRA_ENV
+      )
+    | .containerDefinitions[0].secrets = (
+        ((.containerDefinitions[0].secrets // []) | map(select(.name as $n | ($EXTRA_SECRETS | any(.name == $n)) | not)))
+        + $EXTRA_SECRETS
+      )
     | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
   ')
 
   aws ecs register-task-definition --cli-input-json "${new_def}" --query 'taskDefinition.taskDefinitionArn' --output text
 }
 
+WEB_EXTRA_ENV=$(jq -n --arg url "${GOOGLE_LOGIN_REDIRECT_URI}" '[
+  {name: "GOOGLE_LOGIN_REDIRECT_URI", value: $url}
+]')
+WEB_EXTRA_SECRETS=$(jq -n --arg arn "${GOOGLE_SECRET_ARN}" '[
+  {name: "GOOGLE_LOGIN_CLIENT_ID", valueFrom: ($arn + ":GOOGLE_LOGIN_CLIENT_ID::")},
+  {name: "GOOGLE_LOGIN_CLIENT_SECRET", valueFrom: ($arn + ":GOOGLE_LOGIN_CLIENT_SECRET::")}
+]')
+
 echo "==> Registrando nova revisao: web"
-WEB_TASK_DEF_ARN=$(register_new_revision "${FAMILY_PREFIX}-web")
+WEB_TASK_DEF_ARN=$(register_new_revision "${FAMILY_PREFIX}-web" "${WEB_EXTRA_ENV}" "${WEB_EXTRA_SECRETS}")
 
 echo "==> Registrando nova revisao: worker"
 WORKER_TASK_DEF_ARN=$(register_new_revision "${FAMILY_PREFIX}-worker")
