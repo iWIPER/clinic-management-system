@@ -175,6 +175,9 @@ locals {
     # config/services.php le isso via env() sem default - sem essa var o
     # OAuth do Google Drive quebra (redirect fica null).
     GOOGLE_DRIVE_REDIRECT_URI = "https://${var.www_domain}/auth/google/callback"
+    # Login social com Google (Socialite) - app OAuth separado do Drive
+    # acima, rota propria pra nao colidir com /auth/google/* do Drive.
+    GOOGLE_LOGIN_REDIRECT_URI = "https://${var.www_domain}/login/google/callback"
   }
 
   app_secrets = [
@@ -189,6 +192,8 @@ locals {
     { name = "STRIPE_WEBHOOK_SECRET", valueFrom = "${module.secrets.stripe_secret_arn}:STRIPE_WEBHOOK_SECRET::" },
     { name = "GOOGLE_DRIVE_CLIENT_ID", valueFrom = "${module.secrets.google_secret_arn}:GOOGLE_DRIVE_CLIENT_ID::" },
     { name = "GOOGLE_DRIVE_CLIENT_SECRET", valueFrom = "${module.secrets.google_secret_arn}:GOOGLE_DRIVE_CLIENT_SECRET::" },
+    { name = "GOOGLE_LOGIN_CLIENT_ID", valueFrom = "${module.secrets.google_secret_arn}:GOOGLE_LOGIN_CLIENT_ID::" },
+    { name = "GOOGLE_LOGIN_CLIENT_SECRET", valueFrom = "${module.secrets.google_secret_arn}:GOOGLE_LOGIN_CLIENT_SECRET::" },
   ]
 }
 
