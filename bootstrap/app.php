@@ -34,6 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'system-admin'   => \App\Http\Middleware\SystemAdmin::class,
             'affiliate'      => \App\Http\Middleware\EnsureAffiliate::class,
             'account-active' => \App\Http\Middleware\EnsureAccountIsActive::class,
+            'no-store'       => \App\Http\Middleware\PreventBrowserCaching::class,
         ]);
 
         // Webhooks são chamados por serviços externos, sem sessão/cookie
