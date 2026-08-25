@@ -2,17 +2,24 @@
 
 use App\Enums\ClinicalRecordStatus;
 use App\Models\Appointment;
-use App\Models\ClinicalEvolution;
 use App\Models\Clinic;
 use App\Models\ClinicalRecord;
-use App\Models\Consultation;
 use App\Models\Patient;
 use App\Models\Plan;
 use App\Models\Treatment;
 use App\Models\User;
-use App\Services\ClinicalRecordService;
 use Illuminate\Support\Carbon;
 
+/**
+ * Reescrito duas vezes: primeiro pra arquitetura pós-remoção de Consultas
+ * (ClinicalRecord passou a apontar pra appointment_id, não mais
+ * consultation_id); agora pra separação Atendimentos/ClinicalRecord —
+ * ClinicalRecordController perdeu index()/show() (viraram AttendanceController,
+ * Appointment-based, ver AttendanceTest.php) e ficou só com generatePdf(),
+ * usado por quem realmente precisa de ClinicalRecord (Financeiro/Pagamentos/
+ * PatientHubService). Aqui só testamos o que ainda é responsabilidade real
+ * deste model/controller: a FK appointment_id (nullOnDelete) e o PDF.
+ */
 function setupClinicalRecordContext(): array
 {
     $plan = Plan::create([
@@ -65,54 +72,46 @@ function setupClinicalRecordContext(): array
         'treatment_id' => $treatment->id,
         'start' => Carbon::now()->subHour(),
         'end' => Carbon::now(),
-        'status' => 'in_attendance',
-    ]);
-
-    $consultation = Consultation::create([
-        'clinic_id' => $clinic->id,
-        'patient_id' => $patient->id,
-        'professional_id' => $user->id,
-        'appointment_id' => $appointment->id,
-        'status' => 'em_atendimento',
-        'check_in_at' => Carbon::now()->subMinutes(45),
-        'started_at' => Carbon::now()->subMinutes(30),
-        'notes' => 'Paciente colaborativo.',
+        'status' => 'completed',
     ]);
 
     session(['current_clinic_id' => $clinic->id]);
 
-    return compact('user', 'clinic', 'patient', 'treatment', 'appointment', 'consultation');
+    return compact('user', 'clinic', 'patient', 'treatment', 'appointment');
 }
 
-test('creates clinical record when consultation is finished', function () {
-    ['user' => $user, 'consultation' => $consultation, 'treatment' => $treatment] = setupClinicalRecordContext();
+function createClinicalRecordFor(array $ctx, array $overrides = []): ClinicalRecord
+{
+    return ClinicalRecord::create(array_merge([
+        'clinic_id' => $ctx['clinic']->id,
+        'patient_id' => $ctx['patient']->id,
+        'professional_id' => $ctx['user']->id,
+        'appointment_id' => $ctx['appointment']->id,
+        'procedure_name' => 'Limpeza',
+        'procedure_category' => 'Preventiva',
+        'status' => ClinicalRecordStatus::Concluido,
+        'started_at' => Carbon::now()->subMinutes(30),
+        'finished_at' => Carbon::now(),
+        'duration_minutes' => 30,
+        'price' => 150.00,
+        'notes' => 'Finalizado com sucesso',
+    ], $overrides));
+}
 
-    $this->actingAs($user)
-        ->post(route('consultations.finish', $consultation), ['notes' => 'Finalizado com sucesso'])
-        ->assertRedirect();
+test('clinical record links to its appointment, not a consultation', function () {
+    $ctx = setupClinicalRecordContext();
 
-    $record = ClinicalRecord::first();
+    $record = createClinicalRecordFor($ctx);
 
-    expect($record)->not->toBeNull()
-        ->and($record->procedure_name)->toBe('Limpeza')
-        ->and($record->procedure_category)->toBe('Preventiva')
-        ->and($record->status)->toBe(ClinicalRecordStatus::Concluido)
-        ->and((float) $record->price)->toBe(150.0)
-        ->and($record->notes)->toBe('Finalizado com sucesso')
-        ->and($record->consultation_id)->toBe($consultation->id);
-
-    $consultation->refresh();
-    expect($consultation->status)->toBe('finalizado');
-
-    expect(ClinicalEvolution::where('consultation_id', $consultation->id)->count())->toBe(1);
+    expect($record->appointment_id)->toBe($ctx['appointment']->id)
+        ->and($record->appointment->id)->toBe($ctx['appointment']->id);
 });
 
-test('clinical record persists when appointment is deleted', function () {
-    ['appointment' => $appointment, 'consultation' => $consultation] = setupClinicalRecordContext();
+test('clinical record survives when its appointment is deleted (nullOnDelete)', function () {
+    $ctx = setupClinicalRecordContext();
+    $record = createClinicalRecordFor($ctx);
 
-    $record = app(ClinicalRecordService::class)->createFromConsultation($consultation);
-
-    $appointment->delete();
+    $ctx['appointment']->delete();
 
     $record->refresh();
     expect($record->appointment_id)->toBeNull()
@@ -120,46 +119,20 @@ test('clinical record persists when appointment is deleted', function () {
         ->and($record->procedure_name)->toBe('Limpeza');
 });
 
-test('clinical record is not duplicated on repeated finish', function () {
-    ['consultation' => $consultation] = setupClinicalRecordContext();
-
-    $service = app(ClinicalRecordService::class);
-    $first = $service->createFromConsultation($consultation);
-    $second = $service->createFromConsultation($consultation);
-
-    expect($first->id)->toBe($second->id)
-        ->and(ClinicalRecord::count())->toBe(1);
-});
-
 test('generates pdf for clinical record', function () {
     // Fase A.3: PDF agora é gravado no disco 's3' (privado) — fake evita
     // que o teste tente alcançar a AWS real.
     \Illuminate\Support\Facades\Storage::fake('s3');
-    ['user' => $user, 'clinic' => $clinic, 'consultation' => $consultation] = setupClinicalRecordContext();
+    $ctx = setupClinicalRecordContext();
+    $ctx['clinic']->update(['trade_name' => 'Sorriso Perfeito', 'slogan' => 'Excelência em odontologia']);
 
-    $clinic->update(['trade_name' => 'Sorriso Perfeito', 'slogan' => 'Excelência em odontologia']);
+    $record = createClinicalRecordFor($ctx);
 
-    $record = app(ClinicalRecordService::class)->createFromConsultation($consultation);
-
-    $this->actingAs($user)
+    $this->actingAs($ctx['user'])
         ->get(route('clinical-records.pdf', $record))
         ->assertOk()
         ->assertHeader('content-type', 'application/pdf');
 
     $record->refresh();
     expect($record->pdf_path)->not->toBeNull();
-});
-
-test('clinical records index is accessible with filters', function () {
-    ['user' => $user, 'patient' => $patient, 'consultation' => $consultation] = setupClinicalRecordContext();
-
-    app(ClinicalRecordService::class)->createFromConsultation($consultation);
-
-    $this->actingAs($user)
-        ->get(route('clinical-records.index', ['patient_id' => $patient->id]))
-        ->assertOk()
-        ->assertInertia(fn ($page) => $page
-            ->component('ClinicalRecords/Index')
-            ->has('records.data', 1)
-        );
 });

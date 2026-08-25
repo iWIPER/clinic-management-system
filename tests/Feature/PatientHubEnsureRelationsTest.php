@@ -57,7 +57,7 @@ function setupHubEnsureRelationsContext(): array
             'started_at' => $appointment->start, 'finished_at' => $appointment->end,
         ]);
         ProcedureExecution::create([
-            'clinic_id' => $clinic->id, 'consultation_id' => $consultation->id, 'treatment_id' => $treatment->id,
+            'clinic_id' => $clinic->id, 'appointment_id' => $appointment->id, 'treatment_id' => $treatment->id,
             'executed_at' => $appointment->end, 'price_charged' => 100,
         ]);
     }

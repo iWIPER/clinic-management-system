@@ -8,7 +8,6 @@ use App\Models\Budget;
 use App\Models\ClinicalEvolution;
 use App\Models\ClinicalRecord;
 use App\Models\Patient;
-use App\Models\PatientAnamnesis;
 use App\Models\PatientOdontogram;
 use App\Models\PatientPhoto;
 use App\Models\ProcedureExecution;
@@ -38,7 +37,6 @@ class PatientHubService
 
         return [
             'badges' => $this->badges($patient),
-            'clinicalAlerts' => $this->clinicalAlerts($patient),
             'summary' => [
                 'financial' => $this->financialSummary($patient),
                 'clinical' => $this->clinicalSummary($patient),
@@ -59,26 +57,24 @@ class PatientHubService
     }
 
     /**
-     * Fase B4: 'appointments.consultation.procedureExecutions.treatment' e
-     * 'consultations.professional/.appointment.treatment/.procedureExecutions.treatment'
-     * eram carregadas mas nunca acessadas em nenhum método desta classe —
-     * formatAppointment() (o único lugar que formata um Appointment) só lê
-     * ->treatment e ->professional; os demais usos de $patient->consultations
-     * são só count()/where()/contains() sobre a coleção base, sem tocar em
-     * relações aninhadas. 'consultations' (sem dot) continua carregada para
-     * esses agregados. Medido: 8 das 9 queries desse bloco eram descartadas.
+     * Appointment é a fonte de verdade da consulta (Agenda) — badges,
+     * resumo clínico e histórico de relacionamento usam $patient->appointments
+     * em vez de $patient->consultations (Consultation virou registro
+     * operacional interno de check-in, não obrigatório para existir consulta
+     * no histórico — ver clinicalSummary()/relationshipSummary() abaixo).
+     * 'anamnesis'/'evolutions' saíram: o antigo Prontuário (PatientAnamnesis)
+     * foi removido; evolutions (ClinicalEvolution) segue existindo mas não é
+     * mais lida por este hub — quem alimenta a Visão Geral hoje é
+     * PatientController::show() (prop evolutionsHub), direto.
      */
     private function ensureRelations(Patient $patient): void
     {
         $patient->loadMissing([
-            'anamnesis.updatedBy:id,name',
             'anamnesisInstances.professional:id,name',
             'odontogram.updatedBy:id,name',
             'appointments.treatment',
             'appointments.professional:id,name',
-            'consultations',
             'clinicalRecords.professional:id,name',
-            'evolutions.professional:id,name',
             'photos',
             'budgets.items.treatment',
             'responsibleProfessional:id,name,job_title',
@@ -134,10 +130,6 @@ class PatientHubService
             $badges[] = ['key' => 'treatment_active', 'label' => 'Tratamento em andamento', 'color' => 'blue'];
         }
 
-        if (count($this->clinicalAlerts($patient)) > 0) {
-            $badges[] = ['key' => 'clinical_alert', 'label' => 'Alerta clínico', 'color' => 'orange'];
-        }
-
         if (! empty($patient->convenio)) {
             $badges[] = ['key' => 'has_convenio', 'label' => 'Convênio', 'color' => 'indigo'];
         }
@@ -169,40 +161,6 @@ class PatientHubService
         }
 
         return $badges;
-    }
-
-    public function clinicalAlerts(Patient $patient): array
-    {
-        $anamnesis = $patient->anamnesis;
-        if (! $anamnesis) {
-            return [];
-        }
-
-        $alerts = [];
-
-        if ($anamnesis->alergias) {
-            $alerts[] = ['key' => 'allergy', 'label' => 'Alergia', 'detail' => $anamnesis->alergias, 'severity' => 'high'];
-        }
-        if ($anamnesis->hipertensao) {
-            $alerts[] = ['key' => 'hypertension', 'label' => 'Hipertensão', 'detail' => 'Paciente hipertenso', 'severity' => 'medium'];
-        }
-        if ($anamnesis->diabetes) {
-            $alerts[] = ['key' => 'diabetes', 'label' => 'Diabetes', 'detail' => 'Paciente diabético', 'severity' => 'medium'];
-        }
-        if ($anamnesis->gestante) {
-            $alerts[] = ['key' => 'pregnant', 'label' => 'Gestante', 'detail' => 'Paciente gestante', 'severity' => 'high'];
-        }
-        if ($anamnesis->hemorragia) {
-            $alerts[] = ['key' => 'bleeding', 'label' => 'Risco de hemorragia', 'detail' => 'Histórico de hemorragia', 'severity' => 'high'];
-        }
-        if ($anamnesis->cardiopatia) {
-            $alerts[] = ['key' => 'cardiac', 'label' => 'Cardiopatia', 'detail' => 'Paciente cardiopata', 'severity' => 'medium'];
-        }
-        if ($anamnesis->medicamentos_em_uso) {
-            $alerts[] = ['key' => 'medication', 'label' => 'Medicamentos em uso', 'detail' => $anamnesis->medicamentos_em_uso, 'severity' => 'low'];
-        }
-
-        return $alerts;
     }
 
     /**
@@ -279,12 +237,12 @@ class PatientHubService
 
     public function clinicalSummary(Patient $patient): array
     {
-        $completedConsultations = $patient->consultations->where('status', 'finalizado')->count();
+        $completedConsultations = $patient->appointments->where('status', 'completed')->count();
         $completedTreatments = $patient->clinicalRecords
             ->filter(fn ($r) => $r->status === ClinicalRecordStatus::Concluido)
             ->count();
         $activeTreatments = $patient->budgets->whereIn('status', ['aprovado', 'convertido'])->count()
-            + $patient->consultations->where('status', 'em_atendimento')->count();
+            + $patient->appointments->where('status', 'in_attendance')->count();
 
         $lastRecord = $patient->clinicalRecords->sortByDesc('finished_at')->first();
         $lastTooth = $this->lastTreatedTooth($patient);
@@ -342,11 +300,7 @@ class PatientHubService
 
         $reschedules = (int) $appointments->sum('reschedule_count');
 
-        $lastContact = collect([
-            $appointments->max('created_at'),
-            $patient->consultations->max('created_at'),
-            $patient->evolutions->max('recorded_at'),
-        ])->filter()->max();
+        $lastContact = $appointments->max('created_at');
 
         return [
             'attendances' => $completed,
@@ -616,19 +570,6 @@ class PatientHubService
                 return empty($subcats) || in_array($p->subcategoria, $subcats, true);
             })->map(fn ($p) => $this->formatDocument($p))->values();
 
-            if ($category === 'Anamneses' && $patient->anamnesis?->updated_at) {
-                $docs->prepend([
-                    'id' => 'anamnesis',
-                    'name' => 'Anamnese do paciente',
-                    'category' => 'Anamneses',
-                    'status' => 'assinado',
-                    'signed_by' => $patient->anamnesis->updatedBy?->name,
-                    'signed_at' => $patient->anamnesis->updated_at->toIso8601String(),
-                    'ip' => null,
-                    'hash' => null,
-                ]);
-            }
-
             $grouped[] = [
                 'category' => $category,
                 'documents' => $docs->all(),
@@ -856,7 +797,7 @@ class PatientHubService
 
     private function hasActiveTreatment(Patient $patient): bool
     {
-        return $patient->consultations->contains('status', 'em_atendimento')
+        return $patient->appointments->contains('status', 'in_attendance')
             || $patient->budgets->contains('status', 'convertido');
     }
 

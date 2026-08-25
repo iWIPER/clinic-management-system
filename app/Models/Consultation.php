@@ -31,14 +31,4 @@ class Consultation extends Model
     public function patient() { return $this->belongsTo(Patient::class); }
     public function professional() { return $this->belongsTo(User::class, 'professional_id'); }
     public function appointment() { return $this->belongsTo(Appointment::class); }
-
-    public function procedureExecutions()
-    {
-        return $this->hasMany(ProcedureExecution::class);
-    }
-
-    public function clinicalRecord()
-    {
-        return $this->hasOne(ClinicalRecord::class);
-    }
 }

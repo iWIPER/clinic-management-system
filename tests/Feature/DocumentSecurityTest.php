@@ -293,7 +293,9 @@ test('malicious html in a clinical evolution is stripped via the model, regardle
     session(['current_clinic_id' => $clinic->id]);
 
     $this->actingAs($user)
-        ->post(route('patients.prontuario.evolutions', $patient), [
+        ->post(route('patients.evolutions.store', $patient), [
+            'professional_id' => $user->id,
+            'recorded_at' => now()->toDateString(),
             'content' => '<p>Evolução normal</p><script>alert(1)</script><img src=x onerror=alert(2)>',
         ])
         ->assertRedirect();

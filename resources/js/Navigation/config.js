@@ -1,7 +1,6 @@
 import {
     CalendarDaysIcon,
     UsersIcon,
-    ClipboardDocumentCheckIcon,
     DocumentTextIcon,
     WrenchScrewdriverIcon,
     ArchiveBoxIcon,
@@ -36,7 +35,6 @@ export const navigation = [
         items: [
             { label: 'Agenda', route: 'appointments.index', match: '/appointments', icon: CalendarDaysIcon, emphasized: true, permission: null },
             { label: 'Pacientes', route: 'patients.index', match: '/patients', icon: UsersIcon, emphasized: true, permission: null },
-            { label: 'Consultas', route: 'consultations.index', match: '/consultations', icon: ClipboardDocumentCheckIcon, permission: null },
             { label: 'Atendimentos', route: 'clinical-records.index', match: '/clinical-records', icon: DocumentTextIcon, permission: null },
         ],
     },

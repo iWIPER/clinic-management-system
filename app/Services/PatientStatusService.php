@@ -11,14 +11,18 @@ class PatientStatusService
     /**
      * Return auto-status calculation data for a patient.
      * Returns null if no qualifying concluded procedure exists.
+     *
+     * Join direto procedure_executions <-> clinical_records via
+     * appointment_id (Consultation saiu do meio — deixou de ser exigida
+     * pra Procedimento existir; ambas as tabelas já apontam pro mesmo
+     * Appointment desde a migração consultation_id -> appointment_id).
      */
     public function getAutoStatusData(Patient $patient): ?array
     {
         $row = DB::table('procedure_executions as pe')
-            ->join('consultations as c', 'pe.consultation_id', '=', 'c.id')
-            ->join('clinical_records as cr', 'c.id', '=', 'cr.consultation_id')
+            ->join('clinical_records as cr', 'pe.appointment_id', '=', 'cr.appointment_id')
             ->join('treatments as t', 'pe.treatment_id', '=', 't.id')
-            ->where('c.patient_id', $patient->id)
+            ->where('cr.patient_id', $patient->id)
             ->where('cr.status', 'concluido')
             ->whereNotNull('t.inatividade_meses')
             ->whereNotNull('cr.finished_at')

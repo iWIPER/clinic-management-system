@@ -51,7 +51,6 @@ class AppointmentController extends Controller
                 'patient:id,nome,sobrenome,telefone,email',
                 'professional:id,name',
                 'chair:id,name,color',
-                'consultation:id,appointment_id,status',
                 'tags:id,name,color',
                 'appointmentReturn:id,appointment_id,due_date,reason,status',
             ])
@@ -305,7 +304,6 @@ class AppointmentController extends Controller
                 'patient:id,nome,sobrenome,telefone,email',
                 'professional:id,name',
                 'chair:id,name,color',
-                'consultation:id,appointment_id,status,check_in_at',
                 'tags:id,name,color',
                 'appointmentReturn:id,appointment_id,due_date,reason,status',
             ])

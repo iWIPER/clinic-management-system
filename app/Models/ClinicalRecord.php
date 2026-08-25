@@ -16,7 +16,6 @@ class ClinicalRecord extends Model
         'patient_id',
         'professional_id',
         'appointment_id',
-        'consultation_id',
         'procedure_name',
         'procedure_category',
         'status',
@@ -48,10 +47,5 @@ class ClinicalRecord extends Model
     public function appointment()
     {
         return $this->belongsTo(Appointment::class);
-    }
-
-    public function consultation()
-    {
-        return $this->belongsTo(Consultation::class);
     }
 }

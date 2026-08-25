@@ -172,11 +172,15 @@ class UserProfileService
             ? (clone $consultationsQuery)->distinct('patient_id')->count('patient_id')
             : null;
 
+        // ProcedureExecution aponta pra appointment_id (não mais
+        // consultation_id, ver migração consultation_id -> appointment_id) —
+        // conta atendimentos distintos deste profissional com pelo menos um
+        // procedimento registrado.
         $proceduresCount = $user->id
-            ? Consultation::query()
-                ->where('professional_id', $user->id)
-                ->whereHas('procedureExecutions')
-                ->count()
+            ? \App\Models\ProcedureExecution::query()
+                ->whereHas('appointment', fn ($q) => $q->where('professional_id', $user->id))
+                ->distinct('appointment_id')
+                ->count('appointment_id')
             : null;
 
         $documentsCount = ClinicalRecord::query()
