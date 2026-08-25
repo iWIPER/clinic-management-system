@@ -84,8 +84,13 @@ const settings = useAgendaSettings()
 // de 375 a 1280px. Continua um estado de UI comum (não persistido) — só o
 // valor INICIAL passou a depender da largura da tela; o botão de
 // recolher/expandir continua funcionando exatamente como antes em qualquer
-// tamanho.
-const showSidebar    = ref(typeof window === 'undefined' || window.innerWidth >= 1440)
+// tamanho. Esse chute só decide o estado no primeiro paint — quem resolve
+// se a sidebar convive em fluxo ou vira overlay é o CSS responsivo no
+// template (`lg:static`, mesmo breakpoint de 1024px de Sidebar.vue/
+// --shell-gutter), que reage a resize/rotação de tela sozinho, sem
+// listener. 1024 aqui não é valor novo — é o breakpoint `lg` que o resto
+// do projeto já usa.
+const showSidebar    = ref(typeof window === 'undefined' || window.innerWidth >= 1024)
 const showMiniCal    = ref(true)
 const showChairsSection = ref(true)
 const showAgendasSection = ref(true)
@@ -1058,7 +1063,14 @@ onUnmounted(() => {
      rounded-2xl/border-slate-200/shadow-sm/bg-white). Não é "card dentro
      de card": toolbar/sidebar/grade continuam divididos por borda interna
      simples, como já eram. -->
-<div class="flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm no-print" style="min-height: calc(100vh - var(--shell-top-h) - var(--shell-gutter))">
+<!-- `isolate`: contém o stacking context da Agenda inteira (toolbar,
+     sidebar, grade) num bloco só — nenhum z-index interno (mesmo um alto,
+     tipo o da coluna de horas) escapa mais pra cima da TopIsland/Sidebar
+     globais, sem precisar inflar nenhum z-index pra "vencer" uma disputa
+     que não devia nem existir. Tooltip e popover da grade continuam livres
+     pra aparecer por cima de tudo porque já são Teleport pra <body> (ver
+     mais abaixo) — ficam fora desta árvore, isolate não os afeta. -->
+<div class="isolate flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm no-print" style="min-height: calc(100vh - var(--shell-top-h) - var(--shell-gutter))">
 
   <!-- ── Barra de ferramentas ────────────────────────────────────────────── -->
   <div class="flex items-center gap-2 px-4 py-2 border-b bg-white rounded-t-2xl flex-shrink-0 flex-wrap no-print">
@@ -1266,10 +1278,24 @@ onUnmounted(() => {
   <!-- ── Corpo: sidebar + calendário ────────────────────────────────────── -->
   <div class="flex flex-1 overflow-hidden">
 
-    <!-- ── Sidebar esquerda ─────────────────────────────────────────────── -->
+    <!-- Backdrop do drawer — só existe abaixo de `lg` (1024px): a partir
+         daí a sidebar volta a viver em fluxo (`lg:static`) e não há nada
+         pra escurecer. Fecha ao clicar fora, mesmo padrão da sidebar de
+         navegação global (Components/Navigation/Sidebar.vue). -->
+    <transition enter-active-class="transition-opacity duration-200 ease-out" enter-from-class="opacity-0" enter-to-class="opacity-100"
+                leave-active-class="transition-opacity duration-150 ease-in" leave-from-class="opacity-100" leave-to-class="opacity-0">
+      <div v-if="showSidebar" @click="showSidebar = false" class="fixed inset-0 z-30 bg-slate-900/30 lg:hidden" />
+    </transition>
+
+    <!-- ── Sidebar esquerda ───────────────────────────────────────────────
+         Abaixo de `lg`: overlay fixo ancorado na viewport, não disputa
+         espaço com a grade (mesmo padrão estrutural da sidebar global). A
+         partir de `lg`: volta a ser a coluna em fluxo de sempre
+         (`lg:static`), preservando o comportamento atual — inclusive o
+         toggle podendo recolhê-la também no desktop. -->
     <transition name="agenda-sidebar">
       <div v-show="showSidebar"
-           class="w-80 flex-shrink-0 border-r border-slate-200 bg-slate-50/40 rounded-bl-2xl flex flex-col gap-3 p-3 overflow-y-auto overflow-x-hidden no-print">
+           class="fixed inset-y-0 left-0 z-40 w-80 bg-white rounded-none lg:static lg:inset-auto lg:z-auto lg:flex-shrink-0 lg:bg-slate-50/40 lg:rounded-bl-2xl border-r border-slate-200 flex flex-col gap-3 p-3 overflow-y-auto overflow-x-hidden no-print">
 
         <!-- Card: Calendário -->
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden shrink-0">
@@ -1515,9 +1541,14 @@ onUnmounted(() => {
 
       <!-- Cabeçalho dos dias/cadeiras (sticky) — em Dia + "Todas" as
            cadeiras, cada coluna vira um recurso (estilo Codental) em vez de
-           um dia; nas demais visões continua sendo um dia, como sempre. -->
+           um dia; nas demais visões continua sendo um dia, como sempre.
+           `top-0` mesmo (não `--shell-top-h`, que é calibrado pra zona
+           global da TopIsland — aqui embaixo da toolbar própria da Agenda
+           ele empurra o cabeçalho pra baixo à toa): quem impede este
+           sticky de pintar por cima da TopIsland ao rolar é o `isolate` no
+           card raiz (ver acima), não o offset vertical. -->
       <div class="flex bg-white border-b sticky top-0 z-20" style="min-width: max-content">
-        <div class="w-14 flex-shrink-0 border-r bg-white sticky left-0 z-40" />
+        <div class="w-14 flex-shrink-0 border-r bg-white sticky left-0 z-20" />
         <div v-for="col in gridColumns" :key="'hd-' + col.key"
              class="flex-1 text-center py-2.5 border-r last:border-r-0 transition-colors"
              :class="[
@@ -1561,8 +1592,12 @@ onUnmounted(() => {
       <div class="flex" :style="{ height: gridHeight + 'px', minWidth: 'max-content' }">
 
         <!-- Coluna de horas — sticky à esquerda: continua visível mesmo
-             rolando a grade horizontalmente (muitas cadeiras/dias). -->
-        <div class="w-14 flex-shrink-0 border-r bg-white relative sticky left-0 z-40">
+             rolando a grade horizontalmente (muitas cadeiras/dias). z-20
+             (não mais 40): só precisa ficar acima do conteúdo das colunas
+             de dia que passam por baixo dela ao rolar (bandas z-[1], cards
+             sem z próprio) — mesmo nível do cabeçalho sticky acima, que é
+             o mesmo elemento "congelado" visualmente. -->
+        <div class="w-14 flex-shrink-0 border-r bg-white relative sticky left-0 z-20">
           <div v-for="h in hours" :key="'th-' + h"
                class="absolute right-0 pr-2 text-[10px] text-slate-400 text-right tabular-nums"
                :class="h === gridStartHour ? 'translate-y-0.5' : '-translate-y-1/2'"
@@ -1636,15 +1671,15 @@ onUnmounted(() => {
             <span class="text-[9px] text-slate-300 px-1 select-none">almoço</span>
           </div>
 
-          <!-- Fora do horário de atendimento — banda cinza suave (área
+          <!-- Fora do horário de atendimento — banda vermelho pastel (área
                "sem novos agendamentos", não invisível — ver
                outOfHoursBandsFor). Sem regra obrigatória ativa, reflete só
                o horário do profissional selecionado (comportamento de
                sempre); com regra ativa, também funciona no modo "Todos" e
                varia por dia. -->
           <div v-for="(band, i) in outOfHoursBandsFor(col.day)" :key="'oh-' + i"
-               class="absolute left-0 right-0 pointer-events-none z-[1] bg-slate-200/70"
-               :class="band.pos === 'after' ? 'border-t-2 border-slate-300' : 'border-b-2 border-slate-300'"
+               class="absolute left-0 right-0 pointer-events-none z-[1] bg-red-50/70"
+               :class="band.pos === 'after' ? 'border-t border-slate-200' : 'border-b border-slate-200'"
                :style="band.style">
             <span class="block text-center text-[8px] font-semibold uppercase tracking-wide text-slate-400 pt-1">
               Fora do horário
@@ -1738,6 +1773,16 @@ onUnmounted(() => {
               @select="(appt, e) => openPopover(appt, e)" />
         </div>
       </div>
+
+      <!-- Rodapé visual — só fechamento do card, sem lógica: um respiro
+           depois da última faixa de horário pra grade não terminar colada
+           na borda inferior. Não entra no cálculo de gridHeight/pxPerMin
+           (fica FORA do container de altura fixa acima), então não mexe
+           com a altura das células nem com a linha do horário atual.
+           `min-width: max-content` acompanha a largura real da grade
+           (mesmo truque do cabeçalho/linhas acima), pra rolar junto com o
+           scroll horizontal em vez de cortar nas colunas mais à direita. -->
+      <div class="h-2 border-t border-slate-100 bg-white" style="min-width: max-content" />
     </div>
   </div>
 </div>
@@ -1946,11 +1991,6 @@ onUnmounted(() => {
               class="text-xs font-medium px-3 py-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors border border-blue-200 disabled:opacity-50 disabled:cursor-not-allowed">
         Check-in
       </button>
-      <Link v-if="activePopover.consultation"
-            :href="route('consultations.show', activePopover.consultation.id)"
-            class="text-center text-xs font-medium px-3 py-2 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 transition-colors border border-violet-200">
-        Prontuário
-      </Link>
       <button type="button" @click="openEditApptModal(activePopover)"
               class="text-center text-xs font-medium px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors border border-slate-200">
         Editar
