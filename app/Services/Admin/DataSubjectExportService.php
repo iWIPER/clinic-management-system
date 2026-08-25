@@ -20,13 +20,13 @@ use App\Models\FinancingActivityLog;
 use App\Models\FinancingProposal;
 use App\Models\FinancingSimulation;
 use App\Models\Patient;
-use App\Models\PatientAnamnesis;
 use App\Models\PatientInvite;
 use App\Models\PatientNote;
 use App\Models\PatientOdontogram;
 use App\Models\PatientPayment;
 use App\Models\PatientPhoto;
 use App\Models\PatientTreatment;
+use App\Models\ProcedureExecution;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Scopes\ClinicScope;
@@ -194,13 +194,26 @@ class DataSubjectExportService
             ->get();
         $addJson('agenda/agendamentos.json', $appointments->toArray());
 
-        // atendimentos
+        // atendimentos — Consultation é só registro operacional interno de
+        // check-in (Appointment é a fonte de verdade da consulta, ver
+        // 'agenda/agendamentos.json' acima); ProcedureExecution não é mais
+        // alcançado por dentro de Consultation (FK antiga consultation_id
+        // saiu), por isso vira um bloco próprio, ligado direto aos
+        // agendamentos do paciente.
         $consultations = Consultation::where('patient_id', $patient->id)
-            ->with(['professional:id,name', 'procedureExecutions.treatment:id,nome'])
+            ->with('professional:id,name')
             ->get();
         $addJson('atendimentos/consultas.json', $consultations->toArray());
 
-        // prontuário
+        $procedureExecutions = ProcedureExecution::whereIn('appointment_id', $appointments->pluck('id'))
+            ->with('treatment:id,nome')
+            ->get();
+        $addJson('atendimentos/procedimentos.json', $procedureExecutions->toArray());
+
+        // prontuário — módulo antigo (PatientAnamnesis/PatientProntuarioController)
+        // removido; evolução clínica e odontograma continuam existindo como
+        // funcionalidades próprias (não fazem mais parte de nenhum "módulo
+        // Prontuário"), export inalterado.
         $clinicalRecords = ClinicalRecord::where('patient_id', $patient->id)->with('professional:id,name')->get();
         $addJson('prontuario/prontuario.json', $clinicalRecords->toArray());
 
@@ -211,9 +224,6 @@ class DataSubjectExportService
         $addJson('prontuario/odontograma.json', $odontogram?->toArray() ?? []);
 
         // anamnese
-        $legacyAnamnesis = PatientAnamnesis::where('patient_id', $patient->id)->first();
-        $addJson('anamnese/anamnese-legado.json', $legacyAnamnesis?->toArray() ?? []);
-
         $instances = AnamnesisInstance::where('patient_id', $patient->id)
             ->with(['professional:id,name', 'answers', 'alerts'])
             ->get();

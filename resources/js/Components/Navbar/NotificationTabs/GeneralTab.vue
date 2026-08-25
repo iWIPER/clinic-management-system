@@ -32,11 +32,11 @@ const notifDotColor = {
 
     <div class="border-t px-4 py-2">
         <Link
-            :href="route('consultations.index')"
+            :href="route('appointments.index')"
             class="cursor-pointer text-xs font-medium text-emerald-600 transition-colors duration-[180ms] ease hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/35"
             @click="close"
         >
-            Ver consultas ativas →
+            Ver agenda →
         </Link>
     </div>
 </template>

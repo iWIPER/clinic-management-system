@@ -105,7 +105,7 @@ const hasSecondaryMeta = (task) => !!task.patient
                 </div>
 
                 <div v-if="hasSecondaryMeta(task)" class="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
-                    <Link v-if="task.patient" :href="route('patients.prontuario', task.patient.id)"
+                    <Link v-if="task.patient" :href="route('patients.show', task.patient.id)"
                           class="inline-flex items-center gap-1 font-medium text-slate-500 hover:text-emerald-700 hover:underline"
                           @click.stop>
                         <UserIcon class="h-3 w-3 shrink-0" />

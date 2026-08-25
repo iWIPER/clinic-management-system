@@ -33,7 +33,7 @@ const save = (updatedData) => {
     if (updatedData) teethData.value = updatedData
     isSaving.value   = true
     saveStatus.value = 'saving'
-    router.put(route('patients.prontuario.odontogram', props.patient.id), {
+    router.put(route('patients.odontogram.update', props.patient.id), {
         teeth_data: teethData.value,
     }, {
         preserveScroll: true,

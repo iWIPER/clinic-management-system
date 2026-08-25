@@ -7,7 +7,6 @@ use App\Models\AnamnesisTemplate;
 use App\Models\Convenio;
 use App\Models\DriveActivityLog;
 use App\Models\Patient;
-use App\Models\PatientAnamnesis;
 use App\Models\PatientOdontogram;
 use App\Services\Anamnesis\AnamnesisService;
 use App\Services\Documents\DocumentHubService;
@@ -288,10 +287,6 @@ class PatientController extends Controller
                 );
             },
             'hub'        => fn () => $hubService->build($patient),
-            'anamnesis'  => fn () => $patient->anamnesis ?? PatientAnamnesis::make([
-                'patient_id' => $patient->id,
-                'clinic_id'  => $patient->clinic_id,
-            ]),
             'odontogram' => fn () => $patient->odontogram ?? PatientOdontogram::make([
                 'patient_id' => $patient->id,
                 'clinic_id'  => $patient->clinic_id,

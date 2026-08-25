@@ -478,8 +478,8 @@ class BenchmarkSeeder extends Seeder
             // acumular centenas de milhares de objetos em memória.
             $summary[$id] = [
                 'clinic_id' => $appt['clinic_id'], 'patient_id' => $appt['patient_id'],
-                'professional_id' => $appt['professional_id'], 'status' => $status,
-                'finished_at' => $finished?->toDateTimeString(),
+                'professional_id' => $appt['professional_id'], 'appointment_id' => $apptId,
+                'status' => $status, 'finished_at' => $finished?->toDateTimeString(),
             ];
 
             if (count($rows) >= 5000) {
@@ -503,14 +503,14 @@ class BenchmarkSeeder extends Seeder
 
         $rows = [];
         $total = 0;
-        foreach ($consultations as $consultationId => $c) {
+        foreach ($consultations as $c) {
             if ($c['status'] !== 'finalizado') {
                 continue;
             }
             foreach (range(1, mt_rand(1, 3)) as $_) {
                 $rows[] = [
                     'id' => $this->id('procedure_executions'), 'clinic_id' => $c['clinic_id'],
-                    'consultation_id' => $consultationId,
+                    'appointment_id' => $c['appointment_id'],
                     'treatment_id' => $this->faker->randomElement($treatmentsByClinic[$c['clinic_id']]),
                     'executed_at' => $c['finished_at'], 'price_charged' => mt_rand(80, 3000),
                     'created_at' => $c['finished_at'], 'updated_at' => $this->now,
@@ -533,7 +533,7 @@ class BenchmarkSeeder extends Seeder
     {
         $rows = [];
         $total = 0;
-        foreach ($consultations as $consultationId => $c) {
+        foreach ($consultations as $c) {
             if ($c['status'] !== 'finalizado' || mt_rand(0, 100) >= 85) {
                 continue;
             }
@@ -541,7 +541,7 @@ class BenchmarkSeeder extends Seeder
             $started = $finishedAt->copy()->subMinutes(mt_rand(15, 60));
             $rows[] = [
                 'id' => $this->id('clinical_records'), 'clinic_id' => $c['clinic_id'], 'patient_id' => $c['patient_id'],
-                'professional_id' => $c['professional_id'], 'consultation_id' => $consultationId,
+                'professional_id' => $c['professional_id'], 'appointment_id' => $c['appointment_id'],
                 'procedure_name' => $this->faker->randomElement(['Restauração', 'Limpeza', 'Canal', 'Extração', 'Avaliação']),
                 'procedure_category' => $this->faker->randomElement(['Dentística', 'Ortodontia', 'Endodontia', 'Cirurgia']),
                 'status' => $this->pick(['concluido' => 90, 'cancelado' => 10]),

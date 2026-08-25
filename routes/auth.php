@@ -15,15 +15,20 @@ Route::middleware('guest')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])->name('register');
     Route::post('register', [RegisteredUserController::class, 'store']);
 
-    Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
+    Route::get('login', [AuthenticatedSessionController::class, 'create'])->middleware('no-store')->name('login');
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
     // Prefixo login/ (não auth/google/*) de propósito: /auth/google/* já é
     // usado pelo OAuth de Google Drive das clínicas (ver routes/web.php,
     // GoogleDriveController) — um app OAuth completamente diferente, e
     // colidiria em cima das mesmas URLs.
-    Route::get('login/google/redirect', [SocialiteController::class, 'redirectToGoogle'])->name('oauth.google.redirect');
-    Route::get('login/google/callback', [SocialiteController::class, 'handleGoogleCallback'])->name('oauth.google.callback');
+    //
+    // no-store nas 3 rotas abaixo: sem isso, o navegador pode restaurar
+    // /login (ou o próprio 302 do redirect) do back-forward cache ao voltar
+    // da tela do Google sem concluir o login, deixando o botão "Continuar
+    // com Google" sem reação até a aba ser recarregada.
+    Route::get('login/google/redirect', [SocialiteController::class, 'redirectToGoogle'])->middleware('no-store')->name('oauth.google.redirect');
+    Route::get('login/google/callback', [SocialiteController::class, 'handleGoogleCallback'])->middleware('no-store')->name('oauth.google.callback');
 
     Route::get('login/apple/redirect', [SocialiteController::class, 'redirectToApple'])->name('oauth.apple.redirect');
     // Sign in with Apple usa response_mode=form_post: a Apple envia o

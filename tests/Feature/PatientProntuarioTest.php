@@ -1,10 +1,21 @@
 <?php
 
-use App\Models\ClinicalEvolution;
-use App\Models\PatientAnamnesis;
 use App\Models\PatientOdontogram;
+use App\Models\ClinicalEvolution;
 use App\Models\User;
 
+/**
+ * Reescrito após a remoção completa do antigo módulo de Prontuário
+ * (PatientProntuarioController, PatientAnamnesis, página Prontuario/Show.vue
+ * — arquitetura aprovada). Duas das cinco coberturas originais não têm mais
+ * equivalente (a página em si e a geração de PDF do prontuário eram
+ * exclusivas do módulo removido) — as outras duas testavam funcionalidades
+ * que continuam existindo, só que através de rotas/controllers diferentes,
+ * já ativos antes desta mudança: PatientOdontogramController::update() (pra
+ * onde updateOdontogram() foi realocado) e PatientEvolutionController::store()
+ * (que já era o caminho real de criação de evolução usado pela Visão Geral —
+ * a rota antiga era um caminho paralelo/legado que nunca era chamado dali).
+ */
 function setupProntuarioContext(): array
 {
     $plan = \App\Models\Plan::create([
@@ -45,48 +56,13 @@ function setupProntuarioContext(): array
     return compact('user', 'clinic', 'patient');
 }
 
-test('prontuario page is accessible', function () {
+test('can register clinical evolution via the patient page (PatientEvolutionController)', function () {
     ['user' => $user, 'patient' => $patient] = setupProntuarioContext();
 
     $this->actingAs($user)
-        ->get(route('patients.prontuario', $patient))
-        ->assertOk()
-        ->assertInertia(fn ($page) => $page
-            ->component('Prontuario/Show')
-            ->has('patient')
-            ->has('anamnesis')
-            ->has('odontogram')
-        );
-});
-
-test('can save anamnesis', function () {
-    ['user' => $user, 'patient' => $patient] = setupProntuarioContext();
-
-    $this->actingAs($user)
-        ->put(route('patients.prontuario.anamnesis', $patient), [
-            'queixa_principal' => 'Dor no dente 36',
-            'alergias' => 'Penicilina',
-            'hipertensao' => true,
-            'gestante' => false,
-            'diabetes' => false,
-            'cardiopatia' => false,
-            'hemorragia' => false,
-            'fumo' => false,
-            'alcool' => false,
-        ])
-        ->assertRedirect();
-
-    $anamnesis = PatientAnamnesis::where('patient_id', $patient->id)->first();
-    expect($anamnesis)->not->toBeNull()
-        ->and($anamnesis->queixa_principal)->toBe('Dor no dente 36')
-        ->and($anamnesis->hipertensao)->toBeTrue();
-});
-
-test('can register clinical evolution', function () {
-    ['user' => $user, 'patient' => $patient] = setupProntuarioContext();
-
-    $this->actingAs($user)
-        ->post(route('patients.prontuario.evolutions', $patient), [
+        ->post(route('patients.evolutions.store', $patient), [
+            'professional_id' => $user->id,
+            'recorded_at' => now()->toDateString(),
             'content' => "Paciente sem dor.\nRealizada limpeza.\nOrientações fornecidas.",
         ])
         ->assertRedirect();
@@ -94,14 +70,14 @@ test('can register clinical evolution', function () {
     expect(ClinicalEvolution::where('patient_id', $patient->id)->count())->toBe(1);
 });
 
-test('can save odontogram', function () {
+test('can save odontogram via PatientOdontogramController::update (realocado do antigo Prontuário)', function () {
     ['user' => $user, 'patient' => $patient] = setupProntuarioContext();
 
     $teethData = PatientOdontogram::defaultTeethData();
     $teethData['36']['status'] = 'cariado';
 
     $this->actingAs($user)
-        ->put(route('patients.prontuario.odontogram', $patient), [
+        ->put(route('patients.odontogram.update', $patient), [
             'teeth_data' => $teethData,
             'notes' => 'Cárie no 36',
         ])
@@ -111,20 +87,12 @@ test('can save odontogram', function () {
     expect($odontogram->teeth_data['36']['status'])->toBe('cariado');
 });
 
-test('generates prontuario pdf', function () {
-    // Fase A.3: PDF agora é gravado no disco 's3' (privado) — fake evita
-    // que o teste tente alcançar a AWS real.
-    \Illuminate\Support\Facades\Storage::fake('s3');
+test('the old prontuario routes no longer exist', function () {
     ['user' => $user, 'patient' => $patient] = setupProntuarioContext();
 
-    PatientAnamnesis::create([
-        'clinic_id' => $patient->clinic_id,
-        'patient_id' => $patient->id,
-        'queixa_principal' => 'Avaliação inicial',
-    ]);
-
-    $this->actingAs($user)
-        ->get(route('patients.prontuario.pdf', $patient))
-        ->assertOk()
-        ->assertHeader('content-type', 'application/pdf');
+    expect(\Illuminate\Support\Facades\Route::has('patients.prontuario'))->toBeFalse();
+    expect(\Illuminate\Support\Facades\Route::has('patients.prontuario.anamnesis'))->toBeFalse();
+    expect(\Illuminate\Support\Facades\Route::has('patients.prontuario.evolutions'))->toBeFalse();
+    expect(\Illuminate\Support\Facades\Route::has('patients.prontuario.odontogram'))->toBeFalse();
+    expect(\Illuminate\Support\Facades\Route::has('patients.prontuario.pdf'))->toBeFalse();
 });

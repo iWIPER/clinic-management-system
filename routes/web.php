@@ -229,6 +229,7 @@ Route::middleware(['auth', 'verified', 'account-active'])->group(function () {
 
         // Odontograma — página exclusiva
         Route::get('/patients/{patient}/odontogram', [\App\Http\Controllers\PatientOdontogramController::class, 'show'])->name('patients.odontogram');
+        Route::put('/patients/{patient}/odontogram', [\App\Http\Controllers\PatientOdontogramController::class, 'update'])->name('patients.odontogram.update');
 
         // Tratamentos (histórico odontológico por paciente — aba "Tratamentos" na ficha do paciente)
         Route::post('/patients/{patient}/treatments', [\App\Http\Controllers\PatientTreatmentController::class, 'store'])->name('patients.treatments.store');
@@ -252,13 +253,6 @@ Route::middleware(['auth', 'verified', 'account-active'])->group(function () {
         Route::post('/patients/{patient}/evolutions/photos/{photo}/retry', [\App\Http\Controllers\PatientEvolutionController::class, 'retryPhoto'])->name('patients.evolutions.photos.retry');
         Route::post('/patients/{patient}/evolutions/{evolution}/signature', [\App\Http\Controllers\PatientEvolutionSignatureController::class, 'store'])->name('patients.evolutions.signature.store');
 
-        // Prontuário odontológico
-        Route::get('/patients/{patient}/prontuario', [\App\Http\Controllers\PatientProntuarioController::class, 'show'])->name('patients.prontuario');
-        Route::put('/patients/{patient}/prontuario/anamnesis', [\App\Http\Controllers\PatientProntuarioController::class, 'updateAnamnesis'])->name('patients.prontuario.anamnesis');
-        Route::post('/patients/{patient}/prontuario/evolutions', [\App\Http\Controllers\PatientProntuarioController::class, 'storeEvolution'])->name('patients.prontuario.evolutions');
-        Route::put('/patients/{patient}/prontuario/odontogram', [\App\Http\Controllers\PatientProntuarioController::class, 'updateOdontogram'])->name('patients.prontuario.odontogram');
-        Route::get('/patients/{patient}/prontuario/pdf', [\App\Http\Controllers\PatientProntuarioController::class, 'generatePdf'])->name('patients.prontuario.pdf');
-
         // Agenda (Agendamentos)
         Route::get('/appointments', [\App\Http\Controllers\AppointmentController::class, 'index'])->name('appointments.index');
         Route::get('/appointments/create', [\App\Http\Controllers\AppointmentController::class, 'create'])->name('appointments.create');
@@ -275,9 +269,16 @@ Route::middleware(['auth', 'verified', 'account-active'])->group(function () {
         Route::put('/chairs/{chair}', [\App\Http\Controllers\ChairController::class, 'update'])->name('chairs.update');
         Route::delete('/chairs/{chair}', [\App\Http\Controllers\ChairController::class, 'destroy'])->name('chairs.destroy');
 
-        // Histórico de atendimentos (registros permanentes)
-        Route::get('/clinical-records', [\App\Http\Controllers\ClinicalRecordController::class, 'index'])->name('clinical-records.index');
-        Route::get('/clinical-records/{clinicalRecord}', [\App\Http\Controllers\ClinicalRecordController::class, 'show'])->name('clinical-records.show');
+        // Atendimentos — histórico dos agendamentos (Appointment), não uma
+        // tela de procedimentos. Mesmas URLs/nomes de rota de antes (evita
+        // mexer em navegação), mas agora servidas por AttendanceController;
+        // ClinicalRecordController fica só com o PDF de procedimento, usado
+        // por outros fluxos (Financeiro/Pagamentos), não por esta tela.
+        Route::get('/clinical-records', [\App\Http\Controllers\AttendanceController::class, 'index'])->name('clinical-records.index');
+        // /export precisa vir ANTES de /{appointment} — senão "export" seria
+        // interpretado como um id de agendamento pela rota de baixo.
+        Route::get('/clinical-records/export', [\App\Http\Controllers\AttendanceController::class, 'export'])->name('clinical-records.export');
+        Route::get('/clinical-records/{appointment}', [\App\Http\Controllers\AttendanceController::class, 'show'])->name('clinical-records.show');
         Route::get('/clinical-records/{clinicalRecord}/pdf', [\App\Http\Controllers\ClinicalRecordController::class, 'generatePdf'])->name('clinical-records.pdf');
 
         // Configurações da clínica
@@ -304,14 +305,6 @@ Route::middleware(['auth', 'verified', 'account-active'])->group(function () {
         Route::put('/clinic-settings/convenios/{convenio}', [\App\Http\Controllers\ConvenioController::class, 'update'])->name('clinic-settings.convenios.update');
         Route::post('/clinic-settings/convenios/{convenio}/toggle', [\App\Http\Controllers\ConvenioController::class, 'toggle'])->name('clinic-settings.convenios.toggle');
 
-        // Consultas (fluxo de atendimento)
-        Route::get('/consultations', [\App\Http\Controllers\ConsultationController::class, 'index'])->name('consultations.index');
-        Route::get('/consultations/{consultation}', [\App\Http\Controllers\ConsultationController::class, 'show'])->name('consultations.show');
-        Route::post('/consultations/{appointment}/check-in', [\App\Http\Controllers\ConsultationController::class, 'checkIn'])->name('consultations.check-in');
-        Route::post('/consultations/{consultation}/start', [\App\Http\Controllers\ConsultationController::class, 'start'])->name('consultations.start');
-        Route::post('/consultations/{consultation}/finish', [\App\Http\Controllers\ConsultationController::class, 'finish'])->name('consultations.finish');
-        Route::put('/consultations/{consultation}', [\App\Http\Controllers\ConsultationController::class, 'update'])->name('consultations.update');
-        Route::post('/consultations/{consultation}/add-execution', [\App\Http\Controllers\ConsultationController::class, 'addExecution'])->name('consultations.add-execution');
         // Procedimentos / Catálogo de Tratamentos
         Route::get('/treatments', [\App\Http\Controllers\TreatmentController::class, 'index'])->name('treatments.index');
         Route::get('/treatments/create', [\App\Http\Controllers\TreatmentController::class, 'create'])->name('treatments.create');

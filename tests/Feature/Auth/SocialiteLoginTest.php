@@ -45,6 +45,30 @@ test('the Apple OAuth redirect route 404s when Apple login is not configured', f
     $this->get(route('oauth.apple.redirect'))->assertNotFound();
 });
 
+test('the Google OAuth redirect route is sent with Cache-Control: no-store, so the browser never restores it frozen from bfcache after the user comes back from Google', function () {
+    config(['services.google_login.client_id' => 'fake-google-id']);
+
+    $provider = Mockery::mock(SocialiteProviderContract::class);
+    $provider->shouldReceive('redirect')->andReturn(redirect('https://accounts.google.com/o/oauth2/auth'));
+    Socialite::shouldReceive('driver')->with('google_login')->andReturn($provider);
+
+    $cacheControl = $this->get(route('oauth.google.redirect'))->headers->get('Cache-Control');
+
+    expect($cacheControl)->toContain('no-store');
+});
+
+test('the Google OAuth callback route is sent with Cache-Control: no-store', function () {
+    config(['services.google_login.client_id' => 'fake-google-id']);
+
+    $provider = Mockery::mock(SocialiteProviderContract::class);
+    $provider->shouldReceive('user')->andReturn(fakeSocialiteUser('google-nostore', 'nostore@example.com'));
+    Socialite::shouldReceive('driver')->with('google_login')->andReturn($provider);
+
+    $cacheControl = $this->get(route('oauth.google.callback'))->headers->get('Cache-Control');
+
+    expect($cacheControl)->toContain('no-store');
+});
+
 test('a first-time Google login creates the account and signs the user in', function () {
     config(['services.google_login.client_id' => 'fake-google-id']);
 

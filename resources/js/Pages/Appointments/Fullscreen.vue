@@ -95,6 +95,11 @@ const editingChair   = ref(null)
 // abaixo de ~1024px a semana completa continua exigindo rolagem horizontal
 // mesmo com o painel recolhido — aceito como Desktop/Tablet-oriented (ver
 // relatório da R5); o Index.vue já cobre a experiência ideal de celular.
+// 1280 aqui é só o chute inicial (decisão da R5, mantida). Quem decide se
+// o painel convive em fluxo ou vira overlay é o CSS responsivo no
+// template (`lg:static`, breakpoint 1024px), que reage a resize/rotação
+// sozinho — então mesmo abaixo de 1280 o painel nunca mais espreme a
+// grade, só passa a abrir como drawer.
 const showSidebar        = ref(typeof window === 'undefined' || window.innerWidth >= 1280)
 const showMiniCal        = ref(true)
 // Dia destacado na grade e no mini-calendário (fullscreen é sempre
@@ -836,9 +841,16 @@ function apptScheduleNotice(appt) {
        sidebar da Agenda, que é funcional (filtros de Cadeiras/Agendas). -->
   <div class="flex flex-1 overflow-hidden">
 
+    <!-- Backdrop do drawer — só existe abaixo de `lg` (1024px), mesmo
+         padrão de Index.vue/Sidebar.vue. -->
+    <transition enter-active-class="transition-opacity duration-200 ease-out" enter-from-class="opacity-0" enter-to-class="opacity-100"
+                leave-active-class="transition-opacity duration-150 ease-in" leave-from-class="opacity-100" leave-to-class="opacity-0">
+      <div v-if="showSidebar" @click="showSidebar = false" class="fixed inset-0 z-30 bg-slate-900/30 lg:hidden" />
+    </transition>
+
     <transition name="agenda-sidebar">
     <div v-show="showSidebar"
-         class="w-80 flex-shrink-0 border-r border-slate-200 bg-slate-50/40 rounded-bl-2xl flex flex-col gap-3 p-3 overflow-y-auto overflow-x-hidden">
+         class="fixed inset-y-0 left-0 z-40 w-80 bg-white rounded-none lg:static lg:inset-auto lg:z-auto lg:flex-shrink-0 lg:bg-slate-50/40 lg:rounded-bl-2xl border-r border-slate-200 flex flex-col gap-3 p-3 overflow-y-auto overflow-x-hidden">
 
       <!-- Card: Calendário -->
       <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden shrink-0">
@@ -1085,13 +1097,13 @@ function apptScheduleNotice(appt) {
              class="absolute left-0 right-0 pointer-events-none z-[1] bg-slate-50/70 border-y border-slate-200/40"
              :style="lunchBandStyle" />
 
-        <!-- Fora do horário de atendimento — banda cinza suave. Sem regra
-             obrigatória ativa, reflete só o horário do profissional
+        <!-- Fora do horário de atendimento — banda vermelho pastel. Sem
+             regra obrigatória ativa, reflete só o horário do profissional
              selecionado (comportamento de sempre); com regra ativa, também
              funciona no modo "Todos" e varia por dia. -->
         <div v-for="(band, i) in outOfHoursBandsFor(day)" :key="'foh-' + i"
-             class="absolute left-0 right-0 pointer-events-none z-[1] bg-slate-200/70"
-             :class="band.pos === 'after' ? 'border-t-2 border-slate-300' : 'border-b-2 border-slate-300'"
+             class="absolute left-0 right-0 pointer-events-none z-[1] bg-red-50/70"
+             :class="band.pos === 'after' ? 'border-t border-slate-200' : 'border-b border-slate-200'"
              :style="band.style">
           <span class="block text-center text-[8px] font-semibold uppercase tracking-wide text-slate-400 pt-1">
             Fora do horário
@@ -1172,6 +1184,11 @@ function apptScheduleNotice(appt) {
             @select="(appt, e) => openPopover(appt, e)" />
       </div>
     </div>
+
+    <!-- Rodapé visual — mesmo fechamento de Index.vue, sem lógica: respiro
+         depois da última faixa de horário. Fica fora do container de
+         altura fixa da grade, não mexe em cálculo de horário/scroll. -->
+    <div class="h-2 border-t border-slate-100 bg-white" style="min-width: max-content" />
   </div>
   </div>
 </div>
@@ -1358,11 +1375,6 @@ function apptScheduleNotice(appt) {
               class="text-xs font-medium px-3 py-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
         Check-in
       </button>
-      <Link v-if="activePopover.consultation"
-            :href="route('consultations.show', activePopover.consultation.id)"
-            class="text-center text-xs font-medium px-3 py-2 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 transition-colors">
-        Prontuário
-      </Link>
       <button type="button" @click="openEditApptModal(activePopover)"
               class="text-center text-xs font-medium px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors">
         Editar

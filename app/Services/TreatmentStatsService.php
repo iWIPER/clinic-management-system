@@ -11,7 +11,7 @@ class TreatmentStatsService
     public function forTreatment(Treatment $treatment): array
     {
         $executions = ProcedureExecution::where('treatment_id', $treatment->id)
-            ->with('consultation:id,started_at,finished_at');
+            ->with('appointment.consultation:id,appointment_id,started_at,finished_at');
 
         $executionCount = (clone $executions)->count();
         $executionRevenue = (float) (clone $executions)->sum('price_charged');
@@ -33,10 +33,14 @@ class TreatmentStatsService
         $avgPracticed = $executionCount > 0 ? $executionRevenue / $executionCount : 0;
 
         $durations = ProcedureExecution::where('treatment_id', $treatment->id)
-            ->with('consultation:id,started_at,finished_at')
+            ->with('appointment.consultation:id,appointment_id,started_at,finished_at')
             ->get()
             ->map(function ($exec) {
-                $c = $exec->consultation;
+                // Consultation continua sendo o registro operacional que tem
+                // os timestamps reais de atendimento (start/end do Appointment
+                // são só o horário AGENDADO) — só que agora é alcançada via
+                // Appointment, não mais direto do ProcedureExecution.
+                $c = $exec->appointment?->consultation;
                 if ($c?->started_at && $c?->finished_at) {
                     return max(1, $c->started_at->diffInMinutes($c->finished_at));
                 }

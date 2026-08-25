@@ -70,4 +70,31 @@ class PatientOdontogramController extends Controller
             'initialPhotoId'    => $request->integer('photo_id') ?: null,
         ]);
     }
+
+    // Realocado de PatientProntuarioController::updateOdontogram() — a
+    // rota antiga (patients.prontuario.odontogram) morreu junto com o
+    // módulo de Prontuário, mas a própria página de Odontograma (esta
+    // aqui) sempre foi quem a chamava; comportamento idêntico, só o dono
+    // do endpoint mudou.
+    public function update(Request $request, Patient $patient)
+    {
+        $this->authorize('update', $patient);
+
+        $validated = $request->validate([
+            'teeth_data' => 'required|array',
+            'notes' => 'nullable|string',
+        ]);
+
+        PatientOdontogram::updateOrCreate(
+            ['patient_id' => $patient->id],
+            [
+                'clinic_id' => $patient->clinic_id,
+                'teeth_data' => $validated['teeth_data'],
+                'notes' => $validated['notes'] ?? null,
+                'updated_by_id' => auth()->id(),
+            ]
+        );
+
+        return back()->with('success', 'Odontograma atualizado.');
+    }
 }

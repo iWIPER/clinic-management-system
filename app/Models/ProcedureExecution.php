@@ -12,7 +12,7 @@ class ProcedureExecution extends Model
 
     protected $fillable = [
         'clinic_id',
-        'consultation_id',
+        'appointment_id',
         'treatment_id',
         'executed_at',
         'price_charged',
@@ -24,6 +24,6 @@ class ProcedureExecution extends Model
         'price_charged' => 'decimal:2',
     ];
 
-    public function consultation() { return $this->belongsTo(Consultation::class); }
+    public function appointment() { return $this->belongsTo(Appointment::class); }
     public function treatment() { return $this->belongsTo(Treatment::class); }
 }

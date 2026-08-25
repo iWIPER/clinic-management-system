@@ -21,6 +21,12 @@ function setupLoginContext(): array
     return compact('plan', 'clinic');
 }
 
+test('the login page is sent with Cache-Control: no-store, so the browser never restores it frozen from bfcache', function () {
+    $cacheControl = $this->get(route('login'))->headers->get('Cache-Control');
+
+    expect($cacheControl)->toContain('no-store');
+});
+
 test('a user with valid credentials is authenticated and redirected to the dashboard', function () {
     ['clinic' => $clinic] = setupLoginContext();
     $user = User::factory()->create(['email_verified_at' => now(), 'password' => bcrypt('senha-correta')]);

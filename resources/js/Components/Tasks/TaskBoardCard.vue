@@ -113,7 +113,7 @@ function onDragStart(e) {
         </button>
 
         <div v-if="task.patient" class="text-[11px] text-slate-400">
-            <Link :href="route('patients.prontuario', task.patient.id)"
+            <Link :href="route('patients.show', task.patient.id)"
                   class="inline-flex items-center gap-1 font-medium text-slate-500 hover:text-emerald-700 hover:underline"
                   @click.stop>
                 <UserIcon class="h-3 w-3 shrink-0" />

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import SummaryCards from '@/Components/PatientHub/SummaryCards.vue'
+import ConsultationHistoryCard from '@/Components/Patient/ConsultationHistoryCard.vue'
 import OdontogramChart from '@/Components/Prontuario/OdontogramChart.vue'
 import OdontogramPreviewModal from '@/Components/Prontuario/OdontogramPreviewModal.vue'
 import InfoPopover from '@/Components/UI/InfoPopover.vue'
@@ -172,26 +172,28 @@ const documentoPrincipal = computed(() => {
             </section>
         </div>
 
-        <!-- Dados administrativos -->
-        <section class="rounded-xl border border-slate-200 p-4 sm:p-5">
-            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">Dados administrativos</p>
-            <dl class="grid sm:grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                <div class="flex items-baseline justify-between gap-4"><dt class="text-slate-500 shrink-0">Código interno</dt><dd class="text-right font-mono">{{ codigoInterno }}</dd></div>
-                <div class="flex items-baseline justify-between gap-4"><dt class="text-slate-500 shrink-0">Paciente desde</dt><dd class="text-right">{{ fmtDate(patient.created_at) || '—' }}</dd></div>
-                <div class="flex items-baseline justify-between gap-4">
-                    <dt class="text-slate-500 shrink-0">Última atualização</dt>
-                    <dd class="text-right">{{ fmtDateTime(patient.updated_at) || '—' }}<span v-if="patient.updated_by" class="text-slate-400"> · {{ patient.updated_by.name }}</span></dd>
-                </div>
-                <div class="flex items-baseline justify-between gap-4"><dt class="text-slate-500 shrink-0">Cadastrado por</dt><dd class="text-right">{{ patient.created_by?.name || '—' }}</dd></div>
-                <div class="flex items-baseline justify-between gap-4"><dt class="text-slate-500 shrink-0">Origem</dt><dd class="text-right">{{ ORIGEM_LABELS[patient.origem] || '—' }}</dd></div>
-                <div class="flex items-baseline justify-between gap-4"><dt class="text-slate-500 shrink-0">Tratamentos concluídos</dt><dd class="text-right font-medium">{{ hub?.summary?.clinical?.treatments_completed ?? 0 }}</dd></div>
-            </dl>
-        </section>
+        <!-- Administrativo + Consultas, lado a lado (mesma proporção da
+             primeira linha) — Histórico de Consultas não repete a próxima
+             consulta (já mostrada em Próximas Ações na sidebar): só
+             completed/cancelled/no_show, ver ConsultationHistoryCard. -->
+        <div class="grid md:grid-cols-2 gap-6 items-start">
+            <section class="rounded-xl border border-slate-200 p-4 sm:p-5">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">Dados administrativos</p>
+                <dl class="space-y-1.5 text-sm">
+                    <div class="flex items-baseline justify-between gap-4"><dt class="text-slate-500 shrink-0">Código interno</dt><dd class="text-right font-mono">{{ codigoInterno }}</dd></div>
+                    <div class="flex items-baseline justify-between gap-4"><dt class="text-slate-500 shrink-0">Paciente desde</dt><dd class="text-right">{{ fmtDate(patient.created_at) || '—' }}</dd></div>
+                    <div class="flex items-baseline justify-between gap-4">
+                        <dt class="text-slate-500 shrink-0">Última atualização</dt>
+                        <dd class="text-right">{{ fmtDateTime(patient.updated_at) || '—' }}<span v-if="patient.updated_by" class="text-slate-400"> · {{ patient.updated_by.name }}</span></dd>
+                    </div>
+                    <div class="flex items-baseline justify-between gap-4"><dt class="text-slate-500 shrink-0">Cadastrado por</dt><dd class="text-right">{{ patient.created_by?.name || '—' }}</dd></div>
+                    <div class="flex items-baseline justify-between gap-4"><dt class="text-slate-500 shrink-0">Origem</dt><dd class="text-right">{{ ORIGEM_LABELS[patient.origem] || '—' }}</dd></div>
+                    <div class="flex items-baseline justify-between gap-4"><dt class="text-slate-500 shrink-0">Tratamentos concluídos</dt><dd class="text-right font-medium">{{ hub?.summary?.clinical?.treatments_completed ?? 0 }}</dd></div>
+                </dl>
+            </section>
 
-        <!-- Resumo Financeiro -->
-        <section v-if="hub?.summary">
-            <SummaryCards :summary="hub.summary" />
-        </section>
+            <ConsultationHistoryCard :consultations="hub?.consultations" />
+        </div>
 
         <!-- Indicadores (sempre visíveis) -->
         <section v-if="hub?.badges?.length">
